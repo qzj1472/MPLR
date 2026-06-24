@@ -1,0 +1,80 @@
+{
+  "options": {
+    "prefer_douyin_app": false
+  },
+  "cookies": {
+    "douyin": "",
+    "kuaishou": "",
+    "tiktok": "",
+    "huya": "",
+    "douyu": "",
+    "yy": "",
+    "bilibili": "",
+    "xhs": "",
+    "bigo": "",
+    "blued": "",
+    "sooplive": "",
+    "netease": "",
+    "qiandurebo": "",
+    "pandatv": "",
+    "maoerfm": "",
+    "winktv": "",
+    "flextv": "",
+    "look": "",
+    "twitcasting": "",
+    "baidu": "",
+    "weibo": "",
+    "kugou": "",
+    "twitch": "",
+    "liveme": "",
+    "huajiao": "",
+    "liuxing": "",
+    "showroom": "",
+    "acfun": "",
+    "changliao": "",
+    "yinbo": "",
+    "yingke": "",
+    "zhihu": "",
+    "chzzk": "",
+    "haixiu": "",
+    "vvxqiu": "",
+    "17live": "",
+    "langlive": "",
+    "pplive": "",
+    "6room": "",
+    "lehai": "",
+    "huamao": "",
+    "shopee": "",
+    "youtube": "",
+    "taobao": "",
+    "jd": "",
+    "faceit": "",
+    "migu": "",
+    "lianjie": "",
+    "laixiu": "",
+    "picarto": ""
+  },
+  "accounts": {
+    "sooplive": {
+      "username": "",
+      "password": ""
+    },
+    "flextv": {
+      "username": "",
+      "password": ""
+    },
+    "popkontv": {
+      "username": "",
+      "password": "",
+      "partner_code": "P-00001"
+    },
+    "twitcasting": {
+      "account_type": "normal",
+      "username": "",
+      "password": ""
+    }
+  },
+  "tokens": {
+    "popkontv_access_token": ""
+  }
+}

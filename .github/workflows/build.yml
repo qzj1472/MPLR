@@ -1,0 +1,27 @@
+name: build
+
+on:
+  release:
+    types: [created]
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Install dependencies
+        run: cd src\TiktokLiveRec.WPF && dotnet restore TiktokLiveRec.WPF.csproj
+
+      - name: Build
+        run: cd src\TiktokLiveRec.WPF && dotnet build TiktokLiveRec.WPF.csproj --configuration Release --no-restore
+

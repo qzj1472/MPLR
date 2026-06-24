@@ -1,0 +1,720 @@
+<ui:FluentWindow x:Class="TiktokLiveRec.Views.SettingsWindow"
+                 xmlns="https://github.com/avaloniaui"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:b="using:TiktokLiveRec.Views.Behaviors"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:i="using:Avalonia.Xaml.Interactivity"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:ui="using:FluentAvalonia.UI.Controls"
+                 xmlns:vm="using:TiktokLiveRec.ViewModels"
+                 Title="{I18N Settings}"
+                 Width="700"
+                 Height="560"
+                 d:Background="#FF101010"
+                 x:DataType="vm:SettingsViewModel"
+                 Icon="avares://TiktokLiveRec/Assets/Favicon.ico"
+                 WindowStartupLocation="CenterScreen"
+                 mc:Ignorable="d">
+    <ui:FluentWindow.TitleBarContent>
+        <StackPanel x:Name="TitleBar"
+                    IsVisible="{OnPlatform macOS=False,
+                                           Default=True}"
+                    Orientation="Horizontal"
+                    Spacing="8">
+            <Image Height="18"
+                   Margin="16,16,0,0"
+                   Source="avares://TiktokLiveRec/Assets/Favicon.png" />
+            <TextBlock Margin="0,16,0,0"
+                       VerticalAlignment="Center"
+                       FontSize="12"
+                       Text="{I18N Settings}" />
+        </StackPanel>
+    </ui:FluentWindow.TitleBarContent>
+    <ui:FluentWindow.RightContent>
+        <ui:FluentCaptionButtons />
+    </ui:FluentWindow.RightContent>
+    <Grid Margin="{OnPlatform '8,48,8,4', macOS='8,28,8,4', x:TypeArguments=Thickness}">
+        <ScrollViewer VerticalScrollBarVisibility="Visible">
+            <StackPanel Margin="8,0,14,0" Spacing="8">
+                <TextBlock Margin="4,0,0,4"
+                           FontSize="14"
+                           Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                           Text="{I18N AppearanceSettings}" />
+                <ui:Card>
+                    <Grid MinHeight="35"
+                          Margin="16"
+                          ColumnDefinitions="Auto,*,Auto">
+                        <Grid Grid.Column="0" Margin="0,0,12,0">
+                            <TextBlock MinWidth="26"
+                                       Margin="4,0,0,0"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                       FontSize="18"
+                                       Text="{x:Static ui:FontSymbols.LocaleLanguage}" />
+                        </Grid>
+                        <Grid Grid.Column="1" RowDefinitions="Auto,Auto">
+                            <TextBlock Grid.Row="0" Text="{I18N Language}" />
+                            <TextBlock Grid.Row="1"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                       Text="{I18N LanguageHint}" />
+                        </Grid>
+                        <ui:FAComboBox Name="LanguageComboBox"
+                                       Grid.Column="2"
+                                       MinWidth="150"
+                                       Margin="0,0,28,0"
+                                       SelectedIndex="{Binding LanguageIndex}">
+                            <i:Interaction.Behaviors>
+                                <b:FixFAComboBoxBehavior />
+                            </i:Interaction.Behaviors>
+                            <ui:FAComboBoxItem Content="{I18N TrackingSystem}" />
+                            <ui:FAComboBoxItem Content="简体中文" />
+                            <ui:FAComboBoxItem Content="繁體中文" />
+                            <ui:FAComboBoxItem Content="English" />
+                            <ui:FAComboBoxItem Content="日本語" />
+                        </ui:FAComboBox>
+                    </Grid>
+                </ui:Card>
+                <ui:Card>
+                    <Grid MinHeight="35"
+                          Margin="16"
+                          ColumnDefinitions="Auto,*,Auto">
+                        <Grid Grid.Column="0" Margin="0,0,12,0">
+                            <TextBlock MinWidth="26"
+                                       Margin="4,0,0,0"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                       FontSize="18"
+                                       Text="{x:Static ui:FontSymbols.Color}" />
+                        </Grid>
+                        <Grid Grid.Column="1" RowDefinitions="Auto,Auto">
+                            <TextBlock Grid.Row="0" Text="{I18N ThemeColor}" />
+                            <TextBlock Grid.Row="1"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                       Text="{I18N ThemeColorHint}" />
+                        </Grid>
+                        <ui:FAComboBox Name="ThemeComboBox"
+                                       Grid.Column="2"
+                                       MinWidth="150"
+                                       Margin="0,0,28,0"
+                                       SelectedIndex="{Binding ThemeIndex}">
+                            <i:Interaction.Behaviors>
+                                <b:FixFAComboBoxBehavior />
+                            </i:Interaction.Behaviors>
+                            <ui:FAComboBoxItem Content="{I18N TrackingSystem}" />
+                            <ui:FAComboBoxItem Content="{I18N ThemeOfDarkMode}" />
+                            <ui:FAComboBoxItem Content="{I18N ThemeOfLightMode}" />
+                        </ui:FAComboBox>
+                    </Grid>
+                </ui:Card>
+                <ui:Card>
+                    <Grid MinHeight="35"
+                          Margin="16"
+                          ColumnDefinitions="Auto,*,Auto">
+                        <Grid Grid.Column="0" Margin="0,0,12,0">
+                            <TextBlock MinWidth="26"
+                                       Margin="4,0,0,0"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                       FontSize="18"
+                                       Text="{x:Static ui:FontSymbols.DeviceMonitorRightPic}" />
+                        </Grid>
+                        <Grid Grid.Column="1" RowDefinitions="Auto,Auto">
+                            <TextBlock Grid.Row="0" Text="{I18N TrayStatus}" />
+                            <TextBlock Grid.Row="1"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                       Text="{I18N TrayStatusHint}" />
+                        </Grid>
+                        <ToggleSwitch Grid.Column="2"
+                                      Margin="0,0,20,0"
+                                      IsChecked="{Binding IsUseStatusTray, Mode=TwoWay}"
+                                      OffContent=""
+                                      OnContent="" />
+                    </Grid>
+                </ui:Card>
+                <ui:Card IsVisible="{OnPlatform Windows=True, Default=False}">
+                    <Grid MinHeight="35"
+                          Margin="16"
+                          ColumnDefinitions="Auto,*,Auto">
+                        <Grid Grid.Column="0" Margin="0,0,12,0">
+                            <TextBlock MinWidth="26"
+                                       Margin="4,0,0,0"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                       FontSize="18"
+                                       Text="{x:Static ui:FontSymbols.AppIconDefault}" />
+                        </Grid>
+                        <Grid Grid.Column="1" RowDefinitions="Auto,Auto">
+                            <TextBlock Grid.Row="0" Text="{I18N CreateDesktopShortcut}" />
+                            <TextBlock Grid.Row="1"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                       Text="{I18N CreateDesktopShortcutHint}" />
+                        </Grid>
+                        <Button Grid.Column="2"
+                                Margin="0,0,28,0"
+                                Command="{Binding CreateDesktopShortcutCommand}"
+                                Content="{I18N ButtonOfCreateNow}" />
+                    </Grid>
+                </ui:Card>
+                <TextBlock Margin="4,0,0,4"
+                           FontSize="14"
+                           Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                           Text="{I18N RecordSettings}" />
+                <Expander>
+                    <Expander.Header>
+                        <Grid Margin="0,16,0,16"
+                              HorizontalAlignment="Stretch"
+                              ColumnDefinitions="Auto,*,Auto">
+                            <Grid Grid.Column="0" Margin="0,0,12,0">
+                                <TextBlock MinWidth="26"
+                                           Margin="4,0,0,0"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                           FontSize="18"
+                                           Text="{x:Static ui:FontSymbols.Ringer}" />
+                            </Grid>
+                            <Grid Grid.Column="1"
+                                  HorizontalAlignment="Stretch"
+                                  RowDefinitions="Auto,Auto">
+                                <TextBlock Grid.Row="0" Text="{I18N LiveNotification}" />
+                                <TextBlock Grid.Row="1"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                           Text="{I18N LiveNotificationHint}" />
+                            </Grid>
+                            <Grid Grid.Column="2" Margin="0,0,-24,0">
+                                <ToggleSwitch IsChecked="{Binding IsToNotify, Mode=TwoWay}"
+                                              OffContent=""
+                                              OnContent="" />
+                            </Grid>
+                        </Grid>
+                    </Expander.Header>
+                    <StackPanel Spacing="8">
+                        <StackPanel Margin="42,0,28,0"
+                                    IsEnabled="{Binding IsToNotify}"
+                                    Spacing="12">
+                            <CheckBox Content="{I18N LiveNotificationToSystem}" IsChecked="{Binding IsToNotifyWithSystem, Mode=TwoWay}" />
+                            <Grid ColumnDefinitions="Auto,*">
+                                <CheckBox Grid.Column="0"
+                                          Content="{I18N LiveNotificationToPlayMusic}"
+                                          IsChecked="{Binding IsToNotifyWithMusic, Mode=TwoWay}" />
+                                <TextBox Grid.Column="1"
+                                         Margin="8,0,0,0"
+                                         Text="{Binding ToNotifyWithMusicPath, Mode=TwoWay}"
+                                         Watermark="{I18N LiveNotificationToPlayMusicPath}" />
+                            </Grid>
+                            <Grid ColumnDefinitions="Auto,*">
+                                <CheckBox Grid.Column="0"
+                                          Content="{I18N LiveNotificationToMail}"
+                                          IsChecked="{Binding IsToNotifyWithEmail, Mode=TwoWay}" />
+                                <Grid Grid.Column="1" ColumnDefinitions="*,*,*">
+                                    <TextBox Grid.Column="0"
+                                             Margin="8,0,0,0"
+                                             Text="{Binding ToNotifyWithEmailSmtp, Mode=TwoWay}"
+                                             Watermark="SMTP" />
+                                    <TextBox Grid.Column="1"
+                                             Margin="8,0,0,0"
+                                             Text="{Binding ToNotifyWithEmailUserName, Mode=TwoWay}"
+                                             Watermark="{I18N Account}" />
+                                    <TextBox Grid.Column="2"
+                                             Margin="8,0,0,0"
+                                             Text="{Binding ToNotifyWithEmailPassword, Mode=TwoWay}"
+                                             Watermark="{I18N Password}" />
+                                </Grid>
+                            </Grid>
+                            <Grid ColumnDefinitions="Auto,*">
+                                <CheckBox Grid.Column="0"
+                                          Content="{I18N LiveNotificationToGotoLiveRoom}"
+                                          IsChecked="{Binding IsToNotifyGotoRoomUrl, Mode=TwoWay}" />
+                                <ToggleSwitch Grid.Column="1"
+                                              Margin="8,0,0,0"
+                                              IsChecked="{Binding IsToNotifyGotoRoomUrlAndMute, Mode=TwoWay}"
+                                              OffContent="{I18N LiveNotificationToGotoLiveRoomAndMute}"
+                                              OnContent="{I18N LiveNotificationToGotoLiveRoomAndMute}" />
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </Expander>
+                <ui:Card>
+                    <Grid MinHeight="35"
+                          Margin="16"
+                          ColumnDefinitions="Auto,*,Auto">
+                        <Grid Grid.Column="0" Margin="0,0,12,0">
+                            <TextBlock MinWidth="26"
+                                       Margin="4,0,0,0"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                       FontSize="18"
+                                       Text="{x:Static ui:FontSymbols.Video}" />
+                        </Grid>
+                        <Grid Grid.Column="1" RowDefinitions="Auto,Auto">
+                            <TextBlock Grid.Row="0" Text="{I18N EnableRecord}" />
+                            <TextBlock Grid.Row="1"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                       Text="{I18N EnableRecordHint}" />
+                        </Grid>
+                        <ToggleSwitch Grid.Column="2"
+                                      Margin="0,0,20,0"
+                                      IsChecked="{Binding IsToRecord, Mode=TwoWay}"
+                                      OffContent=""
+                                      OnContent="" />
+                    </Grid>
+                </ui:Card>
+                <ui:Card>
+                    <Grid MinHeight="35"
+                          Margin="16"
+                          ColumnDefinitions="Auto,*,Auto">
+                        <Grid Grid.Column="0" Margin="0,0,12,0">
+                            <TextBlock MinWidth="26"
+                                       Margin="4,0,0,0"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                       FontSize="18"
+                                       Text="{x:Static ui:FontSymbols.DeviceMonitorRightPic}" />
+                        </Grid>
+                        <Grid Grid.Column="1" RowDefinitions="Auto,Auto">
+                            <TextBlock Grid.Row="0" Text="{I18N RoutineInterval}" />
+                            <TextBlock Grid.Row="1"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                       Text="{I18N RoutineIntervalHint}" />
+                        </Grid>
+                        <ui:NumberBox Grid.Column="2"
+                                      MinWidth="150"
+                                      Margin="0,0,28,0"
+                                      Maximum="2147483647"
+                                      Minimum="500"
+                                      Value="{Binding RoutineInterval, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    </Grid>
+                </ui:Card>
+                <Expander>
+                    <Expander.Header>
+                        <Grid Margin="0,16,0,16" ColumnDefinitions="Auto,*,Auto">
+                            <Grid Grid.Column="0" Margin="0,0,12,0">
+                                <TextBlock MinWidth="26"
+                                           Margin="4,0,0,0"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                           FontSize="18"
+                                           Text="{x:Static ui:FontSymbols.Filter}" />
+                            </Grid>
+                            <Grid Grid.Column="1" RowDefinitions="Auto,Auto">
+                                <TextBlock Grid.Row="0" Text="{I18N RecordFormat}" />
+                                <TextBlock Grid.Row="1"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                           Text="{I18N RecordFormatHint}" />
+                            </Grid>
+                            <Grid Grid.Column="2" Margin="0,0,-16,0">
+                                <ComboBox MinWidth="150" SelectedIndex="{Binding RecordFormatIndex, Mode=TwoWay}">
+                                    <ComboBoxItem Content="TS/FLV" />
+                                    <ComboBoxItem Content="TS/FLV -&gt; MP4" />
+                                    <ComboBoxItem Content="TS/FLV -&gt; MKV" />
+                                </ComboBox>
+                            </Grid>
+                        </Grid>
+                    </Expander.Header>
+                    <StackPanel Spacing="8">
+                        <StackPanel Margin="42,0,28,0" Spacing="12">
+                            <CheckBox Grid.Column="0"
+                                      Content="{I18N RecordFormatAutoRemove}"
+                                      IsChecked="{Binding IsRemoveTs, Mode=TwoWay}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Expander>
+                <Expander>
+                    <Expander.Header>
+                        <Grid Margin="0,16,0,16" ColumnDefinitions="Auto,*,Auto">
+                            <Grid Grid.Column="0" Margin="0,0,12,0">
+                                <TextBlock MinWidth="26"
+                                           Margin="4,0,0,0"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                           FontSize="18"
+                                           Text="{x:Static ui:FontSymbols.BulletedList}" />
+                            </Grid>
+                            <Grid Grid.Column="1" RowDefinitions="Auto,Auto">
+                                <TextBlock Grid.Row="0" Text="{I18N Segment}" />
+                                <TextBlock Grid.Row="1"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                           Text="{I18N SegmentHint}" />
+                            </Grid>
+                            <Grid Grid.Column="2" Margin="0,0,-24,0">
+                                <ToggleSwitch IsChecked="{Binding IsToSegment, Mode=TwoWay}"
+                                              OffContent=""
+                                              OnContent="" />
+                            </Grid>
+                        </Grid>
+                    </Expander.Header>
+                    <StackPanel Spacing="8">
+                        <StackPanel Margin="42,0,28,0"
+                                    IsEnabled="{Binding IsToSegment}"
+                                    Spacing="12">
+                            <Grid ColumnDefinitions="Auto,Auto">
+                                <TextBlock Grid.Column="0"
+                                           VerticalAlignment="Center"
+                                           Text="{I18N SegmentTime}" />
+                                <ui:NumberBox Grid.Column="1"
+                                              MinWidth="150"
+                                              Margin="8,0,0,0"
+                                              Maximum="2147483647"
+                                              Minimum="10"
+                                              Value="{Binding SegmentTime, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </Expander>
+                <Expander>
+                    <Expander.Header>
+                        <Grid Margin="0,16,0,16" ColumnDefinitions="Auto,*,Auto">
+                            <Grid Grid.Column="0" Margin="0,0,16,0">
+                                <TextBlock MinWidth="26"
+                                           Margin="4,0,0,0"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                           FontSize="18"
+                                           Text="{x:Static ui:FontSymbols.Folder}" />
+                            </Grid>
+                            <Grid Grid.Column="1" RowDefinitions="Auto,Auto">
+                                <TextBlock Grid.Row="0" Text="{I18N SaveFolder}" />
+                                <TextBlock Grid.Row="1"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                           Text="{I18N SaveFolderHint}" />
+                            </Grid>
+                            <Grid Grid.Column="2" Margin="0,0,-21,0">
+                                <!--  EMPTY  -->
+                            </Grid>
+                        </Grid>
+                    </Expander.Header>
+                    <StackPanel Spacing="8">
+                        <Grid Margin="42,0,28,0" ColumnDefinitions="Auto,*,Auto,Auto">
+                            <TextBlock Grid.Column="0"
+                                       VerticalAlignment="Center"
+                                       Text="{I18N SaveFolder}" />
+                            <TextBox Grid.Column="1"
+                                     Margin="8,0,0,0"
+                                     Text="{Binding SaveFolder, Mode=TwoWay}"
+                                     Watermark="downloads" />
+                            <Button Grid.Column="2"
+                                    Margin="8,0,0,0"
+                                    Command="{Binding SelectSaveFolderCommand}"
+                                    Content="{I18N SelectFolder}" />
+                            <Button Grid.Column="3"
+                                    Margin="8,0,0,0"
+                                    Command="{Binding OpenSaveFolderCommand}"
+                                    Content="{I18N OpenFolder}" />
+                        </Grid>
+                        <Grid Margin="42,0,28,0" ColumnDefinitions="Auto,*,Auto,Auto">
+                            <CheckBox Content="{I18N SaveFolderDistinguishedByAuthors}" IsChecked="{Binding SaveFolderDistinguishedByAuthors}" />
+                        </Grid>
+                    </StackPanel>
+                </Expander>
+                <TextBlock Margin="4,0,0,4"
+                           FontSize="14"
+                           Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                           IsVisible="{OnPlatform Windows=True,
+                                                  Default=False}"
+                           Text="{I18N LongRunningSettings}" />
+                <ui:Card IsVisible="{OnPlatform Windows=True, Default=False}">
+                    <Grid MinHeight="35"
+                          Margin="16"
+                          ColumnDefinitions="Auto,*,Auto">
+                        <Grid Grid.Column="0" Margin="0,0,12,0">
+                            <TextBlock MinWidth="26"
+                                       Margin="4,0,0,0"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                       FontSize="18"
+                                       Text="{x:Static ui:FontSymbols.Recent}" />
+                        </Grid>
+                        <Grid Grid.Column="1" RowDefinitions="Auto,Auto">
+                            <TextBlock Grid.Row="0" Text="{I18N KeepAwake}" />
+                            <TextBlock Grid.Row="1"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                       Text="{I18N KeepActiveHint}" />
+                        </Grid>
+                        <ToggleSwitch Grid.Column="2"
+                                      Margin="0,0,20,0"
+                                      IsChecked="{Binding IsUseKeepAwake, Mode=TwoWay}"
+                                      OffContent=""
+                                      OnContent="" />
+                    </Grid>
+                </ui:Card>
+                <Expander IsVisible="{OnPlatform Windows=True, Default=False}">
+                    <Expander.Header>
+                        <Grid Margin="0,16,0,16" ColumnDefinitions="Auto,*,Auto">
+                            <Grid Grid.Column="0" Margin="0,0,12,0">
+                                <TextBlock MinWidth="26"
+                                           Margin="4,0,0,0"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                           FontSize="18"
+                                           Text="{x:Static ui:FontSymbols.PowerButton}" />
+                            </Grid>
+                            <Grid Grid.Column="1" RowDefinitions="Auto,Auto">
+                                <TextBlock Grid.Row="0" Text="{I18N AutoShutdown}" />
+                                <TextBlock Grid.Row="1"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                           Text="{I18N AutoShutdownHint}" />
+                            </Grid>
+                            <Grid Grid.Column="2" Margin="0,0,-24,0">
+                                <ToggleSwitch IsChecked="{Binding IsUseAutoShutdown, Mode=TwoWay}"
+                                              OffContent=""
+                                              OnContent="" />
+                            </Grid>
+                        </Grid>
+                    </Expander.Header>
+                    <StackPanel IsEnabled="{Binding IsUseAutoShutdown}" Spacing="12">
+                        <Grid Margin="42,0,28,0" ColumnDefinitions="Auto,*">
+                            <TextBlock VerticalAlignment="Center" Text="{I18N AutoShutdownTime}" />
+                            <StackPanel Grid.Column="1"
+                                        Margin="16,0,0,0"
+                                        Orientation="Horizontal"
+                                        Spacing="8">
+                                <ComboBox SelectedIndex="{Binding AutoShutdownTimeHour, Mode=TwoWay}">
+                                    <ComboBoxItem Content="00" />
+                                    <ComboBoxItem Content="01" />
+                                    <ComboBoxItem Content="02" />
+                                    <ComboBoxItem Content="03" />
+                                    <ComboBoxItem Content="04" />
+                                    <ComboBoxItem Content="05" />
+                                    <ComboBoxItem Content="06" />
+                                    <ComboBoxItem Content="07" />
+                                    <ComboBoxItem Content="08" />
+                                    <ComboBoxItem Content="09" />
+                                    <ComboBoxItem Content="10" />
+                                    <ComboBoxItem Content="11" />
+                                    <ComboBoxItem Content="12" />
+                                    <ComboBoxItem Content="13" />
+                                    <ComboBoxItem Content="14" />
+                                    <ComboBoxItem Content="15" />
+                                    <ComboBoxItem Content="16" />
+                                    <ComboBoxItem Content="17" />
+                                    <ComboBoxItem Content="18" />
+                                    <ComboBoxItem Content="19" />
+                                    <ComboBoxItem Content="20" />
+                                    <ComboBoxItem Content="21" />
+                                    <ComboBoxItem Content="22" />
+                                    <ComboBoxItem Content="23" />
+                                </ComboBox>
+                                <TextBlock HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           Text=":" />
+                                <ComboBox SelectedIndex="{Binding AutoShutdownTimeMinute, Mode=TwoWay}">
+                                    <ComboBoxItem Content="00" />
+                                    <ComboBoxItem Content="01" />
+                                    <ComboBoxItem Content="02" />
+                                    <ComboBoxItem Content="03" />
+                                    <ComboBoxItem Content="04" />
+                                    <ComboBoxItem Content="05" />
+                                    <ComboBoxItem Content="06" />
+                                    <ComboBoxItem Content="07" />
+                                    <ComboBoxItem Content="08" />
+                                    <ComboBoxItem Content="09" />
+                                    <ComboBoxItem Content="10" />
+                                    <ComboBoxItem Content="11" />
+                                    <ComboBoxItem Content="12" />
+                                    <ComboBoxItem Content="13" />
+                                    <ComboBoxItem Content="14" />
+                                    <ComboBoxItem Content="15" />
+                                    <ComboBoxItem Content="16" />
+                                    <ComboBoxItem Content="17" />
+                                    <ComboBoxItem Content="18" />
+                                    <ComboBoxItem Content="19" />
+                                    <ComboBoxItem Content="20" />
+                                    <ComboBoxItem Content="21" />
+                                    <ComboBoxItem Content="22" />
+                                    <ComboBoxItem Content="23" />
+                                    <ComboBoxItem Content="24" />
+                                    <ComboBoxItem Content="25" />
+                                    <ComboBoxItem Content="26" />
+                                    <ComboBoxItem Content="27" />
+                                    <ComboBoxItem Content="28" />
+                                    <ComboBoxItem Content="29" />
+                                    <ComboBoxItem Content="30" />
+                                    <ComboBoxItem Content="31" />
+                                    <ComboBoxItem Content="32" />
+                                    <ComboBoxItem Content="33" />
+                                    <ComboBoxItem Content="34" />
+                                    <ComboBoxItem Content="35" />
+                                    <ComboBoxItem Content="36" />
+                                    <ComboBoxItem Content="37" />
+                                    <ComboBoxItem Content="38" />
+                                    <ComboBoxItem Content="39" />
+                                    <ComboBoxItem Content="40" />
+                                    <ComboBoxItem Content="41" />
+                                    <ComboBoxItem Content="42" />
+                                    <ComboBoxItem Content="43" />
+                                    <ComboBoxItem Content="44" />
+                                    <ComboBoxItem Content="45" />
+                                    <ComboBoxItem Content="46" />
+                                    <ComboBoxItem Content="47" />
+                                    <ComboBoxItem Content="48" />
+                                    <ComboBoxItem Content="49" />
+                                    <ComboBoxItem Content="50" />
+                                    <ComboBoxItem Content="51" />
+                                    <ComboBoxItem Content="52" />
+                                    <ComboBoxItem Content="53" />
+                                    <ComboBoxItem Content="54" />
+                                    <ComboBoxItem Content="55" />
+                                    <ComboBoxItem Content="56" />
+                                    <ComboBoxItem Content="57" />
+                                    <ComboBoxItem Content="58" />
+                                    <ComboBoxItem Content="59" />
+                                </ComboBox>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Expander>
+                <TextBlock Margin="4,0,0,4"
+                           FontSize="14"
+                           Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                           Text="{I18N NetworkSettings}" />
+                <Expander>
+                    <Expander.Header>
+                        <Grid Margin="0,16,0,16" ColumnDefinitions="Auto,*,Auto">
+                            <Grid Grid.Column="0" Margin="0,0,12,0">
+                                <TextBlock MinWidth="26"
+                                           Margin="4,0,0,0"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                           FontSize="18"
+                                           Text="{x:Static ui:FontSymbols.VPN}" />
+                            </Grid>
+                            <Grid Grid.Column="1" RowDefinitions="Auto,Auto">
+                                <TextBlock Grid.Row="0" Text="{I18N UseProxy}" />
+                                <TextBlock Grid.Row="1"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                           Text="{I18N UseProxyHint}" />
+                            </Grid>
+                            <Grid Grid.Column="2" Margin="0,0,-24,0">
+                                <ToggleSwitch IsChecked="{Binding IsUseProxy, Mode=TwoWay}"
+                                              OffContent=""
+                                              OnContent="" />
+                            </Grid>
+                        </Grid>
+                    </Expander.Header>
+                    <StackPanel IsEnabled="{Binding IsUseProxy}" Spacing="12">
+                        <Grid Margin="42,0,28,0" ColumnDefinitions="Auto,*,Auto">
+                            <TextBlock VerticalAlignment="Center" Text="{I18N ProxyHostAndPort}" />
+                            <TextBox Grid.Column="1"
+                                     Margin="8,0,0,0"
+                                     Text="{Binding ProxyUrl, Mode=TwoWay}"
+                                     Watermark="127.0.0.1:7890" />
+                            <Button Grid.Column="2"
+                                    Margin="8,0,0,0"
+                                    Command="{Binding CheckProxyUrlCommand}"
+                                    Content="{I18N CheckConnectivity}" />
+                        </Grid>
+                    </StackPanel>
+                </Expander>
+                <Expander>
+                    <Expander.Header>
+                        <Grid Margin="0,16,0,16" ColumnDefinitions="Auto,*,Auto">
+                            <Grid Grid.Column="0" Margin="0,0,12,0">
+                                <TextBlock MinWidth="26"
+                                           Margin="4,0,0,0"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                           FontSize="18"
+                                           Text="{x:Static ui:FontSymbols.Rename}" />
+                            </Grid>
+                            <Grid Grid.Column="1" RowDefinitions="Auto,Auto">
+                                <TextBlock Grid.Row="0" Text="{I18N UseCookie}" />
+                                <TextBlock Grid.Row="1"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                           Text="{I18N UseCookieHint}" />
+                            </Grid>
+                            <Grid Grid.Column="2" Margin="0,0,12,0">
+                                <!--  EMPTY  -->
+                            </Grid>
+                        </Grid>
+                    </Expander.Header>
+                    <StackPanel Spacing="12">
+                        <Grid Margin="42,0,28,0" ColumnDefinitions="Auto,*,Auto">
+                            <TextBlock VerticalAlignment="Center" Text="{I18N UseCookieOfDouyin}" />
+                            <TextBox Grid.Column="1"
+                                     Margin="8,0,0,0"
+                                     Text="{Binding CookieChina, Mode=TwoWay}"
+                                     Watermark="{I18N UseCookieEnterHint}" />
+                            <Button Grid.Column="2"
+                                    Margin="8,0,0,0"
+                                    Command="{Binding OpenHowToGetCookieChinaCommand}"
+                                    Content="{I18N HowToGet}" />
+                        </Grid>
+                        <Grid Margin="42,0,28,0" ColumnDefinitions="Auto,*,Auto">
+                            <TextBlock VerticalAlignment="Center" Text="{I18N UseCookieOfOversea}" />
+                            <TextBox Grid.Column="1"
+                                     Margin="8,0,0,0"
+                                     Text="{Binding CookieOversea, Mode=TwoWay}"
+                                     Watermark="{I18N UseCookieEnterHint}" />
+                            <Button Grid.Column="2"
+                                    Margin="8,0,0,0"
+                                    Command="{Binding OpenHowToGetCookieOverseaCommand}"
+                                    Content="{I18N HowToGet}" />
+                        </Grid>
+                    </StackPanel>
+                </Expander>
+                <Expander>
+                    <Expander.Header>
+                        <Grid Margin="0,16,0,16" ColumnDefinitions="Auto,*,Auto">
+                            <Grid Grid.Column="0" Margin="0,0,12,0">
+                                <TextBlock MinWidth="26"
+                                           Margin="4,0,0,0"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                           FontSize="18"
+                                           Text="{x:Static ui:FontSymbols.EaseOfAccess}" />
+                            </Grid>
+                            <Grid Grid.Column="1" RowDefinitions="Auto,Auto">
+                                <TextBlock Grid.Row="0" Text="{I18N UserAgent}" />
+                                <TextBlock Grid.Row="1"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                           Text="{I18N UserAgentHint}" />
+                            </Grid>
+                            <Grid Grid.Column="2" Margin="0,0,12,0">
+                                <!--  EMPTY  -->
+                            </Grid>
+                        </Grid>
+                    </Expander.Header>
+                    <StackPanel Spacing="12">
+                        <Grid Margin="42,0,28,0" ColumnDefinitions="Auto,*">
+                            <TextBlock VerticalAlignment="Center" Text="{I18N UserAgent}" />
+                            <TextBox Grid.Column="1"
+                                     Margin="8,0,0,0"
+                                     Text="{Binding UserAgent, Mode=TwoWay}"
+                                     Watermark="{I18N UserAgentEnterHint}" />
+                        </Grid>
+                    </StackPanel>
+                </Expander>
+                <Control Height="10" />
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</ui:FluentWindow>

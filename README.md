@@ -1,48 +1,93 @@
-# MPLR
+[English](README.md) | [简体中文](README.zh-Hans.md)
 
-MPLR，即 MultiPlatformLiveRecorder，是一款面向多平台直播录制场景的项目。它的目标是统一管理直播间地址、录制任务、输出文件和运行日志，让直播录制流程更稳定、更容易维护。
+<img src="branding/logo.png" />
 
-## 项目目标
+# Multi-platform Live Recorder
 
-- 支持多个直播平台的录制入口
-- 支持直播间状态检测和自动开录
-- 支持录制文件按平台、主播、日期归档
-- 支持断线重试、任务恢复和日志追踪
-- 支持本地配置管理，避免敏感信息进入仓库
+[![GitHub license](https://img.shields.io/github/license/emako/TiktokLiveRec)](https://github.com/emako/TiktokLiveRec/blob/master/LICENSE) [![Actions](https://github.com/emako/TiktokLiveRec/actions/workflows/build.yml/badge.svg)](https://github.com/emako/TiktokLiveRec/actions/workflows/library.nuget.yml) [![Platform](https://img.shields.io/badge/platform-Windows-blue?logo=windowsxp&color=1E9BFA)](https://dotnet.microsoft.com/en-us/download/dotnet/9.0) [![GitHub downloads](https://img.shields.io/github/downloads/emako/TiktokLiveRec/total)](https://github.com/emako/TiktokLiveRec/releases)
+[![GitHub downloads](https://img.shields.io/github/downloads/emako/TiktokLiveRec/latest/total)](https://github.com/emako/TiktokLiveRec/releases)
 
-## 当前状态
+With a graphical UI, unattended operation, live stream preview, and live stream recording capabilities.
 
-项目已完成 Git 初始化，并补充了基础 `.gitignore`、`README.md` 和 Apache License。后续可以继续添加实际录制逻辑、配置模板、命令行入口或桌面界面。
+Based on FFmpeg and FFplay.
 
-## 建议目录结构
+## Screen Shot
 
-```text
-MPLR/
-├── src/
-├── config/
-├── scripts/
-├── tests/
-├── recordings/
-└── README.md
+<img src="assets/image-20241113165355466.png" alt="image-20241113165355466" style="transform:scale(0.5);" />
+
+## Runtime Requirements
+
+For Windows: [.NET Desktop Runtime 9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
+
+For Others: [.NET Runtime 9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
+
+For local development on Windows with Scoop:
+
+```powershell
+scoop bucket add versions
+scoop bucket add extras
+scoop install versions/dotnet9-sdk ffmpeg extras/vcredist2022 python311 nodejs
 ```
 
-## 本地开发
+## Live Streaming
 
-克隆仓库后，根据后续实际技术栈安装依赖并启动项目。
+The built-in C# fallback supports Douyin and TikTok. The bundled Python stream resolver extends recording support to more platforms.
+
+| Site | Status |
+| ---- | ------ |
+| Douyin | Available |
+| TikTok | Available |
+| Bilibili | Available through stream resolver |
+| Kuaishou | Available through stream resolver |
+| Douyu | Available through stream resolver |
+| Huya | Available through stream resolver |
+| Twitch | Available through stream resolver |
+| YouTube and other resolver-supported sites | Available when the resolver can return a stream |
+
+How to add live room:
 
 ```bash
-git clone git@github.com:qzj1472/MPLR.git
-cd MPLR
+# Douyin room URL like following:
+https://live.douyin.com/XXX
+https://www.douyin.com/root/live/XXX
+
+# TikTok room URL like following:
+https://www.tiktok.com/@XXX/live
+
+# Other platforms can usually be added with their public live room URL:
+https://live.bilibili.com/XXX
+https://www.douyu.com/XXX
+https://www.huya.com/XXX
+https://www.twitch.tv/XXX
 ```
 
-## 配置说明
+## Support OS
 
-建议将本地配置放在 `.env` 或 `config/local.*` 中，并提供不包含敏感信息的示例文件，例如 `.env.example`。
+For rapid development, first implement WPF-based Windows support.
 
-## 录制输出
+Other systems are planned around personal needs and user feedback.
 
-默认建议将录制结果放在 `recordings/`、`downloads/`、`captures/` 或 `output/` 目录中。这些目录已加入 `.gitignore`，避免误提交大文件。
+| OS | Framework | Status |
+| -- | --------- | ------ |
+| Windows | WPF | Available |
+| macOS | Avalonia | Under Development |
+| Ubuntu | Avalonia | TBD |
+| Android | Avalonia | TBD |
+| iOS | Avalonia | TBD |
+| tvOS | TBD | TBD |
+
+## Cookies
+
+Some platforms may require cookies, login state, or a proxy to resolve streams reliably. Check [GETCOOKIE_DOUYIN.md](doc/GETCOOKIE_DOUYIN.md) or [GETCOOKIE_TIKTOK.md](doc/GETCOOKIE_TIKTOK.md) for examples.
+
+## Privacy Policy
+
+See the [Privacy Policy](PrivacyPolicy.md).
 
 ## License
 
-本项目使用 Apache License 2.0，详见 `LICENSE`。
+This project is licensed under the [MIT License](LICENSE).
+
+## Thanks
+
+To save maintenance costs, this project refers to stream resolving approaches and string data from [DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder) and related resolver projects.
