@@ -46,6 +46,17 @@ packages/
 
 target/
 
+.alcache/
+.alpackages/
+.snapshots/
+.output/
+*.app
+rad.json
+*.g.xlf
+*.bclicense
+*.flf
+TestResults.xml
+
 logs/
 *.log
 tmp/
