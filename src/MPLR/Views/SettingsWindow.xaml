@@ -509,7 +509,35 @@
                                              IsChecked="{Binding IsToRecord, Mode=TwoWay}" />
                         </ui:Grid>
                     </ui:Card>
-                    <ui:CardExpander IsExpanded="{Binding IsRoutineScheduleCustom, Mode=OneWay}">
+                    <ui:Card Visibility="{Binding IsRoutineScheduleAlways, Converter={x:Static c:BoolToVisibilityConverter.Instance}}">
+                        <ui:Grid MinHeight="35" ColumnDefinitions="Auto,*,Auto">
+                            <Grid Grid.Column="0" Margin="0,0,12,0">
+                                <TextBlock MinWidth="26"
+                                           Margin="4,0,0,0"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                           FontSize="18"
+                                           Text="{x:Static ui:FontSymbols.Calendar}" />
+                            </Grid>
+                            <ui:Grid Grid.Column="1" RowDefinitions="Auto,Auto">
+                                <TextBlock Grid.Row="0" Text="{I18N RoutineSchedule}" />
+                                <TextBlock Grid.Row="1"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                           Text="{I18N RoutineScheduleHint}" />
+                            </ui:Grid>
+                            <ComboBox Grid.Column="2"
+                                      MinWidth="150"
+                                      Margin="0,0,28,0"
+                                      SelectedIndex="{Binding RoutineScheduleModeIndex, Mode=TwoWay}">
+                                <ComboBoxItem Content="{I18N RoutineScheduleAlways}" />
+                                <ComboBoxItem Content="{I18N RoutineScheduleCustom}" />
+                            </ComboBox>
+                        </ui:Grid>
+                    </ui:Card>
+                    <ui:CardExpander IsExpanded="{Binding IsRoutineScheduleCustom, Mode=OneWay}"
+                                     Visibility="{Binding IsRoutineScheduleCustom, Converter={x:Static c:BoolToVisibilityConverter.Instance}}">
                         <ui:CardExpander.Header>
                             <ui:Grid ColumnDefinitions="Auto,*,Auto">
                                 <Grid Grid.Column="0" Margin="0,0,12,0">
@@ -538,8 +566,7 @@
                             </ui:Grid>
                         </ui:CardExpander.Header>
                         <ui:StackPanel Margin="42,0,28,0"
-                                       Spacing="12"
-                                       Visibility="{Binding IsRoutineScheduleCustom, Converter={x:Static c:BoolToVisibilityConverter.Instance}}">
+                                       Spacing="12">
                             <UniformGrid Columns="5">
                                 <CheckBox Content="{I18N DayMonday}" IsChecked="{Binding RoutineScheduleMonday, Mode=TwoWay}" />
                                 <CheckBox Content="{I18N DayTuesday}" IsChecked="{Binding RoutineScheduleTuesday, Mode=TwoWay}" />
@@ -556,7 +583,7 @@
                                               FontSize="16"
                                               Maximum="23"
                                               Minimum="0"
-                                              SpinButtonPlacementMode="Compact"
+                                              SpinButtonPlacementMode="Hidden"
                                               Value="{Binding RoutineScheduleStartHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Grid.Column="1"
                                            Margin="6,0"
@@ -567,7 +594,7 @@
                                               FontSize="16"
                                               Maximum="59"
                                               Minimum="0"
-                                              SpinButtonPlacementMode="Compact"
+                                              SpinButtonPlacementMode="Hidden"
                                               Value="{Binding RoutineScheduleStartMinute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Grid.Column="3"
                                            Margin="12,0"
@@ -578,7 +605,7 @@
                                               FontSize="16"
                                               Maximum="23"
                                               Minimum="0"
-                                              SpinButtonPlacementMode="Compact"
+                                              SpinButtonPlacementMode="Hidden"
                                               Value="{Binding RoutineScheduleEndHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Grid.Column="5"
                                            Margin="6,0"
@@ -589,7 +616,7 @@
                                               FontSize="16"
                                               Maximum="59"
                                               Minimum="0"
-                                              SpinButtonPlacementMode="Compact"
+                                              SpinButtonPlacementMode="Hidden"
                                               Value="{Binding RoutineScheduleEndMinute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                             </ui:Grid>
                         </ui:StackPanel>
@@ -615,12 +642,12 @@
                             <ui:Grid Grid.Column="2"
                                      Margin="0,0,28,0"
                                      ColumnDefinitions="*,86">
-                                <ui:NumberBox MinWidth="82"
+                                <ui:NumberBox Width="82"
                                               FontSize="15"
                                               Margin="0,0,8,0"
                                               Maximum="{c:DoubleMaxValue}"
                                               Minimum="0.5"
-                                              SpinButtonPlacementMode="Compact"
+                                              SpinButtonPlacementMode="Hidden"
                                               Value="{Binding RoutineIntervalValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 <ComboBox Grid.Column="1"
                                           MinWidth="86"
@@ -695,20 +722,20 @@
                             <ui:StackPanel Margin="42,0,28,0"
                                            IsEnabled="{Binding IsToSegment}"
                                            Spacing="12">
-                                <ui:Grid ColumnDefinitions="Auto,*,86">
+                                <ui:Grid ColumnDefinitions="Auto,82,112">
                                     <TextBlock Grid.Column="0"
                                                VerticalAlignment="Center"
                                                Text="{I18N SegmentTime}" />
                                     <ui:NumberBox Grid.Column="1"
                                                   FontSize="15"
-                                                  MinWidth="100"
+                                                  Width="82"
                                                   Margin="8,0,0,0"
                                                   Maximum="2147483647"
                                                   Minimum="10"
-                                                  SpinButtonPlacementMode="Compact"
+                                                  SpinButtonPlacementMode="Hidden"
                                                   Value="{Binding SegmentTimeValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                     <ComboBox Grid.Column="2"
-                                              MinWidth="86"
+                                              MinWidth="104"
                                               Margin="8,0,0,0"
                                               SelectedIndex="{Binding SegmentTimeUnitIndex, Mode=TwoWay}">
                                         <ComboBoxItem Content="{Binding SegmentTimeSecondsText}" />
@@ -872,97 +899,22 @@
                                                Margin="16,0,0,0"
                                                Orientation="Horizontal"
                                                Spacing="8">
-                                    <ComboBox SelectedIndex="{Binding AutoShutdownTimeHour, Mode=TwoWay}">
-                                        <ComboBoxItem Content="00" />
-                                        <ComboBoxItem Content="01" />
-                                        <ComboBoxItem Content="02" />
-                                        <ComboBoxItem Content="03" />
-                                        <ComboBoxItem Content="04" />
-                                        <ComboBoxItem Content="05" />
-                                        <ComboBoxItem Content="06" />
-                                        <ComboBoxItem Content="07" />
-                                        <ComboBoxItem Content="08" />
-                                        <ComboBoxItem Content="09" />
-                                        <ComboBoxItem Content="10" />
-                                        <ComboBoxItem Content="11" />
-                                        <ComboBoxItem Content="12" />
-                                        <ComboBoxItem Content="13" />
-                                        <ComboBoxItem Content="14" />
-                                        <ComboBoxItem Content="15" />
-                                        <ComboBoxItem Content="16" />
-                                        <ComboBoxItem Content="17" />
-                                        <ComboBoxItem Content="18" />
-                                        <ComboBoxItem Content="19" />
-                                        <ComboBoxItem Content="20" />
-                                        <ComboBoxItem Content="21" />
-                                        <ComboBoxItem Content="22" />
-                                        <ComboBoxItem Content="23" />
-                                    </ComboBox>
+                                    <ui:NumberBox Width="82"
+                                                  FontSize="15"
+                                                  Maximum="23"
+                                                  Minimum="0"
+                                                  SpinButtonPlacementMode="Hidden"
+                                                  Value="{Binding AutoShutdownTimeHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                     <TextBlock HorizontalAlignment="Center"
                                                VerticalAlignment="Center"
+                                               FontSize="18"
                                                Text=":" />
-                                    <ComboBox SelectedIndex="{Binding AutoShutdownTimeMinute, Mode=TwoWay}">
-                                        <ComboBoxItem Content="00" />
-                                        <ComboBoxItem Content="01" />
-                                        <ComboBoxItem Content="02" />
-                                        <ComboBoxItem Content="03" />
-                                        <ComboBoxItem Content="04" />
-                                        <ComboBoxItem Content="05" />
-                                        <ComboBoxItem Content="06" />
-                                        <ComboBoxItem Content="07" />
-                                        <ComboBoxItem Content="08" />
-                                        <ComboBoxItem Content="09" />
-                                        <ComboBoxItem Content="10" />
-                                        <ComboBoxItem Content="11" />
-                                        <ComboBoxItem Content="12" />
-                                        <ComboBoxItem Content="13" />
-                                        <ComboBoxItem Content="14" />
-                                        <ComboBoxItem Content="15" />
-                                        <ComboBoxItem Content="16" />
-                                        <ComboBoxItem Content="17" />
-                                        <ComboBoxItem Content="18" />
-                                        <ComboBoxItem Content="19" />
-                                        <ComboBoxItem Content="20" />
-                                        <ComboBoxItem Content="21" />
-                                        <ComboBoxItem Content="22" />
-                                        <ComboBoxItem Content="23" />
-                                        <ComboBoxItem Content="24" />
-                                        <ComboBoxItem Content="25" />
-                                        <ComboBoxItem Content="26" />
-                                        <ComboBoxItem Content="27" />
-                                        <ComboBoxItem Content="28" />
-                                        <ComboBoxItem Content="29" />
-                                        <ComboBoxItem Content="30" />
-                                        <ComboBoxItem Content="31" />
-                                        <ComboBoxItem Content="32" />
-                                        <ComboBoxItem Content="33" />
-                                        <ComboBoxItem Content="34" />
-                                        <ComboBoxItem Content="35" />
-                                        <ComboBoxItem Content="36" />
-                                        <ComboBoxItem Content="37" />
-                                        <ComboBoxItem Content="38" />
-                                        <ComboBoxItem Content="39" />
-                                        <ComboBoxItem Content="40" />
-                                        <ComboBoxItem Content="41" />
-                                        <ComboBoxItem Content="42" />
-                                        <ComboBoxItem Content="43" />
-                                        <ComboBoxItem Content="44" />
-                                        <ComboBoxItem Content="45" />
-                                        <ComboBoxItem Content="46" />
-                                        <ComboBoxItem Content="47" />
-                                        <ComboBoxItem Content="48" />
-                                        <ComboBoxItem Content="49" />
-                                        <ComboBoxItem Content="50" />
-                                        <ComboBoxItem Content="51" />
-                                        <ComboBoxItem Content="52" />
-                                        <ComboBoxItem Content="53" />
-                                        <ComboBoxItem Content="54" />
-                                        <ComboBoxItem Content="55" />
-                                        <ComboBoxItem Content="56" />
-                                        <ComboBoxItem Content="57" />
-                                        <ComboBoxItem Content="58" />
-                                        <ComboBoxItem Content="59" />
-                                    </ComboBox>
+                                    <ui:NumberBox Width="82"
+                                                  FontSize="15"
+                                                  Maximum="59"
+                                                  Minimum="0"
+                                                  SpinButtonPlacementMode="Hidden"
+                                                  Value="{Binding AutoShutdownTimeMinute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 </ui:StackPanel>
                             </ui:Grid>
                         </ui:StackPanel>

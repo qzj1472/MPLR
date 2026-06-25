@@ -402,9 +402,12 @@ public partial class SettingsViewModel : ReactiveObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsRoutineScheduleCustom))]
+    [NotifyPropertyChangedFor(nameof(IsRoutineScheduleAlways))]
     private int routineScheduleModeIndex = Math.Clamp(Configurations.RoutineScheduleMode.Get(), 0, 1);
 
     public bool IsRoutineScheduleCustom => RoutineScheduleModeIndex == 1;
+
+    public bool IsRoutineScheduleAlways => RoutineScheduleModeIndex == 0;
 
     partial void OnRoutineScheduleModeIndexChanged(int value)
     {
@@ -782,7 +785,15 @@ public partial class SettingsViewModel : ReactiveObject
 
     partial void OnAutoShutdownTimeHourChanged(int value)
     {
-        Configurations.AutoShutdownTime.Set($"{value:D2}:{AutoShutdownTimeMinute:D2}");
+        int next = Math.Clamp(value, 0, 23);
+
+        if (next != value)
+        {
+            AutoShutdownTimeHour = next;
+            return;
+        }
+
+        Configurations.AutoShutdownTime.Set($"{next:D2}:{AutoShutdownTimeMinute:D2}");
         ConfigurationManager.Save();
     }
 
@@ -791,7 +802,15 @@ public partial class SettingsViewModel : ReactiveObject
 
     partial void OnAutoShutdownTimeMinuteChanged(int value)
     {
-        Configurations.AutoShutdownTime.Set($"{AutoShutdownTimeHour:D2}:{value:D2}");
+        int next = Math.Clamp(value, 0, 59);
+
+        if (next != value)
+        {
+            AutoShutdownTimeMinute = next;
+            return;
+        }
+
+        Configurations.AutoShutdownTime.Set($"{AutoShutdownTimeHour:D2}:{next:D2}");
         ConfigurationManager.Save();
     }
 
