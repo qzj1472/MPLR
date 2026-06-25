@@ -471,7 +471,7 @@
                                                         Height="{Binding RoomCardChipMinHeight, RelativeSource={RelativeSource AncestorType={x:Type views:MainWindow}}}"
                                                         Padding="{Binding RoomCardChipPadding, RelativeSource={RelativeSource AncestorType={x:Type views:MainWindow}}}"
                                                         Background="#20337DFF"
-                                                        CornerRadius="10">
+                                                        CornerRadius="999">
                                                     <TextBlock FontSize="{Binding RoomCardChipFontSize, RelativeSource={RelativeSource AncestorType={x:Type views:MainWindow}}}"
                                                                HorizontalAlignment="Center"
                                                                VerticalAlignment="Center"
@@ -484,7 +484,7 @@
                                                         Height="{Binding RoomCardChipMinHeight, RelativeSource={RelativeSource AncestorType={x:Type views:MainWindow}}}"
                                                         Padding="{Binding RoomCardChipPadding, RelativeSource={RelativeSource AncestorType={x:Type views:MainWindow}}}"
                                                         Background="#2026A269"
-                                                        CornerRadius="10">
+                                                        CornerRadius="999">
                                                     <TextBlock FontSize="{Binding RoomCardChipFontSize, RelativeSource={RelativeSource AncestorType={x:Type views:MainWindow}}}"
                                                                HorizontalAlignment="Center"
                                                                VerticalAlignment="Center"
@@ -841,9 +841,13 @@
                                         <Style TargetType="{x:Type ContentControl}">
                                             <Setter Property="Visibility" Value="Collapsed" />
                                             <Style.Triggers>
-                                                <DataTrigger Binding="{Binding SelectedItem.IsFollowGlobalSettings}" Value="False">
+                                                <MultiDataTrigger>
+                                                    <MultiDataTrigger.Conditions>
+                                                        <Condition Binding="{Binding SelectedItem.IsFollowGlobalSettings}" Value="False" />
+                                                        <Condition Binding="{Binding IsCardEditMode}" Value="False" />
+                                                    </MultiDataTrigger.Conditions>
                                                     <Setter Property="Visibility" Value="Visible" />
-                                                </DataTrigger>
+                                                </MultiDataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </ContentControl.Style>

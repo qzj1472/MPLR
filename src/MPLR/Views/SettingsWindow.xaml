@@ -26,6 +26,10 @@
         <Thickness x:Key="SettingsCardExpanderIconMargin">0,0,14,0</Thickness>
         <sys:Double x:Key="SettingsCardExpanderIconSize">24.0</sys:Double>
         <sys:Double x:Key="SettingsCardExpanderChevronSize">16.0</sys:Double>
+        <Style x:Key="SettingsActionButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="MinWidth" Value="78" />
+            <Setter Property="Padding" Value="12,0" />
+        </Style>
         <local:AnimationFactorToValueConverter x:Key="SettingsAnimationFactorToValueConverter" />
         <local:CornerRadiusSplitConverter x:Key="SettingsCornerRadiusSplitConverter" />
         <ControlTemplate x:Key="SettingsCardExpanderToggleButtonTemplate" TargetType="{x:Type ToggleButton}">
@@ -384,9 +388,9 @@
                                            HorizontalAlignment="Right"
                                            Orientation="Horizontal"
                                            Spacing="8">
-                                <Button Command="{Binding ImportConfigCommand}" Content="导入" />
-                                <Button Command="{Binding ExportConfigCommand}" Content="导出" />
-                                <Button Command="{Binding ResetConfigCommand}" Content="重置" />
+                                <Button Command="{Binding ImportConfigCommand}" Content="导入" Style="{StaticResource SettingsActionButtonStyle}" />
+                                <Button Command="{Binding ExportConfigCommand}" Content="导出" Style="{StaticResource SettingsActionButtonStyle}" />
+                                <Button Command="{Binding ResetConfigCommand}" Content="重置" Style="{StaticResource SettingsActionButtonStyle}" />
                             </ui:StackPanel>
                         </ui:Grid>
                     </ui:Card>
@@ -658,11 +662,13 @@
                                 <Button Grid.Column="2"
                                         Margin="8,0,0,0"
                                         Command="{Binding SelectSaveFolderCommand}"
-                                        Content="{I18N SelectFolder}" />
+                                        Content="{I18N SelectFolder}"
+                                        Style="{StaticResource SettingsActionButtonStyle}" />
                                 <Button Grid.Column="3"
                                         Margin="8,0,0,0"
                                         Command="{Binding OpenSaveFolderCommand}"
-                                        Content="{I18N OpenFolder}" />
+                                        Content="{I18N OpenFolder}"
+                                        Style="{StaticResource SettingsActionButtonStyle}" />
                             </ui:Grid>
                             <ui:Grid Margin="42,0,28,0" ColumnDefinitions="Auto,*,Auto,Auto">
                                 <CheckBox Content="{I18N SaveFolderDistinguishedByAuthors}" IsChecked="{Binding SaveFolderDistinguishedByAuthors}" />
