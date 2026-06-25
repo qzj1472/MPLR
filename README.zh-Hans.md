@@ -1,6 +1,6 @@
 [English](README.md) | 简体中文
 
-<img src="branding/logo.png" alt="MPLR logo" />
+<img src="src/TiktokLiveRec.WPF/Assets/Favicon.png" alt="MPLR icon" width="96" />
 
 # MPLR 多平台录播
 
@@ -8,8 +8,8 @@ MPLR 是一款带图形界面的多平台直播录制工具，支持直播间管
 
 ## 功能
 
-- Windows WPF 桌面端，当前主入口。
-- Avalonia 桌面端原型，用于后续跨平台方向。
+- Windows WPF 桌面端，当前唯一支持入口。
+- Avalonia 源码入口仅作为实验原型保留，不作为当前支持平台。
 - 直播间列表管理，支持每个直播间单独控制监控、录制和通知。
 - 后台轮询直播状态，开播后自动录制。
 - 使用 FFplay 或自定义播放器预览直播。
@@ -18,16 +18,11 @@ MPLR 是一款带图形界面的多平台直播录制工具，支持直播间管
 - 集成 Python 解析器，扩展哔哩哔哩、斗鱼、虎牙、快手、Twitch、YouTube 等平台的直播流解析能力。
 - 支持 Cookie、平台 Cookie、代理和清晰度配置，应对登录态、风控和地区访问限制。
 
-## 截图
-
-<img src="assets/image-20241113165448238.png" alt="MPLR screenshot" />
-
 ## 环境依赖
 
 运行环境：
 
 - Windows: [.NET Desktop Runtime 9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
-- Avalonia 原型在其他系统运行时需要 [.NET Runtime 9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
 - Python 3.11 或更新版本，供内置直播流解析器使用。
 - FFmpeg 和 FFplay，供录制和预览使用。Windows 项目已在 `tools/ffmpeg/win-x64` 下包含打包用二进制文件。
 
@@ -53,7 +48,7 @@ dotnet build .\src\TiktokLiveRec.WPF\TiktokLiveRec.WPF.csproj -c Debug -p:Platfo
 .\src\TiktokLiveRec.WPF\bin\x64\Debug\net9.0-windows10.0.26100.0\win-x64\MultiPlatformLiveRecorder.exe
 ```
 
-运行 Avalonia 原型：
+Avalonia 项目可从源码启动用于开发实验，但它不是当前支持的发布目标：
 
 ```powershell
 dotnet run --project .\src\TiktokLiveRec.Avalonia\TiktokLiveRec.Avalonia.csproj
@@ -96,15 +91,16 @@ build                             发布脚本和打包资源
 4. `Recorder` 从 FLV、HLS 或直接录制地址中选择可用输入，然后启动 FFmpeg。
 5. FFmpeg 将直播流保存为 FLV 或 TS，可按时间分段，也可在录制结束后转封装。
 
-## 平台状态
+## 平台支持
+
+当前明确只支持 Windows。
 
 | 系统 | 框架 | 状态 |
 | --- | --- | --- |
 | Windows | WPF | 支持 |
-| Windows | Avalonia | 原型 |
-| macOS | Avalonia | 开发中 |
-| Linux | Avalonia | 开发中 |
-| Android / iOS / tvOS | Avalonia 或原生 | 实验或计划中 |
+| macOS | Avalonia | 不支持 |
+| Linux | Avalonia | 不支持 |
+| Android / iOS / tvOS | Avalonia 或原生 | 不支持 |
 
 ## 上游和致谢
 

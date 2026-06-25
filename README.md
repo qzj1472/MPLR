@@ -2,14 +2,14 @@
 
 [简体中文](README.zh-Hans.md) | English
 
-<img src="branding/logo.png" alt="MPLR logo" />
+<img src="src/TiktokLiveRec.WPF/Assets/Favicon.png" alt="MPLR icon" width="96" />
 
 MPLR is a desktop live-stream recorder with a graphical interface, background monitoring, live preview, and FFmpeg-based recording. It started from [emako/TiktokLiveRec](https://github.com/emako/TiktokLiveRec) and extends the recorder with a bundled Python stream resolver that references [ihmily/DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder) and [wbt5/real-url](https://github.com/wbt5/real-url).
 
 ## Features
 
 - WPF desktop app for Windows.
-- Experimental Avalonia desktop app for future cross-platform work.
+- Avalonia source entry kept as an experimental prototype, not an officially supported target.
 - Room list management with per-room monitor, record, and notification switches.
 - Background polling and unattended recording when a room goes live.
 - Live preview through FFplay or a configured player.
@@ -18,16 +18,11 @@ MPLR is a desktop live-stream recorder with a graphical interface, background mo
 - Bundled Python resolver for more platforms, including Bilibili, Douyu, Huya, Kuaishou, Twitch, YouTube, and other platforms supported by the resolver.
 - Cookie and proxy settings for platforms that require login state, risk-control bypass, or regional access.
 
-## Screenshots
-
-<img src="assets/image-20241113165448238.png" alt="MPLR screenshot" />
-
 ## Requirements
 
 Runtime:
 
 - Windows: [.NET Desktop Runtime 9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
-- Other systems for the Avalonia prototype: [.NET Runtime 9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
 - Python 3.11 or newer is recommended for the bundled stream resolver.
 - FFmpeg and FFplay are required for recording and preview. The Windows project includes packaged binaries under `tools/ffmpeg/win-x64`.
 
@@ -53,7 +48,7 @@ Run the generated app:
 .\src\TiktokLiveRec.WPF\bin\x64\Debug\net9.0-windows10.0.26100.0\win-x64\MultiPlatformLiveRecorder.exe
 ```
 
-Run the Avalonia prototype:
+The Avalonia project can be launched from source for development experiments, but it is not a supported release target:
 
 ```powershell
 dotnet run --project .\src\TiktokLiveRec.Avalonia\TiktokLiveRec.Avalonia.csproj
@@ -96,15 +91,16 @@ build                             Publish scripts and packaging assets
 4. `Recorder` selects a usable FLV, HLS, or direct record URL and starts FFmpeg.
 5. FFmpeg saves the stream as FLV or TS, optionally in segments, and optional conversion can run after recording.
 
-## Platform Status
+## Platform Support
+
+The current supported platform is Windows only.
 
 | Platform | Framework | Status |
 | --- | --- | --- |
 | Windows | WPF | Supported |
-| Windows | Avalonia | Prototype |
-| macOS | Avalonia | In progress |
-| Linux | Avalonia | In progress |
-| Android / iOS / tvOS | Avalonia or native | Experimental or planned |
+| macOS | Avalonia | Not supported |
+| Linux | Avalonia | Not supported |
+| Android / iOS / tvOS | Avalonia or native | Not supported |
 
 ## Credits And Upstream Projects
 
