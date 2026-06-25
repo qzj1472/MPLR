@@ -71,10 +71,12 @@ public sealed class Recorder
                     return;
                 }
 
+                DateTime now = DateTime.Now;
                 string outputExtension = IsHlsUrl(Url, startInfo) || isToSegment ? "ts" : "flv";
+                string fileName = BuildRecordFileName(startInfo, now);
                 string fileNamePattern = isToSegment
-                    ? $"{startInfo.NickName.SanitizeFileName()}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_%03d.{outputExtension}"
-                    : $"{startInfo.NickName.SanitizeFileName()}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.{outputExtension}";
+                    ? $"{fileName}_%03d.{outputExtension}"
+                    : $"{fileName}.{outputExtension}";
 
                 FileName = Path.Combine(saveFolder, fileNamePattern);
 
@@ -243,6 +245,45 @@ public sealed class Recorder
                url == startInfo.HlsUrl;
     }
 
+    private static string BuildRecordFileName(RecorderStartInfo startInfo, DateTime now)
+    {
+        string rule = Configurations.SaveFileNameRule.Get() switch
+        {
+            1 => "{主播名}_{录制时间}_{分辨率}",
+            2 => "{平台}_{主播名}_{录制时间}",
+            3 => "{平台}_{主播名}_{录制时间}_{分辨率}",
+            4 => Configurations.SaveFileNameCustomRule.Get(),
+            _ => "{主播名}_{录制时间}",
+        };
+
+        string nickName = string.IsNullOrWhiteSpace(startInfo.NickName) ? "Unknown" : startInfo.NickName;
+        string fileName = rule
+            .Replace("{主播名}", nickName)
+            .Replace("{主播uid}", GetUidFromRoomUrl(startInfo.RoomUrl))
+            .Replace("{平台}", startInfo.Platform)
+            .Replace("{录制时间}", now.ToString("yyyy-MM-dd_HH-mm-ss"))
+            .Replace("{分辨率}", startInfo.Resolution);
+
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            fileName = $"{nickName}_{now:yyyy-MM-dd_HH-mm-ss}";
+        }
+
+        fileName = fileName.SanitizeFileName().ReplaceTrailingDotsWithUnderscores();
+        return string.IsNullOrWhiteSpace(fileName) ? $"{nickName.SanitizeFileName()}_{now:yyyy-MM-dd_HH-mm-ss}" : fileName;
+    }
+
+    private static string GetUidFromRoomUrl(string roomUrl)
+    {
+        if (string.IsNullOrWhiteSpace(roomUrl) || !Uri.TryCreate(roomUrl, UriKind.Absolute, out Uri? uri))
+        {
+            return string.Empty;
+        }
+
+        string uid = uri.Segments.LastOrDefault()?.Trim('/') ?? string.Empty;
+        return string.IsNullOrWhiteSpace(uid) ? string.Empty : uid.SanitizeFileName();
+    }
+
     private static bool IsOverseaUrl(string? url)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -323,6 +364,8 @@ public record RecorderStartInfo
     public string RecordUrl { get; set; } = string.Empty;
 
     public string Platform { get; set; } = string.Empty;
+
+    public string Resolution { get; set; } = string.Empty;
 
     public string Headers { get; set; } = string.Empty;
 }

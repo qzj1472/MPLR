@@ -320,6 +320,7 @@ internal static class GlobalMonitor
                     RecordUrl = roomStatus.RecordUrl,
                     RoomUrl = room.RoomUrl,
                     Platform = roomStatus.Platform,
+                    Resolution = roomStatus.Resolution,
                     Headers = roomStatus.Headers,
                 });
             }

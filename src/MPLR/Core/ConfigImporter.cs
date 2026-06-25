@@ -44,6 +44,8 @@ public static class ConfigImporter
         nameof(Configurations.SaveFolder),
         nameof(Configurations.SaveFolderDistinguishedByAuthors),
         nameof(Configurations.SaveFolderPathLevel),
+        nameof(Configurations.SaveFileNameRule),
+        nameof(Configurations.SaveFileNameCustomRule),
         nameof(Configurations.Player),
         nameof(Configurations.IsPlayerRect),
         nameof(Configurations.IsUseKeepAwake),

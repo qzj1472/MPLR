@@ -656,10 +656,10 @@
     <value>選擇路徑層級</value>
   </data>
   <data name="SavePathLevelAuthorDate" xml:space="preserve">
-    <value>作者->年份->月份->影片</value>
+    <value>作者->時間</value>
   </data>
   <data name="SavePathLevelPlatformAuthorDate" xml:space="preserve">
-    <value>平台->作者->年份->月份</value>
+    <value>平台->作者->時間</value>
   </data>
   <data name="SavePathLevelCustom" xml:space="preserve">
     <value>自訂</value>

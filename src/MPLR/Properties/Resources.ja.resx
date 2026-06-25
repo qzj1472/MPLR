@@ -658,10 +658,10 @@
     <value>パス階層</value>
   </data>
   <data name="SavePathLevelAuthorDate" xml:space="preserve">
-    <value>配信者->年->月->動画</value>
+    <value>配信者->時間</value>
   </data>
   <data name="SavePathLevelPlatformAuthorDate" xml:space="preserve">
-    <value>プラットフォーム->配信者->年->月</value>
+    <value>プラットフォーム->配信者->時間</value>
   </data>
   <data name="SavePathLevelCustom" xml:space="preserve">
     <value>カスタム</value>

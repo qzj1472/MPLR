@@ -42,14 +42,12 @@ internal static class SaveFolderHelper
         string platform = string.IsNullOrWhiteSpace(startInfo.Platform)
             ? "Unknown"
             : SanitizeFolderName(startInfo.Platform);
-        string year = now.ToString("yyyy");
-        string month = now.ToString("MM");
+        string time = now.ToString("yyyy-MM");
 
         return Configurations.SaveFolderPathLevel.Get() switch
         {
-            1 => Path.Combine(saveFolder, platform, author, year, month),
-            2 => saveFolder,
-            _ => Path.Combine(saveFolder, author, year, month),
+            1 => Path.Combine(saveFolder, platform, author, time),
+            _ => Path.Combine(saveFolder, author, time),
         };
     }
 

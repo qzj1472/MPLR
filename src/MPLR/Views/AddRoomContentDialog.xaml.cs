@@ -14,6 +14,12 @@ public sealed partial class AddRoomContentDialog : ContentDialog
     private bool isForcedAdd = false;
 
     [ObservableProperty]
+    private bool isFollowGlobalSettings = true;
+
+    [ObservableProperty]
+    private bool isToNotify = true;
+
+    [ObservableProperty]
     private string? nickName = null;
 
     public string? RoomUrl = null;

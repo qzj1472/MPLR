@@ -691,11 +691,11 @@ public partial class SettingsViewModel : ReactiveObject
     }
 
     [ObservableProperty]
-    private int saveFolderPathLevelIndex = Math.Clamp(Configurations.SaveFolderPathLevel.Get(), 0, 2);
+    private int saveFolderPathLevelIndex = Math.Clamp(Configurations.SaveFolderPathLevel.Get(), 0, 1);
 
     partial void OnSaveFolderPathLevelIndexChanged(int value)
     {
-        int next = Math.Clamp(value, 0, 2);
+        int next = Math.Clamp(value, 0, 1);
 
         if (next != value)
         {
@@ -705,6 +705,69 @@ public partial class SettingsViewModel : ReactiveObject
 
         Configurations.SaveFolderPathLevel.Set(next);
         ConfigurationManager.Save();
+    }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSaveFileNameRuleCustom))]
+    private int saveFileNameRuleIndex = Math.Clamp(Configurations.SaveFileNameRule.Get(), 0, 4);
+
+    public bool IsSaveFileNameRuleCustom => SaveFileNameRuleIndex == 4;
+
+    partial void OnSaveFileNameRuleIndexChanged(int value)
+    {
+        int next = Math.Clamp(value, 0, 4);
+
+        if (next != value)
+        {
+            SaveFileNameRuleIndex = next;
+            return;
+        }
+
+        Configurations.SaveFileNameRule.Set(next);
+        ConfigurationManager.Save();
+    }
+
+    [ObservableProperty]
+    private string saveFileNameCustomRule = string.IsNullOrWhiteSpace(Configurations.SaveFileNameCustomRule.Get())
+        ? "{主播名}_{录制时间}"
+        : Configurations.SaveFileNameCustomRule.Get();
+
+    partial void OnSaveFileNameCustomRuleChanged(string value)
+    {
+        Configurations.SaveFileNameCustomRule.Set(string.IsNullOrWhiteSpace(value) ? "{主播名}_{录制时间}" : value);
+        ConfigurationManager.Save();
+    }
+
+    [RelayCommand]
+    private void AppendSaveFileNameToken(string token)
+    {
+        SaveFileNameCustomRule += token;
+    }
+
+    [RelayCommand]
+    private void DeleteSaveFileNameToken()
+    {
+        string[] tokens = ["{主播uid}", "{主播名}", "{录制时间}", "{分辨率}", "{平台}"];
+
+        foreach (string token in tokens.OrderByDescending(static value => value.Length))
+        {
+            if (SaveFileNameCustomRule.EndsWith(token, StringComparison.Ordinal))
+            {
+                SaveFileNameCustomRule = SaveFileNameCustomRule[..^token.Length];
+                return;
+            }
+        }
+
+        if (SaveFileNameCustomRule.Length > 0)
+        {
+            SaveFileNameCustomRule = SaveFileNameCustomRule[..^1];
+        }
+    }
+
+    [RelayCommand]
+    private void ResetSaveFileNameRule()
+    {
+        SaveFileNameCustomRule = "{主播名}_{录制时间}";
     }
 
     [RelayCommand]

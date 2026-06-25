@@ -713,10 +713,10 @@
     <value>Path Level</value>
   </data>
   <data name="SavePathLevelAuthorDate" xml:space="preserve">
-    <value>Author -> Year -> Month -> Video</value>
+    <value>Author -> Time</value>
   </data>
   <data name="SavePathLevelPlatformAuthorDate" xml:space="preserve">
-    <value>Platform -> Author -> Year -> Month</value>
+    <value>Platform -> Author -> Time</value>
   </data>
   <data name="SavePathLevelCustom" xml:space="preserve">
     <value>Custom</value>

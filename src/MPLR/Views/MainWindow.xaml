@@ -20,8 +20,8 @@
                  WindowStartupLocation="CenterScreen"
                  mc:Ignorable="d">
     <ui:FluentWindow.Resources>
-        <SolidColorBrush x:Key="MainAccentHoverBrush" Color="#3B82C4" />
-        <SolidColorBrush x:Key="MainAccentPressedBrush" Color="#2F6FA8" />
+        <SolidColorBrush x:Key="MainAccentHoverBrush" Color="#1F5F9F" />
+        <SolidColorBrush x:Key="MainAccentPressedBrush" Color="#174978" />
         <Style x:Key="StatusIconButtonStyle" TargetType="{x:Type Button}">
             <Setter Property="Width" Value="16" />
             <Setter Property="Height" Value="16" />
@@ -304,6 +304,14 @@
                         PreviewMouseMove="RoomCardListPreviewMouseMove"
                         PreviewMouseRightButtonDown="RoomCardListPreviewMouseRightButtonDown"
                         MouseLeftButtonDown="RoomCardPanelMouseLeftButtonDown">
+                    <Border.ContextMenu>
+                        <ContextMenu Placement="MousePoint">
+                            <MenuItem Header="{I18N CardRefresh}" Command="{Binding RefreshRoomCardsCommand}">
+                            </MenuItem>
+                            <MenuItem Header="{I18N CardEditModeOn}" Command="{Binding ToggleCardEditModeCommand}">
+                            </MenuItem>
+                        </ContextMenu>
+                    </Border.ContextMenu>
                     <Grid ClipToBounds="False">
                         <ListBox x:Name="RoomCardList"
                                  Background="Transparent"
@@ -1116,7 +1124,11 @@
                                    Spacing="10">
                         <TextBlock Style="{StaticResource MainFlyoutCaptionStyle}" Text="{I18N EnterRoomUrl}" />
                         <ui:TextBox x:Name="AddRoomUrlInput" PlaceholderText="https://live.douyin.com/xxx" />
-                        <CheckBox x:Name="AddRoomForceCheckBox" Content="{I18N AddRoomForce}" />
+                        <ui:Grid ColumnDefinitions="Auto,Auto,Auto">
+                            <CheckBox x:Name="AddRoomForceCheckBox" Grid.Column="0" Content="{I18N AddRoomForce}" />
+                            <CheckBox x:Name="AddRoomFollowGlobalSettingsCheckBox" Grid.Column="1" Margin="16,0,0,0" Content="{I18N FollowGlobalSettings}" />
+                            <CheckBox x:Name="AddRoomNotifyCheckBox" Grid.Column="2" Margin="16,0,0,0" Content="{I18N LiveNotification}" />
+                        </ui:Grid>
                     </ui:StackPanel>
                     <ui:StackPanel Grid.Row="2"
                                    HorizontalAlignment="Right"

@@ -574,11 +574,8 @@ public partial class MainWindow : FluentWindow
             return;
         }
 
-        if (ViewModel.ToggleCardEditModeCommand.CanExecute(null))
-        {
-            ViewModel.ToggleCardEditModeCommand.Execute(null);
-            e.Handled = true;
-        }
+        RoomCardPanel.ContextMenu?.SetCurrentValue(ContextMenu.IsOpenProperty, true);
+        e.Handled = true;
     }
 
     private void RoomCardListMouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -789,6 +786,8 @@ public partial class MainWindow : FluentWindow
     {
         AddRoomUrlInput.Text = string.Empty;
         AddRoomForceCheckBox.IsChecked = false;
+        AddRoomFollowGlobalSettingsCheckBox.IsChecked = true;
+        AddRoomNotifyCheckBox.IsChecked = true;
         OpenCenteredFlyout(AddRoomFlyout);
         Dispatcher.BeginInvoke(() => AddRoomUrlInput.Focus(), DispatcherPriority.Input);
     }
@@ -800,7 +799,11 @@ public partial class MainWindow : FluentWindow
 
     private async void AddRoomConfirmClick(object sender, RoutedEventArgs e)
     {
-        bool added = await ViewModel.TryAddRoomFromFlyoutAsync(AddRoomUrlInput.Text, AddRoomForceCheckBox.IsChecked == true);
+        bool added = await ViewModel.TryAddRoomFromFlyoutAsync(
+            AddRoomUrlInput.Text,
+            AddRoomForceCheckBox.IsChecked == true,
+            AddRoomNotifyCheckBox.IsChecked == true,
+            AddRoomFollowGlobalSettingsCheckBox.IsChecked == true);
         if (added)
         {
             AddRoomFlyout.Visibility = Visibility.Collapsed;
@@ -838,11 +841,11 @@ public partial class MainWindow : FluentWindow
             }
         }
 
-        double top = anchorBottom - flyoutHeight - 8;
+        double top = anchorBottom - flyoutHeight - 24;
 
         if (top < 0)
         {
-            top = targetPosition.Y + targetHeight + 8;
+            top = targetPosition.Y + targetHeight + 24;
         }
 
         left = Math.Clamp(left, 0, Math.Max(0, layerWidth - flyoutWidth));

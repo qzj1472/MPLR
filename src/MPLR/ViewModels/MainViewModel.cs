@@ -254,12 +254,12 @@ public partial class MainViewModel : ReactiveObject
         {
             if (!string.IsNullOrWhiteSpace(dialog.NickName))
             {
-                await AddRoomToListAsync(dialog.Url, dialog.RoomUrl!, dialog.NickName, dialog.SpiderResult);
+                await AddRoomToListAsync(dialog.Url, dialog.RoomUrl!, dialog.NickName, dialog.SpiderResult, dialog.IsToNotify, dialog.IsFollowGlobalSettings);
             }
         }
     }
 
-    public async Task<bool> TryAddRoomFromFlyoutAsync(string? url, bool isForcedAdd)
+    public async Task<bool> TryAddRoomFromFlyoutAsync(string? url, bool isForcedAdd, bool isToNotify, bool isFollowGlobalSettings)
     {
         if (string.IsNullOrWhiteSpace(url))
         {
@@ -283,7 +283,7 @@ public partial class MainViewModel : ReactiveObject
                 return false;
             }
 
-            await AddRoomToListAsync(url, roomUrl, roomUrl, null);
+            await AddRoomToListAsync(url, roomUrl, roomUrl, null, isToNotify, isFollowGlobalSettings);
             Toast.Success("AddRoomSucc".Tr(roomUrl));
             return true;
         }
@@ -306,7 +306,7 @@ public partial class MainViewModel : ReactiveObject
                     return false;
                 }
 
-                await AddRoomToListAsync(url, spider.RoomUrl, spider.Nickname, spider);
+                await AddRoomToListAsync(url, spider.RoomUrl, spider.Nickname, spider, isToNotify, isFollowGlobalSettings);
                 Toast.Success("AddRoomSucc".Tr(spider.Nickname));
                 return true;
             }
@@ -318,7 +318,7 @@ public partial class MainViewModel : ReactiveObject
         }
     }
 
-    private async Task AddRoomToListAsync(string? originalUrl, string roomUrl, string nickName, ISpiderResult? spiderResult)
+    private async Task AddRoomToListAsync(string? originalUrl, string roomUrl, string nickName, ISpiderResult? spiderResult, bool isToNotify, bool isFollowGlobalSettings)
     {
         List<Room> rooms = [.. Configurations.Rooms.Get()];
 
@@ -327,6 +327,8 @@ public partial class MainViewModel : ReactiveObject
             NickName = nickName,
             RoomUrl = roomUrl,
             AddedAt = DateTime.Now,
+            IsToNotify = isToNotify,
+            IsFollowGlobalSettings = isFollowGlobalSettings,
         };
         rooms.RemoveAll(room => room.RoomUrl == originalUrl || room.RoomUrl == roomUrl);
         rooms.Add(newRoom);
@@ -339,6 +341,8 @@ public partial class MainViewModel : ReactiveObject
             RoomUrl = roomUrl,
             AddedAt = DateTime.Now,
             AvatarLocalPath = AvatarCache.GetCachedAvatarSource(roomUrl),
+            IsToNotify = isToNotify,
+            IsFollowGlobalSettings = isFollowGlobalSettings,
         };
 
         if (spiderResult != null)
