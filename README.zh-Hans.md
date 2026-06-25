@@ -1,25 +1,35 @@
-[English](README.md) | [简体中文](README.zh-Hans.md)
+[English](README.md) | 简体中文
 
-<img src="branding/logo.png" />
+<img src="branding/logo.png" alt="MPLR logo" />
 
-# 多平台录播
+# MPLR 多平台录播
 
-[![GitHub license](https://img.shields.io/github/license/emako/TiktokLiveRec)](https://github.com/emako/TiktokLiveRec/blob/master/LICENSE) [![Actions](https://github.com/emako/TiktokLiveRec/actions/workflows/build.yml/badge.svg)](https://github.com/emako/TiktokLiveRec/actions/workflows/library.nuget.yml) [![Platform](https://img.shields.io/badge/platform-Windows-blue?logo=windowsxp&color=1E9BFA)](https://dotnet.microsoft.com/en-us/download/dotnet/9.0) [![GitHub downloads](https://img.shields.io/github/downloads/emako/TiktokLiveRec/total)](https://github.com/emako/TiktokLiveRec/releases)
-[![GitHub downloads](https://img.shields.io/github/downloads/emako/TiktokLiveRec/latest/total)](https://github.com/emako/TiktokLiveRec/releases)
+MPLR 是一款带图形界面的多平台直播录制工具，支持直播间管理、后台监控、开播通知、直播预览和基于 FFmpeg 的无人值守录制。本项目基于 [emako/TiktokLiveRec](https://github.com/emako/TiktokLiveRec) 继续整理和扩展，并集成了参考 [ihmily/DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder) 与 [wbt5/real-url](https://github.com/wbt5/real-url) 的 Python 直播流解析器。
 
-具有图形界面、无人值守、直播预览和直播流录制功能。
+## 功能
 
-实现基于 FFmpeg 和 FFplay。
+- Windows WPF 桌面端，当前主入口。
+- Avalonia 桌面端原型，用于后续跨平台方向。
+- 直播间列表管理，支持每个直播间单独控制监控、录制和通知。
+- 后台轮询直播状态，开播后自动录制。
+- 使用 FFplay 或自定义播放器预览直播。
+- 使用 FFmpeg 录制直播流，支持代理、自定义 User-Agent、分段录制和录制后转封装。
+- 内置抖音和 TikTok 的 C# 回退解析逻辑。
+- 集成 Python 解析器，扩展哔哩哔哩、斗鱼、虎牙、快手、Twitch、YouTube 等平台的直播流解析能力。
+- 支持 Cookie、平台 Cookie、代理和清晰度配置，应对登录态、风控和地区访问限制。
 
 ## 截图
 
-<img src="assets/image-20241113165448238.png" alt="image-20241113165448238" style="transform:scale(0.5);" />
+<img src="assets/image-20241113165448238.png" alt="MPLR screenshot" />
 
-## 依赖运行时
+## 环境依赖
 
-Windows: [.NET Desktop Runtime 9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
+运行环境：
 
-其他系统: [.NET Runtime 9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
+- Windows: [.NET Desktop Runtime 9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
+- Avalonia 原型在其他系统运行时需要 [.NET Runtime 9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
+- Python 3.11 或更新版本，供内置直播流解析器使用。
+- FFmpeg 和 FFplay，供录制和预览使用。Windows 项目已在 `tools/ffmpeg/win-x64` 下包含打包用二进制文件。
 
 Windows 本地开发可使用 Scoop 安装环境：
 
@@ -29,56 +39,80 @@ scoop bucket add extras
 scoop install versions/dotnet9-sdk ffmpeg extras/vcredist2022 python311 nodejs
 ```
 
-## 直播录制
+## 构建和运行
 
-内置 C# 回退解析支持抖音和 TikTok。随包提供的 Python 直播流解析器扩展了更多平台的录制能力。
+构建 Windows WPF 主程序：
 
-| 平台 | 状态 |
-| ---- | ---- |
-| 抖音 | 支持 |
-| TikTok | 支持 |
-| 哔哩哔哩 | 通过直播流解析器支持 |
-| 快手 | 通过直播流解析器支持 |
-| 斗鱼 | 通过直播流解析器支持 |
-| 虎牙 | 通过直播流解析器支持 |
-| Twitch | 通过直播流解析器支持 |
-| YouTube 及其他解析器支持的平台 | 解析器能返回直播流时支持 |
-
-怎么添加直播间：
-
-```bash
-# 国内抖音直播间链接类似如下：
-https://live.douyin.com/XXX
-https://www.douyin.com/root/live/XXX
-
-# 海外 TikTok 直播间链接类似如下：
-https://www.tiktok.com/@XXX/live
-
-# 其他平台通常可以直接添加公开直播间链接：
-https://live.bilibili.com/XXX
-https://www.douyu.com/XXX
-https://www.huya.com/XXX
-https://www.twitch.tv/XXX
+```powershell
+dotnet build .\src\TiktokLiveRec.WPF\TiktokLiveRec.WPF.csproj -c Debug -p:Platform=x64
 ```
 
-## 支持系统
+启动构建产物：
 
-为了加快初版开发实现，首版基于 WPF 开发了 Windows 版本。
+```powershell
+.\src\TiktokLiveRec.WPF\bin\x64\Debug\net9.0-windows10.0.26100.0\win-x64\MultiPlatformLiveRecorder.exe
+```
 
-其他系统的实现会基于个人需求和用户反馈推进。
+运行 Avalonia 原型：
 
-| 操作系统 | 开发框架 | 状态 |
-| -------- | -------- | ---- |
+```powershell
+dotnet run --project .\src\TiktokLiveRec.Avalonia\TiktokLiveRec.Avalonia.csproj
+```
+
+## 添加直播间
+
+可以添加公开直播间地址，例如：
+
+```text
+https://live.douyin.com/123456
+https://www.douyin.com/root/live/123456
+https://www.tiktok.com/@example/live
+https://live.bilibili.com/123456
+https://www.douyu.com/123456
+https://www.huya.com/123456
+https://www.twitch.tv/example
+https://www.youtube.com/watch?v=example
+```
+
+部分平台可能需要 Cookie、登录态、代理或更长的轮询间隔才能稳定解析。抖音和 TikTok 的 Cookie 获取方式可参考 [GETCOOKIE_DOUYIN.md](doc/GETCOOKIE_DOUYIN.md) 与 [GETCOOKIE_TIKTOK.md](doc/GETCOOKIE_TIKTOK.md)。
+
+## 项目结构
+
+```text
+src/TiktokLiveRec.WPF             Windows WPF 主程序
+src/TiktokLiveRec.Avalonia        Avalonia 桌面端原型
+src/FluentAvaloniaUI.Violeta      本地 Avalonia UI 控件
+tools/stream_resolver             Python 直播流解析器和 vendored 解析代码
+tools/ffmpeg/win-x64              Windows FFmpeg、FFplay、FFprobe
+doc                               Cookie 和使用说明
+build                             发布脚本和打包资源
+```
+
+## 工作流程
+
+1. 桌面端负责保存直播间、配置和操作状态。
+2. `GlobalMonitor` 按轮询间隔刷新每个直播间状态。
+3. `Spider` 优先调用内置 Python 解析器；解析失败时，抖音和 TikTok 会回退到 C# 内置解析。
+4. `Recorder` 从 FLV、HLS 或直接录制地址中选择可用输入，然后启动 FFmpeg。
+5. FFmpeg 将直播流保存为 FLV 或 TS，可按时间分段，也可在录制结束后转封装。
+
+## 平台状态
+
+| 系统 | 框架 | 状态 |
+| --- | --- | --- |
 | Windows | WPF | 支持 |
+| Windows | Avalonia | 原型 |
 | macOS | Avalonia | 开发中 |
-| Ubuntu | Avalonia | 待开发 |
-| Android | Avalonia | 待开发 |
-| iOS | Avalonia | 待开发 |
-| tvOS | 待定 | 待开发 |
+| Linux | Avalonia | 开发中 |
+| Android / iOS / tvOS | Avalonia 或原生 | 实验或计划中 |
 
-## Cookie
+## 上游和致谢
 
-部分平台可能需要 Cookie、登录状态或代理才能稳定解析直播流。可以参考 [GETCOOKIE_DOUYIN.md](doc/GETCOOKIE_DOUYIN.md) 或 [GETCOOKIE_TIKTOK.md](doc/GETCOOKIE_TIKTOK.md)。
+本项目明确引用和感谢以下项目：
+
+- [emako/TiktokLiveRec](https://github.com/emako/TiktokLiveRec)：原始 GUI 录播项目，也是本项目的基础来源。
+- [ihmily/DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder)：基于 FFmpeg 的多平台循环值守录制工具，本项目的 Python 解析器和部分解析思路参考了该项目。
+- [wbt5/real-url](https://github.com/wbt5/real-url)：多平台真实直播源和弹幕解析项目，本项目 `tools/stream_resolver/vendor/real_url` 中保留了相关解析模块和原始许可。
 
 ## 隐私政策
 
@@ -86,8 +120,6 @@ https://www.twitch.tv/XXX
 
 ## 许可证
 
-本项目基于 [MIT 许可证](LICENSE)。
+主项目基于 [MIT 许可证](LICENSE) 发布。
 
-## 鸣谢
-
-为了节约后续维护成本，本项目参考了 [DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder) 以及相关解析器项目的直播流解析方式和字符串数据。
+仓库内 vendored 第三方代码保留各自原始许可。其中 `tools/stream_resolver/vendor/real_url` 保留来自 `wbt5/real-url` 的 GPL-2.0 许可，`tools/stream_resolver/vendor/douyin_live_recorder` 保留来自 `ihmily/DouyinLiveRecorder` 的 MIT 许可。
