@@ -28,8 +28,8 @@ public static class Toast
 
         ToastConfig config = new(icon, ToastLocation.TopCenter, Offset, ToastConfig.NormalTime)
         {
-            FontSize = 24,
-            IconSize = 24,
+            FontSize = 22,
+            IconSize = 20,
             FontWeight = FontWeights.Medium,
             CornerRadius = new CornerRadius(8),
             BorderThickness = new Thickness(1),

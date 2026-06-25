@@ -322,6 +322,9 @@ internal static class GlobalMonitor
                     Platform = roomStatus.Platform,
                     Resolution = roomStatus.Resolution,
                     Headers = roomStatus.Headers,
+                    Title = roomStatus.Title,
+                    Bitrate = roomStatus.Bitrate,
+                    CoverPath = roomStatus.AvatarLocalPath,
                 });
             }
             else if (roomStatus.RecordStatus == RecordStatus.Disabled)

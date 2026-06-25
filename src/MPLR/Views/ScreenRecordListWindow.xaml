@@ -5,8 +5,8 @@
                  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                  Title="{I18N ToolbarScreenRecordList}"
-                 Width="560"
-                 Height="360"
+                 Width="860"
+                 Height="560"
                  d:Background="#FF101010"
                  ExtendsContentIntoTitleBar="True"
                  WindowBackdropType="Mica"
@@ -14,6 +14,101 @@
                  mc:Ignorable="d">
     <Grid>
         <Grid Margin="8,42,4,8">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding Videos}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Margin="8,8,12,0"
+                                    Padding="12"
+                                    Background="{DynamicResource CardBackground}"
+                                    BorderBrush="{DynamicResource CardBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="10">
+                                <ui:Grid ColumnDefinitions="132,*,Auto">
+                                    <Border Width="116"
+                                            Height="72"
+                                            Background="#16000000"
+                                            BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            ClipToBounds="True">
+                                        <Grid>
+                                            <Image Source="{Binding ThumbnailPath}"
+                                                   Stretch="UniformToFill" />
+                                            <ui:FontIcon HorizontalAlignment="Center"
+                                                         VerticalAlignment="Center"
+                                                         FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                                         FontSize="24"
+                                                         Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                         Glyph="{x:Static ui:FontSymbols.Video}">
+                                                <ui:FontIcon.Style>
+                                                    <Style TargetType="{x:Type ui:FontIcon}">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding HasThumbnail}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </ui:FontIcon.Style>
+                                            </ui:FontIcon>
+                                        </Grid>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="0,0,18,0">
+                                        <TextBlock FontSize="15"
+                                                   FontWeight="SemiBold"
+                                                   Text="{Binding FileName}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Margin="0,8,0,0"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                   Text="{Binding NickName}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Margin="0,4,0,0"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                   Text="{Binding Resolution}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Margin="0,4,0,0"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                   Text="{Binding Bitrate}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Margin="0,4,0,0"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                   Text="{Binding Title}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2"
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Center"
+                                                Orientation="Horizontal">
+                                        <Button Margin="0,0,8,0"
+                                                Click="OpenVideoClick"
+                                                Content="打开视频"
+                                                Tag="{Binding}" />
+                                        <Button Margin="0,0,8,0"
+                                                Click="TranscodeVideoClick"
+                                                Content="转码"
+                                                Tag="{Binding}">
+                                            <Button.Style>
+                                                <Style TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding CanTranscode}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <Button Click="OpenDirectoryClick"
+                                                Content="打开目录"
+                                                Tag="{Binding}" />
+                                    </StackPanel>
+                                </ui:Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
         </Grid>
         <Grid>
             <ui:TitleBar Title="{I18N ToolbarScreenRecordList}" ShowMaximize="False">

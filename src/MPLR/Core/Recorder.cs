@@ -3,6 +3,7 @@ using Flucli;
 using Flucli.Utils.Extensions;
 using System.Diagnostics;
 using System.Text;
+using System.Text.Json;
 using MPLR.Extensions;
 using MPLR.Models;
 
@@ -79,6 +80,7 @@ public sealed class Recorder
                     : $"{fileName}.{outputExtension}";
 
                 FileName = Path.Combine(saveFolder, fileNamePattern);
+                WriteMetadata(saveFolder, fileName, outputExtension, startInfo, now);
 
                 bool isOversea = IsOverseaUrl(startInfo.RoomUrl) || IsOverseaUrl(Url);
                 string rwTimeout = isOversea ? "50000000" : "15000000";
@@ -273,6 +275,32 @@ public sealed class Recorder
         return string.IsNullOrWhiteSpace(fileName) ? $"{nickName.SanitizeFileName()}_{now:yyyy-MM-dd_HH-mm-ss}" : fileName;
     }
 
+    private static void WriteMetadata(string saveFolder, string fileName, string outputExtension, RecorderStartInfo startInfo, DateTime now)
+    {
+        try
+        {
+            string metadataPath = Path.Combine(saveFolder, $"{fileName}.mplr.json");
+            VideoRecordingMetadata metadata = new()
+            {
+                FileName = $"{fileName}.{outputExtension}",
+                NickName = startInfo.NickName,
+                RoomUrl = startInfo.RoomUrl,
+                Platform = startInfo.Platform,
+                Title = startInfo.Title,
+                Resolution = startInfo.Resolution,
+                Bitrate = startInfo.Bitrate,
+                CoverPath = startInfo.CoverPath,
+                RecordedAt = now,
+            };
+
+            File.WriteAllText(metadataPath, JsonSerializer.Serialize(metadata, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch (Exception e)
+        {
+            Debug.WriteLine(e);
+        }
+    }
+
     private static string GetUidFromRoomUrl(string roomUrl)
     {
         if (string.IsNullOrWhiteSpace(roomUrl) || !Uri.TryCreate(roomUrl, UriKind.Absolute, out Uri? uri))
@@ -368,6 +396,33 @@ public record RecorderStartInfo
     public string Resolution { get; set; } = string.Empty;
 
     public string Headers { get; set; } = string.Empty;
+
+    public string Title { get; set; } = string.Empty;
+
+    public string Bitrate { get; set; } = string.Empty;
+
+    public string CoverPath { get; set; } = string.Empty;
+}
+
+public sealed class VideoRecordingMetadata
+{
+    public string FileName { get; set; } = string.Empty;
+
+    public string NickName { get; set; } = string.Empty;
+
+    public string RoomUrl { get; set; } = string.Empty;
+
+    public string Platform { get; set; } = string.Empty;
+
+    public string Title { get; set; } = string.Empty;
+
+    public string Resolution { get; set; } = string.Empty;
+
+    public string Bitrate { get; set; } = string.Empty;
+
+    public string CoverPath { get; set; } = string.Empty;
+
+    public DateTime RecordedAt { get; set; } = DateTime.MinValue;
 }
 
 file static class FileNameSanitizer

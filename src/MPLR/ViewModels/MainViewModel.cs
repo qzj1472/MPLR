@@ -711,7 +711,14 @@ public partial class MainViewModel : ReactiveObject
     private void ToggleCardEditMode()
     {
         IsCardEditMode = !IsCardEditMode;
-        Toast.Success((IsCardEditMode ? "CardEditModeOn" : "CardEditModeOff").Tr());
+        if (IsCardEditMode)
+        {
+            Toast.Success("CardEditModeOn".Tr());
+        }
+        else
+        {
+            Toast.Error("CardEditModeOff".Tr());
+        }
     }
 
     [RelayCommand]
