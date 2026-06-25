@@ -12,12 +12,15 @@
                  WindowBackdropType="Mica"
                  WindowStartupLocation="CenterOwner"
                  mc:Ignorable="d">
-    <Grid Margin="16,48,16,16">
-        <Button Width="86"
-                Height="34"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Bottom"
-                Click="CloseButtonClick"
-                Content="{I18N ButtonOfClose}" />
+    <Grid>
+        <Grid Margin="8,42,4,8">
+        </Grid>
+        <Grid>
+            <ui:TitleBar Title="{I18N ToolbarScreenRecordList}" ShowMaximize="False">
+                <ui:TitleBar.Icon>
+                    <ui:SymbolIcon Symbol="Video24" />
+                </ui:TitleBar.Icon>
+            </ui:TitleBar>
+        </Grid>
     </Grid>
 </ui:FluentWindow>

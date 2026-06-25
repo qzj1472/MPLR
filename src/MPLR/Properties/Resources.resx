@@ -674,7 +674,7 @@
     <value>Live room info refreshed</value>
   </data>
   <data name="ToolbarScreenRecordList" xml:space="preserve">
-    <value>Screen Records</value>
+    <value>Video List</value>
   </data>
   <data name="RoutineSchedule" xml:space="preserve">
     <value>Schedule Rule</value>

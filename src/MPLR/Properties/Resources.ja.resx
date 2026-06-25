@@ -619,7 +619,7 @@
     <value>ライブ情報を更新しました</value>
   </data>
   <data name="ToolbarScreenRecordList" xml:space="preserve">
-    <value>画面録画リスト</value>
+    <value>動画リスト</value>
   </data>
   <data name="RoutineSchedule" xml:space="preserve">
     <value>周期ルール</value>

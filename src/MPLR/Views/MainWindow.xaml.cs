@@ -9,6 +9,7 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Windows.Media.Media3D;
 using System.Windows.Threading;
@@ -278,6 +279,10 @@ public partial class MainWindow : FluentWindow
     private int routineIntervalUnitIndex;
 
     private bool isUpdatingRoutineIntervalFlyout;
+
+    private readonly BlurEffect modalBlurEffect = new() { Radius = 8 };
+
+    private const double BottomFlyoutGap = 40d;
 
     public MainWindow()
     {
@@ -663,11 +668,6 @@ public partial class MainWindow : FluentWindow
     {
         SetRoutineIntervalFlyoutValue(ViewModel.StatusOfRoutineInterval);
         OpenBoundedFlyout(RoutineIntervalFlyout, RoutineIntervalStatusButton);
-        Dispatcher.BeginInvoke(() =>
-        {
-            RoutineIntervalInput.Focus();
-            RoutineIntervalInput.SelectAll();
-        }, DispatcherPriority.Input);
     }
 
     private void LocaleCultureChanged(object? sender, EventArgs e)
@@ -701,6 +701,17 @@ public partial class MainWindow : FluentWindow
         }
 
         RoutineIntervalFlyout.Visibility = Visibility.Collapsed;
+    }
+
+    private void RoutineIntervalInputKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != System.Windows.Input.Key.Enter)
+        {
+            return;
+        }
+
+        RoutineIntervalConfirmClick(sender, e);
+        e.Handled = true;
     }
 
     private void RoutineIntervalUnitSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -807,7 +818,19 @@ public partial class MainWindow : FluentWindow
         if (added)
         {
             AddRoomFlyout.Visibility = Visibility.Collapsed;
+            UpdateModalOverlay();
         }
+    }
+
+    private void AddRoomUrlInputKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != System.Windows.Input.Key.Enter)
+        {
+            return;
+        }
+
+        AddRoomConfirmClick(sender, e);
+        e.Handled = true;
     }
 
     private void CloseFloatingPanelsClick(object sender, RoutedEventArgs e)
@@ -841,11 +864,11 @@ public partial class MainWindow : FluentWindow
             }
         }
 
-        double top = anchorBottom - flyoutHeight - 24;
+        double top = anchorBottom - flyoutHeight - BottomFlyoutGap;
 
         if (top < 0)
         {
-            top = targetPosition.Y + targetHeight + 24;
+            top = targetPosition.Y + targetHeight + BottomFlyoutGap;
         }
 
         left = Math.Clamp(left, 0, Math.Max(0, layerWidth - flyoutWidth));
@@ -864,7 +887,14 @@ public partial class MainWindow : FluentWindow
 
         CloseFloatingPanels(flyout);
         flyout.Visibility = Visibility.Visible;
+        UpdateModalOverlay();
         Dispatcher.BeginInvoke(() => CenterVisibleFlyout(flyout), DispatcherPriority.Loaded);
+    }
+
+    private void ModalOverlayMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        CloseFloatingPanels();
+        e.Handled = true;
     }
 
     private void CenterVisibleFlyout(FrameworkElement flyout)
@@ -950,6 +980,17 @@ public partial class MainWindow : FluentWindow
                 flyout.Visibility = Visibility.Collapsed;
             }
         }
+
+        UpdateModalOverlay();
+    }
+
+    private void UpdateModalOverlay()
+    {
+        bool modalVisible = AddRoomFlyout.Visibility == Visibility.Visible ||
+            AboutFlyout.Visibility == Visibility.Visible;
+
+        ModalOverlay.Visibility = modalVisible ? Visibility.Visible : Visibility.Collapsed;
+        MainContentRoot.Effect = modalVisible ? modalBlurEffect : null;
     }
 
     private void MainWindowStateChanged(object? sender, EventArgs e)

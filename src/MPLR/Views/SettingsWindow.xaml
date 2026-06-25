@@ -26,8 +26,124 @@
         <Thickness x:Key="SettingsCardExpanderIconMargin">0,0,14,0</Thickness>
         <sys:Double x:Key="SettingsCardExpanderIconSize">24.0</sys:Double>
         <sys:Double x:Key="SettingsCardExpanderChevronSize">16.0</sys:Double>
+        <SolidColorBrush x:Key="SettingsDangerButtonBrush" Color="#B91C1C" />
+        <SolidColorBrush x:Key="SettingsDangerButtonHoverBrush" Color="#5D0E0E" />
+        <SolidColorBrush x:Key="SettingsDayToggleCheckedBrush" Color="#D8ECFF" />
+        <SolidColorBrush x:Key="SettingsDayToggleCheckedBorderBrush" Color="#7AB8F5" />
+        <SolidColorBrush x:Key="SettingsDayToggleCheckedForegroundBrush" Color="#003C6A" />
+        <SolidColorBrush x:Key="SettingsDayTogglePressedBrush" Color="#003C6A" />
         <local:AnimationFactorToValueConverter x:Key="SettingsAnimationFactorToValueConverter" />
         <local:CornerRadiusSplitConverter x:Key="SettingsCornerRadiusSplitConverter" />
+        <Style x:Key="SettingsNameTokenButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Margin" Value="6,0" />
+            <Setter Property="Padding" Value="8,0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="SettingsIconOnlyButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="MinWidth" Value="32" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style x:Key="SettingsDangerAccentButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{StaticResource SettingsDangerButtonBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource SettingsDangerButtonBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="RootBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              RecognizesAccessKey="True"
+                                              TextElement.Foreground="{TemplateBinding Foreground}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="{StaticResource SettingsDangerButtonHoverBrush}" />
+                                <Setter TargetName="RootBorder" Property="BorderBrush" Value="{StaticResource SettingsDangerButtonHoverBrush}" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="{StaticResource SettingsDangerButtonHoverBrush}" />
+                                <Setter TargetName="RootBorder" Property="BorderBrush" Value="{StaticResource SettingsDangerButtonHoverBrush}" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="RootBorder" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="SettingsDayToggleButtonStyle" TargetType="{x:Type ToggleButton}">
+            <Setter Property="Height" Value="36" />
+            <Setter Property="MinWidth" Value="86" />
+            <Setter Property="Margin" Value="6,4" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                        <Border x:Name="RootBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True"
+                                              TextElement.Foreground="{TemplateBinding Foreground}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="{StaticResource SettingsDayToggleCheckedBrush}" />
+                                <Setter TargetName="RootBorder" Property="BorderBrush" Value="{StaticResource SettingsDayToggleCheckedBorderBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource SettingsDayToggleCheckedForegroundBrush}" />
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsChecked" Value="True" />
+                                    <Condition Property="IsMouseOver" Value="True" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="RootBorder" Property="Background" Value="{StaticResource SettingsDayTogglePressedBrush}" />
+                                <Setter TargetName="RootBorder" Property="BorderBrush" Value="{StaticResource SettingsDayTogglePressedBrush}" />
+                                <Setter Property="Foreground" Value="White" />
+                            </MultiTrigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="{StaticResource SettingsDayTogglePressedBrush}" />
+                                <Setter TargetName="RootBorder" Property="BorderBrush" Value="{StaticResource SettingsDayTogglePressedBrush}" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="RootBorder" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="SettingsNumberInputTextBoxStyle" TargetType="{x:Type ui:TextBox}" BasedOn="{StaticResource {x:Type ui:TextBox}}">
             <Setter Property="Height" Value="36" />
             <Setter Property="MinHeight" Value="36" />
@@ -578,16 +694,16 @@
                         </ui:CardExpander.Header>
                         <ui:StackPanel Margin="42,0,28,0"
                                        Spacing="12">
-                            <UniformGrid Columns="5">
-                                <CheckBox Content="{I18N DayMonday}" IsChecked="{Binding RoutineScheduleMonday, Mode=TwoWay}" />
-                                <CheckBox Content="{I18N DayTuesday}" IsChecked="{Binding RoutineScheduleTuesday, Mode=TwoWay}" />
-                                <CheckBox Content="{I18N DayWednesday}" IsChecked="{Binding RoutineScheduleWednesday, Mode=TwoWay}" />
-                                <CheckBox Content="{I18N DayThursday}" IsChecked="{Binding RoutineScheduleThursday, Mode=TwoWay}" />
-                                <CheckBox Content="{I18N DayFriday}" IsChecked="{Binding RoutineScheduleFriday, Mode=TwoWay}" />
+                            <UniformGrid Margin="-6,-4,-6,0" Columns="5">
+                                <ToggleButton Content="{I18N DayMonday}" IsChecked="{Binding RoutineScheduleMonday, Mode=TwoWay}" Style="{StaticResource SettingsDayToggleButtonStyle}" />
+                                <ToggleButton Content="{I18N DayTuesday}" IsChecked="{Binding RoutineScheduleTuesday, Mode=TwoWay}" Style="{StaticResource SettingsDayToggleButtonStyle}" />
+                                <ToggleButton Content="{I18N DayWednesday}" IsChecked="{Binding RoutineScheduleWednesday, Mode=TwoWay}" Style="{StaticResource SettingsDayToggleButtonStyle}" />
+                                <ToggleButton Content="{I18N DayThursday}" IsChecked="{Binding RoutineScheduleThursday, Mode=TwoWay}" Style="{StaticResource SettingsDayToggleButtonStyle}" />
+                                <ToggleButton Content="{I18N DayFriday}" IsChecked="{Binding RoutineScheduleFriday, Mode=TwoWay}" Style="{StaticResource SettingsDayToggleButtonStyle}" />
                             </UniformGrid>
-                            <UniformGrid Columns="5">
-                                <CheckBox Content="{I18N DaySaturday}" IsChecked="{Binding RoutineScheduleSaturday, Mode=TwoWay}" />
-                                <CheckBox Content="{I18N DaySunday}" IsChecked="{Binding RoutineScheduleSunday, Mode=TwoWay}" />
+                            <UniformGrid Margin="-6,0,-6,0" Columns="5">
+                                <ToggleButton Content="{I18N DaySaturday}" IsChecked="{Binding RoutineScheduleSaturday, Mode=TwoWay}" Style="{StaticResource SettingsDayToggleButtonStyle}" />
+                                <ToggleButton Content="{I18N DaySunday}" IsChecked="{Binding RoutineScheduleSunday, Mode=TwoWay}" Style="{StaticResource SettingsDayToggleButtonStyle}" />
                             </UniformGrid>
                             <ui:Grid HorizontalAlignment="Center" ColumnDefinitions="76,Auto,76,Auto,76,Auto,76">
                                 <ui:TextBox Grid.Column="0"
@@ -817,27 +933,36 @@
                                            Spacing="10"
                                            Visibility="{Binding IsSaveFileNameRuleCustom, Converter={x:Static c:BoolToVisibilityConverter.Instance}}">
                                 <Separator />
-                                <ui:Grid ColumnDefinitions="*,Auto">
-                                    <Button Grid.Column="0"
-                                            HorizontalContentAlignment="Left"
-                                            Content="{Binding SaveFileNameCustomRule}"
-                                            Command="{Binding AppendSaveFileNameTokenCommand}"
-                                            CommandParameter="_" />
-                                    <Button Grid.Column="1"
+                                <ui:Grid ColumnDefinitions="Auto,*,Auto">
+                                    <TextBlock Grid.Column="0"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               Text="文件名：" />
+                                    <Border Grid.Column="1"
+                                            MinHeight="36"
                                             Margin="8,0,0,0"
+                                            BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                            BorderThickness="0,0,0,1">
+                                        <TextBlock VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                   Text="{Binding SaveFileNameCustomRule}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </Border>
+                                    <Button Grid.Column="2"
+                                            Margin="8,0,0,0"
+                                            Style="{StaticResource SettingsIconOnlyButtonStyle}"
                                             Command="{Binding DeleteSaveFileNameTokenCommand}">
                                         <ui:FontIcon FontFamily="{DynamicResource SymbolThemeFontFamily}" Glyph="{x:Static ui:FontSymbols.CalculatorMultiply}" />
                                     </Button>
                                 </ui:Grid>
-                                <UniformGrid Columns="6">
-                                    <Button Margin="0,0,6,0" Content="主播名" Command="{Binding AppendSaveFileNameTokenCommand}" CommandParameter="{}{主播名}" />
-                                    <Button Margin="0,0,6,0" Content="主播uid" Command="{Binding AppendSaveFileNameTokenCommand}" CommandParameter="{}{主播uid}" />
-                                    <Button Margin="0,0,6,0" Content="平台" Command="{Binding AppendSaveFileNameTokenCommand}" CommandParameter="{}{平台}" />
-                                    <Button Margin="0,0,6,0" Content="录制时间" Command="{Binding AppendSaveFileNameTokenCommand}" CommandParameter="{}{录制时间}" />
-                                    <Button Margin="0,0,6,0" Content="分辨率" Command="{Binding AppendSaveFileNameTokenCommand}" CommandParameter="{}{分辨率}" />
-                                    <Button Background="#B91C1C"
-                                            BorderBrush="#B91C1C"
-                                            Foreground="White"
+                                <UniformGrid Margin="-6,0,-6,0" Columns="6">
+                                    <Button Style="{StaticResource SettingsNameTokenButtonStyle}" Content="主播名" Command="{Binding AppendSaveFileNameTokenCommand}" CommandParameter="{}{主播名}" />
+                                    <Button Style="{StaticResource SettingsNameTokenButtonStyle}" Content="主播uid" Command="{Binding AppendSaveFileNameTokenCommand}" CommandParameter="{}{主播uid}" />
+                                    <Button Style="{StaticResource SettingsNameTokenButtonStyle}" Content="平台" Command="{Binding AppendSaveFileNameTokenCommand}" CommandParameter="{}{平台}" />
+                                    <Button Style="{StaticResource SettingsNameTokenButtonStyle}" Content="录制时间" Command="{Binding AppendSaveFileNameTokenCommand}" CommandParameter="{}{录制时间}" />
+                                    <Button Style="{StaticResource SettingsNameTokenButtonStyle}" Content="分辨率" Command="{Binding AppendSaveFileNameTokenCommand}" CommandParameter="{}{分辨率}" />
+                                    <Button Margin="6,0"
+                                            Style="{StaticResource SettingsDangerAccentButtonStyle}"
                                             Content="重置"
                                             Command="{Binding ResetSaveFileNameRuleCommand}" />
                                 </UniformGrid>

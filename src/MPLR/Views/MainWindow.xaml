@@ -20,8 +20,8 @@
                  WindowStartupLocation="CenterScreen"
                  mc:Ignorable="d">
     <ui:FluentWindow.Resources>
-        <SolidColorBrush x:Key="MainAccentHoverBrush" Color="#1F5F9F" />
-        <SolidColorBrush x:Key="MainAccentPressedBrush" Color="#174978" />
+        <SolidColorBrush x:Key="MainAccentHoverBrush" Color="#003C6A" />
+        <SolidColorBrush x:Key="MainAccentPressedBrush" Color="#003C6A" />
         <Style x:Key="StatusIconButtonStyle" TargetType="{x:Type Button}">
             <Setter Property="Width" Value="16" />
             <Setter Property="Height" Value="16" />
@@ -306,10 +306,18 @@
                         MouseLeftButtonDown="RoomCardPanelMouseLeftButtonDown">
                     <Border.ContextMenu>
                         <ContextMenu Placement="MousePoint">
-                            <MenuItem Header="{I18N CardRefresh}" Command="{Binding RefreshRoomCardsCommand}">
+                            <MenuItem Header="{I18N CardSize}">
+                                <MenuItem Header="{I18N CardSizeLarge}" Click="SetRoomCardLargeClick" />
+                                <MenuItem Header="{I18N CardSizeMedium}" Click="SetRoomCardMediumClick" />
+                                <MenuItem Header="{I18N CardSizeSmall}" Click="SetRoomCardSmallClick" />
                             </MenuItem>
-                            <MenuItem Header="{I18N CardEditModeOn}" Command="{Binding ToggleCardEditModeCommand}">
+                            <MenuItem Header="{I18N CardSort}">
+                                <MenuItem Header="{I18N CardSortByName}" Command="{Binding SortRoomsByNameCommand}" />
+                                <MenuItem Header="{I18N CardSortByAddedAt}" Command="{Binding SortRoomsByAddedAtCommand}" />
                             </MenuItem>
+                            <Separator />
+                            <MenuItem Header="{I18N CardRefresh}" Command="{Binding RefreshRoomCardsCommand}" />
+                            <MenuItem Header="{I18N CardEdit}" Command="{Binding ToggleCardEditModeCommand}" />
                         </ContextMenu>
                     </Border.ContextMenu>
                     <Grid ClipToBounds="False">
@@ -1049,6 +1057,11 @@
                 </ui:StackPanel>
             </ui:Grid>
         </ui:Grid>
+        <Grid x:Name="ModalOverlay"
+              Background="Transparent"
+              MouseDown="ModalOverlayMouseDown"
+              Panel.ZIndex="40"
+              Visibility="Collapsed" />
         <Canvas x:Name="MainFlyoutLayer"
                 Margin="8,42,8,8"
                 ClipToBounds="True"
@@ -1067,7 +1080,8 @@
                         <ui:TextBox x:Name="RoutineIntervalInput"
                                     Width="136"
                                     Style="{StaticResource MainNumberInputTextBoxStyle}"
-                                    Tag="Decimal" />
+                                    Tag="Decimal"
+                                    KeyDown="RoutineIntervalInputKeyDown" />
                         <ComboBox x:Name="RoutineIntervalUnitComboBox"
                                   Grid.Column="2"
                                   MinWidth="92"
@@ -1123,7 +1137,9 @@
                                    Margin="0,16,0,16"
                                    Spacing="10">
                         <TextBlock Style="{StaticResource MainFlyoutCaptionStyle}" Text="{I18N EnterRoomUrl}" />
-                        <ui:TextBox x:Name="AddRoomUrlInput" PlaceholderText="https://live.douyin.com/xxx" />
+                        <ui:TextBox x:Name="AddRoomUrlInput"
+                                    KeyDown="AddRoomUrlInputKeyDown"
+                                    PlaceholderText="https://live.douyin.com/xxx" />
                         <ui:Grid ColumnDefinitions="Auto,Auto,Auto">
                             <CheckBox x:Name="AddRoomForceCheckBox" Grid.Column="0" Content="{I18N AddRoomForce}" />
                             <CheckBox x:Name="AddRoomFollowGlobalSettingsCheckBox" Grid.Column="1" Margin="16,0,0,0" Content="{I18N FollowGlobalSettings}" />

@@ -741,7 +741,20 @@ public partial class SettingsViewModel : ReactiveObject
     [RelayCommand]
     private void AppendSaveFileNameToken(string token)
     {
-        SaveFileNameCustomRule += token;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(SaveFileNameCustomRule))
+        {
+            SaveFileNameCustomRule = token;
+            return;
+        }
+
+        SaveFileNameCustomRule = SaveFileNameCustomRule.EndsWith('_')
+            ? SaveFileNameCustomRule + token
+            : SaveFileNameCustomRule + "_" + token;
     }
 
     [RelayCommand]
@@ -753,7 +766,8 @@ public partial class SettingsViewModel : ReactiveObject
         {
             if (SaveFileNameCustomRule.EndsWith(token, StringComparison.Ordinal))
             {
-                SaveFileNameCustomRule = SaveFileNameCustomRule[..^token.Length];
+                string value = SaveFileNameCustomRule[..^token.Length];
+                SaveFileNameCustomRule = value.EndsWith('_') ? value[..^1] : value;
                 return;
             }
         }

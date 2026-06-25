@@ -617,7 +617,7 @@
     <value>直播间信息已刷新</value>
   </data>
   <data name="ToolbarScreenRecordList" xml:space="preserve">
-    <value>录屏列表</value>
+    <value>视频列表</value>
   </data>
   <data name="RoutineSchedule" xml:space="preserve">
     <value>周期规则</value>
