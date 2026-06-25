@@ -313,16 +313,6 @@
                         </Setter>
                     </Style>
                 </ui:Grid.Resources>
-                <ui:BitmapIcon Grid.ColumnSpan="2"
-                               Width="100"
-                               Height="100"
-                               Margin="8"
-                               HorizontalAlignment="Right"
-                               VerticalAlignment="Bottom"
-                               Opacity="0.35"
-                               IsHitTestVisible="False"
-                               ShowAsMonochrome="True"
-                               UriSource="pack://application:,,,/Assets/Background.png" />
                 <Border Grid.Column="0"
                         x:Name="RoomCardPanel"
                         Padding="10"

@@ -2,20 +2,76 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using MPLR.Core;
 using MPLR.Extensions;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Input;
 using Wpf.Ui.Controls;
+using WindowsAPICodePack.Dialogs;
 using Button = System.Windows.Controls.Button;
+using CheckBox = System.Windows.Controls.CheckBox;
 
 namespace MPLR.Views;
 
-public partial class ScreenRecordListWindow : FluentWindow
+public partial class ScreenRecordListWindow : FluentWindow, INotifyPropertyChanged
 {
+    private readonly List<RecordedVideoItem> allVideos = [];
+    private RecordedVideoItem? lastSelectedItem;
+    private bool isMultiSelectMode;
+    private bool isSortDescending;
+
     public ObservableCollection<RecordedVideoItem> Videos { get; } = [];
+
+    public bool IsMultiSelectMode
+    {
+        get => isMultiSelectMode;
+        set
+        {
+            if (isMultiSelectMode == value)
+            {
+                return;
+            }
+
+            isMultiSelectMode = value;
+            if (!value)
+            {
+                ClearSelection();
+            }
+
+            OnPropertyChanged(nameof(IsMultiSelectMode));
+        }
+    }
+
+    public bool IsSortDescending
+    {
+        get => isSortDescending;
+        set
+        {
+            if (isSortDescending == value)
+            {
+                return;
+            }
+
+            isSortDescending = value;
+            OnPropertyChanged(nameof(IsSortDescending));
+            OnPropertyChanged(nameof(SortDirectionText));
+            ApplySort();
+        }
+    }
+
+    public string SortDirectionText => IsSortDescending ? "倒序" : "正序";
+
+    public int SelectedVideoCount => allVideos.Count(static video => video.IsSelected);
+
+    public bool HasSelectedVideos => SelectedVideoCount > 0;
+
+    public string SelectedVideoSummary => $"已选 {SelectedVideoCount} 个";
+
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     public ScreenRecordListWindow()
     {
@@ -26,32 +82,40 @@ public partial class ScreenRecordListWindow : FluentWindow
 
     private async Task ReloadVideosAsync()
     {
+        allVideos.ForEach(item => item.PropertyChanged -= RecordedVideoPropertyChanged);
+        allVideos.Clear();
         Videos.Clear();
+        lastSelectedItem = null;
 
         string root = SaveFolderHelper.GetSaveFolder(Configurations.SaveFolder.Get());
         if (!Directory.Exists(root))
         {
+            UpdateSelectedState();
             return;
         }
 
         FileInfo[] files = Directory.EnumerateFiles(root, "*.*", SearchOption.AllDirectories)
             .Where(static path => IsVideoFile(path))
             .Select(static path => new FileInfo(path))
-            .OrderByDescending(static file => file.LastWriteTime)
             .ToArray();
 
         foreach (FileInfo file in files)
         {
-            Videos.Add(CreateItem(file, root));
+            RecordedVideoItem item = CreateItem(file, root);
+            item.PropertyChanged += RecordedVideoPropertyChanged;
+            allVideos.Add(item);
         }
 
-        await Task.WhenAll(Videos.Select(EnrichItemAsync));
+        ApplySort();
+        UpdateSelectedState();
+        await Task.WhenAll(allVideos.Select(EnrichItemAsync));
     }
 
     private static RecordedVideoItem CreateItem(FileInfo file, string root)
     {
         VideoRecordingMetadata metadata = LoadMetadata(file);
         string nickName = string.IsNullOrWhiteSpace(metadata.NickName) ? GuessNickName(file, root) : metadata.NickName;
+        DateTime recordedAt = metadata.RecordedAt > DateTime.MinValue ? metadata.RecordedAt : file.LastWriteTime;
 
         return new RecordedVideoItem
         {
@@ -62,7 +126,11 @@ public partial class ScreenRecordListWindow : FluentWindow
             Resolution = string.IsNullOrWhiteSpace(metadata.Resolution) ? "分辨率未知" : metadata.Resolution,
             Bitrate = string.IsNullOrWhiteSpace(metadata.Bitrate) ? "码率未知" : metadata.Bitrate,
             Title = string.IsNullOrWhiteSpace(metadata.Title) ? "直播间标题未知" : metadata.Title,
+            Platform = metadata.Platform,
             CoverPath = metadata.CoverPath,
+            RecordedAt = recordedAt,
+            LastWriteTime = file.LastWriteTime,
+            SortName = BuildSortName(file),
             CanTranscode = file.Extension.Equals(".ts", StringComparison.OrdinalIgnoreCase) ||
                 file.Extension.Equals(".flv", StringComparison.OrdinalIgnoreCase),
         };
@@ -234,6 +302,351 @@ public partial class ScreenRecordListWindow : FluentWindow
         });
     }
 
+    private static string BuildSortName(FileInfo file)
+    {
+        return Path.GetFileNameWithoutExtension(file.Name).Trim().ToUpperInvariant();
+    }
+
+    private static string SanitizeFolderName(string value)
+    {
+        string name = string.IsNullOrWhiteSpace(value) ? "Unknown" : value.Trim();
+        foreach (char invalidChar in Path.GetInvalidFileNameChars())
+        {
+            name = name.Replace(invalidChar, '_');
+        }
+
+        name = name.TrimEnd('.');
+        return string.IsNullOrWhiteSpace(name) ? "Unknown" : name;
+    }
+
+    private static string BuildClassifiedFolder(string root, VideoRecordingMetadata metadata, FileInfo file, string sourceRoot)
+    {
+        string nickName = string.IsNullOrWhiteSpace(metadata.NickName) ? GuessNickName(file, sourceRoot) : metadata.NickName;
+        string author = SanitizeFolderName(nickName);
+        string platform = string.IsNullOrWhiteSpace(metadata.Platform) ? "Unknown" : SanitizeFolderName(metadata.Platform);
+        DateTime time = metadata.RecordedAt > DateTime.MinValue ? metadata.RecordedAt : file.LastWriteTime;
+        string month = time.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+
+        return Configurations.SaveFolderPathLevel.Get() switch
+        {
+            1 => Path.Combine(root, platform, author, month),
+            _ => Path.Combine(root, author, month),
+        };
+    }
+
+    private static string GetUniquePath(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return path;
+        }
+
+        string directory = Path.GetDirectoryName(path) ?? string.Empty;
+        string name = Path.GetFileNameWithoutExtension(path);
+        string extension = Path.GetExtension(path);
+
+        for (int i = 1; i < 10000; i++)
+        {
+            string candidate = Path.Combine(directory, $"{name}_{i:000}{extension}");
+            if (!File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return Path.Combine(directory, $"{name}_{Guid.NewGuid():N}{extension}");
+    }
+
+    private static void CopyMetadataForTarget(FileInfo source, string targetVideoPath, bool move)
+    {
+        foreach (string metadataPath in GetMetadataCandidates(source))
+        {
+            if (!File.Exists(metadataPath))
+            {
+                continue;
+            }
+
+            string targetMetadataPath = Path.Combine(Path.GetDirectoryName(targetVideoPath) ?? string.Empty, $"{Path.GetFileNameWithoutExtension(targetVideoPath)}.mplr.json");
+            targetMetadataPath = GetUniquePath(targetMetadataPath);
+
+            if (move)
+            {
+                File.Move(metadataPath, targetMetadataPath);
+            }
+            else
+            {
+                File.Copy(metadataPath, targetMetadataPath);
+            }
+
+            return;
+        }
+    }
+
+    private static IReadOnlyList<RecordedVideoItem> SnapshotSelected(IEnumerable<RecordedVideoItem> source)
+    {
+        return source.Where(static item => item.IsSelected && File.Exists(item.FilePath)).ToArray();
+    }
+
+    private static string? SelectFolder(string title)
+    {
+        using CommonOpenFileDialog dialog = new()
+        {
+            IsFolderPicker = true,
+            Title = title,
+        };
+
+        return dialog.ShowDialog() == CommonFileDialogResult.Ok ? dialog.FileName : null;
+    }
+
+    private void ApplySort()
+    {
+        IEnumerable<RecordedVideoItem> sorted = IsSortDescending
+            ? allVideos.OrderByDescending(static item => item.SortName, StringComparer.CurrentCultureIgnoreCase)
+                .ThenByDescending(static item => item.RecordedAt)
+                .ThenByDescending(static item => item.FileName, StringComparer.CurrentCultureIgnoreCase)
+            : allVideos.OrderBy(static item => item.SortName, StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(static item => item.RecordedAt)
+                .ThenBy(static item => item.FileName, StringComparer.CurrentCultureIgnoreCase);
+
+        Videos.Clear();
+        foreach (RecordedVideoItem item in sorted)
+        {
+            Videos.Add(item);
+        }
+    }
+
+    private void ClearSelection()
+    {
+        foreach (RecordedVideoItem item in allVideos)
+        {
+            item.IsSelected = false;
+        }
+
+        lastSelectedItem = null;
+        UpdateSelectedState();
+    }
+
+    private void UpdateSelectedState()
+    {
+        OnPropertyChanged(nameof(SelectedVideoCount));
+        OnPropertyChanged(nameof(HasSelectedVideos));
+        OnPropertyChanged(nameof(SelectedVideoSummary));
+    }
+
+    private void RecordedVideoPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(RecordedVideoItem.IsSelected))
+        {
+            UpdateSelectedState();
+        }
+    }
+
+    private void SelectRange(RecordedVideoItem item, bool selected)
+    {
+        if (lastSelectedItem == null)
+        {
+            lastSelectedItem = item;
+            return;
+        }
+
+        int start = Videos.IndexOf(lastSelectedItem);
+        int end = Videos.IndexOf(item);
+        if (start < 0 || end < 0)
+        {
+            lastSelectedItem = item;
+            return;
+        }
+
+        if (start > end)
+        {
+            (start, end) = (end, start);
+        }
+
+        for (int i = start; i <= end; i++)
+        {
+            Videos[i].IsSelected = selected;
+        }
+
+        lastSelectedItem = item;
+    }
+
+    private async Task MoveOrCopySelectedAsync(bool move)
+    {
+        IReadOnlyList<RecordedVideoItem> selected = SnapshotSelected(allVideos);
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+        string? targetFolder = SelectFolder(move ? "选择移动到的文件夹" : "选择复制到的文件夹");
+        if (string.IsNullOrWhiteSpace(targetFolder))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(targetFolder);
+        int done = 0;
+        foreach (RecordedVideoItem item in selected)
+        {
+            try
+            {
+                FileInfo source = new(item.FilePath);
+                string target = GetUniquePath(Path.Combine(targetFolder, source.Name));
+
+                if (move)
+                {
+                    File.Move(source.FullName, target);
+                    CopyMetadataForTarget(source, target, true);
+                }
+                else
+                {
+                    File.Copy(source.FullName, target);
+                    CopyMetadataForTarget(source, target, false);
+                }
+
+                done++;
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine(e);
+            }
+        }
+
+        Toast.Success(move ? $"已移动 {done} 个视频" : $"已复制 {done} 个视频");
+        await ReloadVideosAsync();
+    }
+
+    private async Task ImportFolderAsync()
+    {
+        string? sourceFolder = SelectFolder("选择要导入的视频文件夹");
+        if (string.IsNullOrWhiteSpace(sourceFolder) || !Directory.Exists(sourceFolder))
+        {
+            return;
+        }
+
+        string root = SaveFolderHelper.GetSaveFolder(Configurations.SaveFolder.Get());
+        int count = 0;
+
+        foreach (string path in Directory.EnumerateFiles(sourceFolder, "*.*", SearchOption.AllDirectories).Where(IsVideoFile))
+        {
+            try
+            {
+                FileInfo file = new(path);
+                VideoRecordingMetadata metadata = LoadMetadata(file);
+                string targetFolder = BuildClassifiedFolder(root, metadata, file, sourceFolder);
+                Directory.CreateDirectory(targetFolder);
+                string targetPath = GetUniquePath(Path.Combine(targetFolder, file.Name));
+
+                if (string.Equals(file.FullName, targetPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                File.Copy(file.FullName, targetPath);
+                CopyMetadataForTarget(file, targetPath, false);
+                count++;
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine(e);
+            }
+        }
+
+        Toast.Success($"已导入 {count} 个视频");
+        await ReloadVideosAsync();
+    }
+
+    private async void RefreshClick(object sender, RoutedEventArgs e)
+    {
+        await ReloadVideosAsync();
+    }
+
+    private void ToggleSortClick(object sender, RoutedEventArgs e)
+    {
+        IsSortDescending = !IsSortDescending;
+    }
+
+    private void ToggleMultiSelectClick(object sender, RoutedEventArgs e)
+    {
+        IsMultiSelectMode = !IsMultiSelectMode;
+    }
+
+    private void CancelMultiSelectClick(object sender, RoutedEventArgs e)
+    {
+        IsMultiSelectMode = false;
+    }
+
+    private async void DeleteSelectedClick(object sender, RoutedEventArgs e)
+    {
+        IReadOnlyList<RecordedVideoItem> selected = SnapshotSelected(allVideos);
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+        System.Windows.MessageBoxResult result = System.Windows.MessageBox.Show($"确定删除选中的 {selected.Count} 个视频吗？", "删除视频", System.Windows.MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        int deleted = 0;
+        foreach (RecordedVideoItem item in selected)
+        {
+            try
+            {
+                FileInfo file = new(item.FilePath);
+                foreach (string metadataPath in GetMetadataCandidates(file).Where(File.Exists))
+                {
+                    File.Delete(metadataPath);
+                }
+
+                File.Delete(item.FilePath);
+                deleted++;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex);
+            }
+        }
+
+        Toast.Success($"已删除 {deleted} 个视频");
+        await ReloadVideosAsync();
+    }
+
+    private async void MoveSelectedClick(object sender, RoutedEventArgs e)
+    {
+        await MoveOrCopySelectedAsync(true);
+    }
+
+    private async void CopySelectedClick(object sender, RoutedEventArgs e)
+    {
+        await MoveOrCopySelectedAsync(false);
+    }
+
+    private async void ImportFolderClick(object sender, RoutedEventArgs e)
+    {
+        await ImportFolderAsync();
+    }
+
+    private void SelectionCheckBoxClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not CheckBox { Tag: RecordedVideoItem item })
+        {
+            return;
+        }
+
+        bool selected = item.IsSelected;
+        if ((Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
+        {
+            SelectRange(item, selected);
+        }
+        else
+        {
+            lastSelectedItem = item;
+        }
+    }
+
     private void OpenVideoClick(object sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: RecordedVideoItem item } && File.Exists(item.FilePath))
@@ -296,6 +709,11 @@ public partial class ScreenRecordListWindow : FluentWindow
             Toast.Error("转码失败");
         }
     }
+
+    private void OnPropertyChanged(string propertyName)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 }
 
 public sealed partial class RecordedVideoItem : ObservableObject
@@ -322,6 +740,9 @@ public sealed partial class RecordedVideoItem : ObservableObject
     private string title = string.Empty;
 
     [ObservableProperty]
+    private string platform = string.Empty;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasThumbnail))]
     private string thumbnailPath = string.Empty;
 
@@ -329,7 +750,19 @@ public sealed partial class RecordedVideoItem : ObservableObject
     private string coverPath = string.Empty;
 
     [ObservableProperty]
+    private DateTime recordedAt;
+
+    [ObservableProperty]
+    private DateTime lastWriteTime;
+
+    [ObservableProperty]
+    private string sortName = string.Empty;
+
+    [ObservableProperty]
     private bool canTranscode;
+
+    [ObservableProperty]
+    private bool isSelected;
 
     public bool HasThumbnail => !string.IsNullOrWhiteSpace(ThumbnailPath) && File.Exists(ThumbnailPath);
 }
