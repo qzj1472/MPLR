@@ -56,6 +56,7 @@
     <ItemGroup>
         <Compile Include="..\TiktokLiveRec.WPF\Core\Converter.cs" Link="Core\Converter.cs" />
         <Compile Include="..\TiktokLiveRec.WPF\Core\ExternalStreamResolver.cs" Link="Core\ExternalStreamResolver.cs" />
+        <Compile Include="..\TiktokLiveRec.WPF\Core\PlatformCookieStore.cs" Link="Core\PlatformCookieStore.cs" />
         <Compile Include="..\TiktokLiveRec.WPF\Core\Spider.cs" Link="Core\Spider.cs" />
         <Compile Include="..\TiktokLiveRec.WPF\Core\Recorder.cs" Link="Core\Recorder.cs" />
         <Compile Include="..\TiktokLiveRec.WPF\Core\SpiderImpl\DouyinSpider.cs" Link="Core\SpiderImpl\DouyinSpider.cs" />

@@ -212,6 +212,12 @@ namespace TiktokLiveRec.Properties {
                 return ResourceManager.GetString("ButtonOfCreateNow", resourceCulture);
             }
         }
+
+        public static string ButtonOfImport {
+            get {
+                return ResourceManager.GetString("ButtonOfImport", resourceCulture);
+            }
+        }
         
         /// <summary>
         ///   Looks up a localized string similar to Goto.
@@ -246,6 +252,12 @@ namespace TiktokLiveRec.Properties {
         public static string ButtonOfSettings {
             get {
                 return ResourceManager.GetString("ButtonOfSettings", resourceCulture);
+            }
+        }
+
+        public static string ButtonOfSave {
+            get {
+                return ResourceManager.GetString("ButtonOfSave", resourceCulture);
             }
         }
 
@@ -1566,6 +1578,54 @@ namespace TiktokLiveRec.Properties {
         public static string UserAgentHint {
             get {
                 return ResourceManager.GetString("UserAgentHint", resourceCulture);
+            }
+        }
+
+        public static string ImportConfig {
+            get {
+                return ResourceManager.GetString("ImportConfig", resourceCulture);
+            }
+        }
+
+        public static string ImportConfigFailed {
+            get {
+                return ResourceManager.GetString("ImportConfigFailed", resourceCulture);
+            }
+        }
+
+        public static string ImportConfigHint {
+            get {
+                return ResourceManager.GetString("ImportConfigHint", resourceCulture);
+            }
+        }
+
+        public static string ImportConfigRestartHint {
+            get {
+                return ResourceManager.GetString("ImportConfigRestartHint", resourceCulture);
+            }
+        }
+
+        public static string ImportConfigSuccess {
+            get {
+                return ResourceManager.GetString("ImportConfigSuccess", resourceCulture);
+            }
+        }
+
+        public static string PlayerErrorOfNoPlayerFound {
+            get {
+                return ResourceManager.GetString("PlayerErrorOfNoPlayerFound", resourceCulture);
+            }
+        }
+
+        public static string RoomInfoRefreshed {
+            get {
+                return ResourceManager.GetString("RoomInfoRefreshed", resourceCulture);
+            }
+        }
+
+        public static string Uid {
+            get {
+                return ResourceManager.GetString("Uid", resourceCulture);
             }
         }
         

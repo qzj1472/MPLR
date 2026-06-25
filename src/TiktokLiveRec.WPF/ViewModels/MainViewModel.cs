@@ -161,7 +161,7 @@ public partial class MainViewModel : ReactiveObject
         {
             GlobalMonitor.Start();
         }
-        ChildProcessTracerPeriodicTimer.Default.WhiteList = ["ffmpeg", "ffprobe", "python", "python3"];
+        ChildProcessTracerPeriodicTimer.Default.WhiteList = ["ffmpeg", "ffprobe", "ffplay", "python", "python3"];
         ChildProcessTracerPeriodicTimer.Default.Start();
         DispatcherTimer.Start();
         _ = RefreshRoomCardsAsync(showToast: false);

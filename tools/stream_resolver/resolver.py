@@ -382,7 +382,7 @@ def sort_variants(variants):
 
 def parse_header_block(headers):
     result = {}
-    for item in re.split(r"[\r\n;]+", headers or ""):
+    for item in split_header_block(headers or ""):
         if ":" not in item:
             continue
         key, value = item.split(":", 1)
@@ -391,6 +391,45 @@ def parse_header_block(headers):
         if key and value:
             result[key] = value
     return result
+
+
+def split_header_block(headers):
+    parts = []
+    current = []
+    index = 0
+    while index < len(headers):
+        ch = headers[index]
+        if ch in "\r\n" or is_header_separator(headers, index):
+            add_header_part(parts, current)
+            if ch == "\r" and index + 1 < len(headers) and headers[index + 1] == "\n":
+                index += 1
+        else:
+            current.append(ch)
+        index += 1
+    add_header_part(parts, current)
+    return parts
+
+
+def is_header_separator(value, index):
+    if value[index] != ";":
+        return False
+    start = index + 1
+    while start < len(value) and value[start].isspace():
+        start += 1
+    colon = value.find(":", start)
+    if colon <= start:
+        return False
+    next_break = min([pos for pos in (value.find(";", start), value.find("\r", start), value.find("\n", start)) if pos >= 0] or [-1])
+    if next_break >= 0 and next_break < colon:
+        return False
+    return all(ch.isalnum() or ch == "-" for ch in value[start:colon])
+
+
+def add_header_part(parts, current):
+    part = "".join(current).strip()
+    if part:
+        parts.append(part)
+    current.clear()
 
 
 def read_json_url(url, headers=None, data=None, timeout=12):

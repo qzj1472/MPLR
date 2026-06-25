@@ -39,7 +39,7 @@ public sealed class Player
             {
                 previewUrls = SelectPreviewUrls(spiderResult.HlsUrl, spiderResult.FlvUrl, spiderResult.RecordUrl);
                 previewTitle = SelectPreviewTitle(spiderResult.Title, spiderResult.Nickname, nickName);
-                previewHeaders = spiderResult.Headers ?? string.Empty;
+                previewHeaders = SelectPreviewHeaders(headers, spiderResult.Headers);
             }
         }
 
@@ -59,7 +59,7 @@ public sealed class Player
 
         try
         {
-            string preparedHeaders = PreparePreviewHeaders(previewHeaders, roomUrl);
+            string preparedHeaders = PreparePreviewHeaders(previewHeaders, roomUrl, previewUrls);
             PreviewSource previewSource = await SelectPreviewSourceAsync(previewUrls, preparedHeaders);
             VideoSize previewSize = CalculatePreviewVideoSize(previewSource.Size);
             ProcessStartInfo startInfo = CreateFfplayStartInfo(ffplayPath, previewSource.Url, previewTitle, preparedHeaders, previewSize);
@@ -99,32 +99,10 @@ public sealed class Player
         startInfo.ArgumentList.Add(title);
         startInfo.ArgumentList.Add("-protocol_whitelist");
         startInfo.ArgumentList.Add("file,http,https,tcp,tls,crypto,data,udp,rtp,rtmp,rtmps");
-        startInfo.ArgumentList.Add("-allowed_extensions");
-        startInfo.ArgumentList.Add("ALL");
-        startInfo.ArgumentList.Add("-reconnect");
-        startInfo.ArgumentList.Add("1");
-        startInfo.ArgumentList.Add("-reconnect_streamed");
-        startInfo.ArgumentList.Add("1");
-        startInfo.ArgumentList.Add("-reconnect_at_eof");
-        startInfo.ArgumentList.Add("1");
-        startInfo.ArgumentList.Add("-reconnect_delay_max");
-        startInfo.ArgumentList.Add("5");
-        startInfo.ArgumentList.Add("-reconnect_on_network_error");
-        startInfo.ArgumentList.Add("1");
-        startInfo.ArgumentList.Add("-reconnect_on_http_error");
-        startInfo.ArgumentList.Add("4xx,5xx");
-        startInfo.ArgumentList.Add("-rw_timeout");
-        startInfo.ArgumentList.Add("15000000");
-        startInfo.ArgumentList.Add("-timeout");
-        startInfo.ArgumentList.Add("15000000");
         startInfo.ArgumentList.Add("-analyzeduration");
         startInfo.ArgumentList.Add("10000000");
         startInfo.ArgumentList.Add("-probesize");
         startInfo.ArgumentList.Add("10000000");
-        startInfo.ArgumentList.Add("-live_start_index");
-        startInfo.ArgumentList.Add("-3");
-        startInfo.ArgumentList.Add("-multiple_requests");
-        startInfo.ArgumentList.Add("1");
         startInfo.ArgumentList.Add("-x");
         startInfo.ArgumentList.Add(previewSize.Width.ToString());
         startInfo.ArgumentList.Add("-y");
@@ -267,12 +245,28 @@ public sealed class Player
 
         if (scale <= 0 || double.IsNaN(scale) || double.IsInfinity(scale))
         {
-            return new VideoSize(PreviewWindowWidth, PreviewWindowHeight);
+            return CalculateFallbackPreviewVideoSize(maxVideoWidth, maxVideoHeight);
         }
 
         int width = Math.Max(1, (int)Math.Round(sourceSize.Width * scale));
         int height = Math.Max(1, (int)Math.Round(sourceSize.Height * scale));
         return new VideoSize(width, height);
+    }
+
+    private static VideoSize CalculateFallbackPreviewVideoSize(int maxVideoWidth, int maxVideoHeight)
+    {
+        VideoSize fallback = new(PreviewWindowWidth, PreviewWindowHeight);
+        double scale = Math.Min((double)maxVideoWidth / fallback.Width, (double)maxVideoHeight / fallback.Height);
+
+        if (scale <= 0 || double.IsNaN(scale) || double.IsInfinity(scale))
+        {
+            return fallback;
+        }
+
+        double targetScale = Math.Max(1d, scale * 0.85d);
+        return new VideoSize(
+            Math.Max(1, (int)Math.Round(fallback.Width * targetScale)),
+            Math.Max(1, (int)Math.Round(fallback.Height * targetScale)));
     }
 
     private static System.Windows.Forms.Screen GetPreviewScreen()
@@ -411,7 +405,39 @@ public sealed class Player
         return $"{AppConfig.DisplayName} Preview";
     }
 
-    private static string PreparePreviewHeaders(string headers, string roomUrl)
+    private static string SelectPreviewHeaders(params string?[] values)
+    {
+        string result = string.Empty;
+
+        foreach (string? value in values)
+        {
+            string normalized = NormalizeHeaders(value ?? string.Empty);
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                continue;
+            }
+
+            foreach (string header in SplitHeaderBlock(normalized))
+            {
+                int separator = header.IndexOf(':');
+                if (separator <= 0)
+                {
+                    result = AppendHeader(result, header);
+                    continue;
+                }
+
+                string name = header[..separator].Trim();
+                if (string.IsNullOrWhiteSpace(ExtractHeaderValue(result, name)))
+                {
+                    result = AppendHeader(result, header);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private static string PreparePreviewHeaders(string headers, string roomUrl, IReadOnlyList<string> previewUrls)
     {
         string userAgent = Configurations.UserAgent.Get();
         if (string.IsNullOrWhiteSpace(userAgent))
@@ -422,13 +448,84 @@ public sealed class Player
         string headerBlock = NormalizeHeaders(headers);
         headerBlock = EnsureHeader(headerBlock, "User-Agent", userAgent);
 
-        if (string.IsNullOrWhiteSpace(ExtractHeaderValue(headerBlock, "referer")) &&
-            Uri.TryCreate(roomUrl, UriKind.Absolute, out Uri? uri))
-        {
-            headerBlock = EnsureHeader(headerBlock, "Referer", $"{uri.Scheme}://{uri.Host}/");
-        }
+        string referer = SelectReferer(roomUrl, previewUrls);
+        headerBlock = EnsureHeader(headerBlock, "Referer", referer);
+
+        string origin = SelectOrigin(headerBlock, referer, roomUrl, previewUrls);
+        headerBlock = EnsureHeader(headerBlock, "Origin", origin);
 
         return headerBlock;
+    }
+
+    private static string SelectReferer(string roomUrl, IReadOnlyList<string> previewUrls)
+    {
+        string platformReferer = SelectPlatformReferer(roomUrl) ??
+            previewUrls.Select(SelectPlatformReferer).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ??
+            string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(platformReferer))
+        {
+            return platformReferer;
+        }
+
+        if (Uri.TryCreate(roomUrl, UriKind.Absolute, out Uri? roomUri))
+        {
+            return $"{roomUri.Scheme}://{roomUri.Host}/";
+        }
+
+        foreach (string previewUrl in previewUrls)
+        {
+            if (Uri.TryCreate(previewUrl, UriKind.Absolute, out Uri? previewUri) &&
+                (previewUri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+                 previewUri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+            {
+                return $"{previewUri.Scheme}://{previewUri.Host}/";
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static string? SelectPlatformReferer(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return null;
+        }
+
+        if (url.Contains("twitch.tv", StringComparison.OrdinalIgnoreCase) ||
+            url.Contains("ttvnw.net", StringComparison.OrdinalIgnoreCase))
+        {
+            return "https://www.twitch.tv/";
+        }
+
+        if (url.Contains("bilibili.com", StringComparison.OrdinalIgnoreCase) ||
+            url.Contains("bilivideo.com", StringComparison.OrdinalIgnoreCase) ||
+            url.Contains("bilivideo.cn", StringComparison.OrdinalIgnoreCase))
+        {
+            return "https://live.bilibili.com/";
+        }
+
+        return null;
+    }
+
+    private static string SelectOrigin(string headers, string referer, string roomUrl, IReadOnlyList<string> previewUrls)
+    {
+        string origin = ExtractHeaderValue(headers, "Origin");
+        if (!string.IsNullOrWhiteSpace(origin))
+        {
+            return origin;
+        }
+
+        foreach (string value in new[] { referer, SelectReferer(roomUrl, previewUrls) })
+        {
+            if (Uri.TryCreate(value, UriKind.Absolute, out Uri? uri))
+            {
+                return $"{uri.Scheme}://{uri.Host}";
+            }
+        }
+
+        return string.Empty;
     }
 
     private static string NormalizeHeaders(string headers)
@@ -438,8 +535,79 @@ public sealed class Player
             return string.Empty;
         }
 
-        string[] parts = headers.Split(["\r\n", "\n", ";"], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        string[] parts = SplitHeaderBlock(headers);
         return string.Join("\r\n", parts.Select(NormalizeHeader).Where(item => !string.IsNullOrWhiteSpace(item)));
+    }
+
+    private static string[] SplitHeaderBlock(string headers)
+    {
+        List<string> parts = [];
+        StringBuilder current = new();
+
+        for (int i = 0; i < headers.Length; i++)
+        {
+            char ch = headers[i];
+            if (ch == '\r' || ch == '\n' || IsHeaderSeparator(headers, i))
+            {
+                AddHeaderPart(parts, current);
+
+                if (ch == '\r' && i + 1 < headers.Length && headers[i + 1] == '\n')
+                {
+                    i++;
+                }
+
+                continue;
+            }
+
+            current.Append(ch);
+        }
+
+        AddHeaderPart(parts, current);
+        return [.. parts];
+    }
+
+    private static bool IsHeaderSeparator(string value, int index)
+    {
+        if (value[index] != ';')
+        {
+            return false;
+        }
+
+        int start = index + 1;
+        while (start < value.Length && char.IsWhiteSpace(value[start]))
+        {
+            start++;
+        }
+
+        int colon = value.IndexOf(':', start);
+        if (colon <= start)
+        {
+            return false;
+        }
+
+        int nextBreak = value.IndexOfAny([';', '\r', '\n'], start);
+        if (nextBreak >= 0 && nextBreak < colon)
+        {
+            return false;
+        }
+
+        return value[start..colon].All(IsHeaderNameChar);
+    }
+
+    private static bool IsHeaderNameChar(char ch)
+    {
+        return char.IsAsciiLetterOrDigit(ch) || ch == '-';
+    }
+
+    private static void AddHeaderPart(List<string> parts, StringBuilder current)
+    {
+        string part = current.ToString().Trim();
+        if (!string.IsNullOrWhiteSpace(part))
+        {
+            parts.Add(part);
+        }
+
+        current.Clear();
     }
 
     private static string NormalizeHeader(string header)
@@ -498,9 +666,14 @@ public sealed class Player
             return headers;
         }
 
+        return AppendHeader(headers, $"{name}: {value}");
+    }
+
+    private static string AppendHeader(string headers, string header)
+    {
         return string.IsNullOrWhiteSpace(headers)
-            ? $"{name}: {value}"
-            : headers.TrimEnd() + "\r\n" + $"{name}: {value}";
+            ? header
+            : headers.TrimEnd() + "\r\n" + header;
     }
 
     private static string DefaultUserAgent()
