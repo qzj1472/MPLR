@@ -86,7 +86,9 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        RuntimeHelper.CheckSingleInstance(AppConfig.PackName + (Debugger.IsAttached ? "_DEBUG" : string.Empty));
+        RuntimeHelper.CheckSingleInstance(
+            AppConfig.PackName + (Debugger.IsAttached ? "_DEBUG" : string.Empty),
+            AppConfig.LegacyPackNames.Select(static name => name + (Debugger.IsAttached ? "_DEBUG" : string.Empty)));
         AppSessionLogger.Start();
         ConfigChangeLogger.Start();
         TrayIconManager.Start();

@@ -9,7 +9,25 @@ namespace MPLR.Extensions;
 
 internal static class RuntimeHelper
 {
-    public static void CheckSingleInstance(string instanceName, Action<bool> callback = null!)
+    public static void CheckSingleInstance(string instanceName, IEnumerable<string>? legacyInstanceNames = null, Action<bool> callback = null!)
+    {
+        foreach (string legacyInstanceName in legacyInstanceNames ?? [])
+        {
+            if (TryActivateExistingInstance(legacyInstanceName, callback))
+            {
+                return;
+            }
+        }
+
+        if (TryActivateExistingInstance(instanceName, callback))
+        {
+            return;
+        }
+
+        StartInstanceMonitor(instanceName, callback);
+    }
+
+    private static bool TryActivateExistingInstance(string instanceName, Action<bool> callback)
     {
         EventWaitHandle? handle;
 
@@ -20,12 +38,18 @@ internal static class RuntimeHelper
             handle.Set();
             callback?.Invoke(false);
             Environment.Exit(0xFFFF);
+            return true;
         }
         catch (WaitHandleCannotBeOpenedException)
         {
-            callback?.Invoke(true);
-            handle = new EventWaitHandle(false, EventResetMode.AutoReset, instanceName);
+            return false;
         }
+    }
+
+    private static void StartInstanceMonitor(string instanceName, Action<bool> callback)
+    {
+        EventWaitHandle handle = new(false, EventResetMode.AutoReset, instanceName);
+        callback?.Invoke(true);
 
         _ = Task.Factory.StartNew(() =>
         {
