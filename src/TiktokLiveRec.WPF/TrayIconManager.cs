@@ -179,9 +179,9 @@ internal class TrayIconManager
         _ = GetInstance();
     }
 
-    public void RequestShutdown()
+    public void RequestShutdown(bool confirmRecording = true)
     {
-        if (GlobalMonitor.RoomStatus.Values.ToArray().Any(roomStatus => roomStatus.RecordStatus == RecordStatus.Recording))
+        if (confirmRecording && GlobalMonitor.RoomStatus.Values.ToArray().Any(roomStatus => roomStatus.RecordStatus == RecordStatus.Recording))
         {
             if (MessageBox.Question("SureOnRecording".Tr()) != MessageBoxResult.Yes)
             {

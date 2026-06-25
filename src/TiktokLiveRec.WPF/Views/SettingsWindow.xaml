@@ -370,19 +370,47 @@
                                            VerticalAlignment="Center"
                                            FontFamily="{DynamicResource SymbolThemeFontFamily}"
                                            FontSize="18"
-                                           Text="{x:Static ui:FontSymbols.FolderOpen}" />
+                                           Text="{x:Static ui:FontSymbols.Document}" />
                             </Grid>
                             <ui:Grid Grid.Column="1" RowDefinitions="Auto,Auto">
-                                <TextBlock Grid.Row="0" Text="{I18N ImportConfig}" />
+                                <TextBlock Grid.Row="0" Text="配置文件" />
                                 <TextBlock Grid.Row="1"
                                            FontSize="11"
                                            Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
-                                           Text="{I18N ImportConfigHint}" />
+                                           Text="导入、导出或重置 YAML 配置" />
                             </ui:Grid>
-                            <Button Grid.Column="2"
-                                    Margin="0,0,28,0"
-                                    Command="{Binding ImportConfigCommand}"
-                                    Content="{I18N ButtonOfImport}" />
+                            <ui:StackPanel Grid.Column="2"
+                                           Margin="0,0,28,0"
+                                           HorizontalAlignment="Right"
+                                           Orientation="Horizontal"
+                                           Spacing="8">
+                                <Button Command="{Binding ImportConfigCommand}" Content="导入" />
+                                <Button Command="{Binding ExportConfigCommand}" Content="导出" />
+                                <Button Command="{Binding ResetConfigCommand}" Content="重置" />
+                            </ui:StackPanel>
+                        </ui:Grid>
+                    </ui:Card>
+                    <ui:Card>
+                        <ui:Grid MinHeight="35" ColumnDefinitions="Auto,*,Auto">
+                            <Grid Grid.Column="0" Margin="0,0,12,0">
+                                <TextBlock MinWidth="26"
+                                           Margin="4,0,0,0"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                           FontSize="18"
+                                           Text="{x:Static ui:FontSymbols.FolderOpen}" />
+                            </Grid>
+                            <ui:Grid Grid.Column="1" RowDefinitions="Auto,Auto">
+                                <TextBlock Grid.Row="0" Text="运行日志" />
+                                <TextBlock Grid.Row="1"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                           Text="开启后每次启动生成一个日志文件，仅保留最近一周" />
+                            </ui:Grid>
+                            <ui:ToggleSwitch Grid.Column="2"
+                                             Margin="0,0,28,0"
+                                             IsChecked="{Binding IsSessionLogEnabled, Mode=TwoWay}" />
                         </ui:Grid>
                     </ui:Card>
                     <TextBlock Margin="4,0,0,4"
@@ -499,12 +527,21 @@
                                            Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
                                            Text="{I18N RoutineIntervalHint}" />
                             </ui:Grid>
-                            <ui:NumberBox Grid.Column="2"
-                                          MinWidth="150"
-                                          Margin="0,0,28,0"
-                                          Maximum="{c:DoubleMaxValue}"
-                                          Minimum="500"
-                                          Value="{Binding RoutineInterval, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <ui:Grid Grid.Column="2"
+                                     Margin="0,0,28,0"
+                                     ColumnDefinitions="*,86">
+                                <ui:NumberBox MinWidth="82"
+                                              Margin="0,0,8,0"
+                                              Maximum="{c:DoubleMaxValue}"
+                                              Minimum="0.5"
+                                              Value="{Binding RoutineIntervalValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <ComboBox Grid.Column="1"
+                                          MinWidth="86"
+                                          SelectedIndex="{Binding RoutineIntervalUnitIndex, Mode=TwoWay}">
+                                    <ComboBoxItem Content="{Binding RoutineIntervalSecondsText}" />
+                                    <ComboBoxItem Content="{Binding RoutineIntervalMinutesText}" />
+                                </ComboBox>
+                            </ui:Grid>
                         </ui:Grid>
                     </ui:Card>
                     <ui:CardExpander>

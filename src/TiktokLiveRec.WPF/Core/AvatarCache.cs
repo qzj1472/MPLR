@@ -71,7 +71,7 @@ internal static class AvatarCache
 
     private static string GetAvatarDirectory()
     {
-        return Path.Combine(Path.GetDirectoryName(ConfigurationManager.FilePath) ?? AppContext.BaseDirectory, "avatars");
+        return Path.Combine(AppPaths.CacheDirectory, "avatars");
     }
 
     public static string HashRoomUrl(string roomUrl)

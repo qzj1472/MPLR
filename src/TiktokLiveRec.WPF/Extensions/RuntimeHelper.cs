@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Interop;
+using TiktokLiveRec.Core;
 
 namespace TiktokLiveRec.Extensions;
 
@@ -15,6 +16,7 @@ internal static class RuntimeHelper
         try
         {
             handle = EventWaitHandle.OpenExisting(instanceName);
+            AppSessionLogger.Write($"single instance already running: {instanceName}");
             handle.Set();
             callback?.Invoke(false);
             Environment.Exit(0xFFFF);
@@ -56,6 +58,7 @@ internal static class RuntimeHelper
 
         try
         {
+            AppSessionLogger.Write("application restart requested");
             using Process process = new()
             {
                 StartInfo = new ProcessStartInfo()

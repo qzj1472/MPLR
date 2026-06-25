@@ -28,16 +28,25 @@
             </ui:StackPanel>
         </ui:Grid>
         <TextBlock Grid.Row="1"
-                   Margin="0,18,0,2"
+                   Margin="0,18,0,8"
                    FontWeight="SemiBold"
-                   Text="组件与库" />
-        <ScrollViewer Grid.Row="2"
-                      MaxHeight="320"
-                      HorizontalScrollBarVisibility="Disabled"
-                      VerticalScrollBarVisibility="Auto">
-            <ui:StackPanel Spacing="4">
+                   Text="软件仓库" />
+        <Border Grid.Row="2"
+                Padding="12"
+                Background="#0A000000"
+                BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+            <ui:StackPanel Spacing="8">
+                <ui:HyperlinkButton Command="{Binding OpenHyperlinkCommand}" CommandParameter="https://github.com/qzj1472/MPLR" Content="qzj1472/MPLR" Cursor="Hand" />
+                <Separator />
+                <TextBlock FontWeight="SemiBold" Text="组件与库" />
+                <ScrollViewer MaxHeight="260"
+                              HorizontalScrollBarVisibility="Disabled"
+                              VerticalScrollBarVisibility="Auto">
+                    <ui:StackPanel Spacing="4">
+                <ui:HyperlinkButton Command="{Binding OpenHyperlinkCommand}" CommandParameter="https://github.com/emako/TiktokLiveRec" Content="emako/TiktokLiveRec" Cursor="Hand" />
                 <ui:HyperlinkButton Command="{Binding OpenHyperlinkCommand}" CommandParameter="https://github.com/ihmily/DouyinLiveRecorder" Content="DouyinLiveRecorder" Cursor="Hand" />
-                <ui:HyperlinkButton Command="{Binding OpenHyperlinkCommand}" CommandParameter="https://github.com/wbt5/real-url" Content="real-url" Cursor="Hand" />
                 <ui:HyperlinkButton Command="{Binding OpenHyperlinkCommand}" CommandParameter="https://github.com/lepoco/wpfui" Content="WPF-UI / WPF-UI.Violeta" Cursor="Hand" />
                 <ui:HyperlinkButton Command="{Binding OpenHyperlinkCommand}" CommandParameter="https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/" Content="CommunityToolkit.Mvvm" Cursor="Hand" />
                 <ui:HyperlinkButton Command="{Binding OpenHyperlinkCommand}" CommandParameter="https://www.nuget.org/packages/Fischless.Configuration" Content="Fischless.Configuration" Cursor="Hand" />
@@ -49,7 +58,9 @@
                 <ui:HyperlinkButton Command="{Binding OpenHyperlinkCommand}" CommandParameter="https://github.com/CommunityToolkit/WindowsCommunityToolkit" Content="Microsoft.Toolkit.Uwp.Notifications" Cursor="Hand" />
                 <ui:HyperlinkButton Command="{Binding OpenHyperlinkCommand}" CommandParameter="https://github.com/naudio/NAudio" Content="NAudio" Cursor="Hand" />
                 <ui:HyperlinkButton Command="{Binding OpenHyperlinkCommand}" CommandParameter="https://ffmpeg.org/" Content="FFmpeg" Cursor="Hand" />
+                    </ui:StackPanel>
+                </ScrollViewer>
             </ui:StackPanel>
-        </ScrollViewer>
+        </Border>
     </ui:Grid>
 </vio:ContentDialog>

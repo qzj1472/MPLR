@@ -9,11 +9,12 @@
                    Title="{I18N AddRoom}"
                    d:DesignHeight="NaN"
                    d:DesignWidth="NaN"
-                   CloseButtonText="{I18N ButtonOfClose}"
+                   CloseButtonText=""
                    DefaultButton="Primary"
                    FontSize="14"
                    PrimaryButtonClick="OnPrimaryButtonClick"
                    PrimaryButtonText="{I18N ButtonOfAdd}"
+                   SecondaryButtonText="{I18N ButtonOfClose}"
                    mc:Ignorable="d">
     <ui:Grid>
         <ui:StackPanel MinWidth="525" Spacing="8">

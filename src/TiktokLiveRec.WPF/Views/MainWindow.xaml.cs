@@ -1,6 +1,7 @@
 using Microsoft.Toolkit.Uwp.Notifications;
 using CommunityToolkit.Mvvm.Messaging;
 using System.ComponentModel;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -71,6 +72,10 @@ public partial class MainWindow : FluentWindow
     public static readonly DependencyProperty RoomCardChipMinHeightProperty = DependencyProperty.Register(nameof(RoomCardChipMinHeight), typeof(double), typeof(MainWindow), new PropertyMetadata(20d));
 
     public static readonly DependencyProperty CanUseLargeRoomCardsProperty = DependencyProperty.Register(nameof(CanUseLargeRoomCards), typeof(bool), typeof(MainWindow), new PropertyMetadata(true));
+
+    public static readonly DependencyProperty RoutineIntervalSecondsTextProperty = DependencyProperty.Register(nameof(RoutineIntervalSecondsText), typeof(string), typeof(MainWindow), new PropertyMetadata(string.Empty));
+
+    public static readonly DependencyProperty RoutineIntervalMinutesTextProperty = DependencyProperty.Register(nameof(RoutineIntervalMinutesText), typeof(string), typeof(MainWindow), new PropertyMetadata(string.Empty));
 
     public double RoomCardItemWidth
     {
@@ -204,6 +209,18 @@ public partial class MainWindow : FluentWindow
         set => SetValue(CanUseLargeRoomCardsProperty, value);
     }
 
+    public string RoutineIntervalSecondsText
+    {
+        get => (string)GetValue(RoutineIntervalSecondsTextProperty);
+        set => SetValue(RoutineIntervalSecondsTextProperty, value);
+    }
+
+    public string RoutineIntervalMinutesText
+    {
+        get => (string)GetValue(RoutineIntervalMinutesTextProperty);
+        set => SetValue(RoutineIntervalMinutesTextProperty, value);
+    }
+
     private const int RoomCardBaseColumns = 3;
 
     private const double RoomCardMinScale = 0.86d;
@@ -258,6 +275,10 @@ public partial class MainWindow : FluentWindow
 
     private int roomCardInsertionIndex = -1;
 
+    private int routineIntervalUnitIndex;
+
+    private bool isUpdatingRoutineIntervalFlyout;
+
     public MainWindow()
     {
         DataContext = ViewModel = new();
@@ -268,6 +289,10 @@ public partial class MainWindow : FluentWindow
         {
             Dispatcher.BeginInvoke(BeginRoomCardsFlashAnimation, DispatcherPriority.Background);
         });
+        Locale.CultureChanged += LocaleCultureChanged;
+        RefreshRoutineIntervalUnitTexts();
+
+        routineIntervalUnitIndex = RoutineIntervalUnitHelper.GetPreferredUnitIndex(ViewModel.StatusOfRoutineInterval);
 
         if (Configurations.IsUseKeepAwake.Get())
         {
@@ -609,16 +634,26 @@ public partial class MainWindow : FluentWindow
         return items;
     }
 
-    private void RoutineIntervalStatusTextMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void RoutineIntervalStatusButtonClick(object sender, RoutedEventArgs e)
     {
-        RoutineIntervalInput.Text = ViewModel.StatusOfRoutineInterval.ToString();
-        OpenBoundedFlyout(RoutineIntervalFlyout, RoutineIntervalStatusText);
+        SetRoutineIntervalFlyoutValue(ViewModel.StatusOfRoutineInterval);
+        OpenBoundedFlyout(RoutineIntervalFlyout, RoutineIntervalStatusButton);
         Dispatcher.BeginInvoke(() =>
         {
             RoutineIntervalInput.Focus();
             RoutineIntervalInput.SelectAll();
         }, DispatcherPriority.Input);
-        e.Handled = true;
+    }
+
+    private void LocaleCultureChanged(object? sender, EventArgs e)
+    {
+        RefreshRoutineIntervalUnitTexts();
+    }
+
+    private void RefreshRoutineIntervalUnitTexts()
+    {
+        RoutineIntervalSecondsText = RoutineIntervalUnitHelper.GetUnitText(RoutineIntervalUnitHelper.Seconds);
+        RoutineIntervalMinutesText = RoutineIntervalUnitHelper.GetUnitText(RoutineIntervalUnitHelper.Minutes);
     }
 
     private void RecordFormatStatusTextMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -629,12 +664,46 @@ public partial class MainWindow : FluentWindow
 
     private void RoutineIntervalConfirmClick(object sender, RoutedEventArgs e)
     {
-        if (ViewModel.SetRoutineIntervalCommand.CanExecute(RoutineIntervalInput.Text))
+        if (double.TryParse(RoutineIntervalInput.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double value))
         {
-            ViewModel.SetRoutineIntervalCommand.Execute(RoutineIntervalInput.Text);
+            int milliseconds = RoutineIntervalUnitHelper.ToMilliseconds(value, routineIntervalUnitIndex);
+            string interval = milliseconds.ToString(CultureInfo.InvariantCulture);
+
+            if (ViewModel.SetRoutineIntervalCommand.CanExecute(interval))
+            {
+                ViewModel.SetRoutineIntervalCommand.Execute(interval);
+            }
         }
 
         RoutineIntervalFlyout.Visibility = Visibility.Collapsed;
+    }
+
+    private void RoutineIntervalUnitSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (isUpdatingRoutineIntervalFlyout || RoutineIntervalUnitComboBox.SelectedIndex < 0)
+        {
+            return;
+        }
+
+        if (!double.TryParse(RoutineIntervalInput.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double value))
+        {
+            value = RoutineIntervalUnitHelper.ToDisplayValue(ViewModel.StatusOfRoutineInterval, routineIntervalUnitIndex);
+        }
+
+        int previousUnitIndex = routineIntervalUnitIndex;
+        routineIntervalUnitIndex = RoutineIntervalUnitComboBox.SelectedIndex;
+        int milliseconds = RoutineIntervalUnitHelper.ToMilliseconds(value, previousUnitIndex);
+        double displayValue = RoutineIntervalUnitHelper.ToDisplayValue(milliseconds, routineIntervalUnitIndex);
+
+        isUpdatingRoutineIntervalFlyout = true;
+        try
+        {
+            RoutineIntervalInput.Text = displayValue.ToString("0.###", CultureInfo.InvariantCulture);
+        }
+        finally
+        {
+            isUpdatingRoutineIntervalFlyout = false;
+        }
     }
 
     private void RecordFormatOptionClick(object sender, RoutedEventArgs e)
@@ -755,7 +824,7 @@ public partial class MainWindow : FluentWindow
 
         (FrameworkElement Flyout, FrameworkElement Target)[] items =
         [
-            (RoutineIntervalFlyout, RoutineIntervalStatusText),
+            (RoutineIntervalFlyout, RoutineIntervalStatusButton),
             (RecordFormatFlyout, RecordFormatStatusText),
             (AddRoomFlyout, AddRoomFlyout),
             (AboutFlyout, AboutFlyout),
@@ -771,6 +840,23 @@ public partial class MainWindow : FluentWindow
         }
 
         return items.Any(item => item.Flyout.Visibility == Visibility.Visible);
+    }
+
+    private void SetRoutineIntervalFlyoutValue(int milliseconds)
+    {
+        routineIntervalUnitIndex = RoutineIntervalUnitHelper.GetPreferredUnitIndex(milliseconds);
+        double displayValue = RoutineIntervalUnitHelper.ToDisplayValue(milliseconds, routineIntervalUnitIndex);
+
+        isUpdatingRoutineIntervalFlyout = true;
+        try
+        {
+            RoutineIntervalUnitComboBox.SelectedIndex = routineIntervalUnitIndex;
+            RoutineIntervalInput.Text = displayValue.ToString("0.###", CultureInfo.InvariantCulture);
+        }
+        finally
+        {
+            isUpdatingRoutineIntervalFlyout = false;
+        }
     }
 
     private void CloseFloatingPanels(FrameworkElement? except = null)

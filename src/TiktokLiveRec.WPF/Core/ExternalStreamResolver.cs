@@ -65,26 +65,53 @@ internal static class ExternalStreamResolver
 
     public static ISpiderResult? GetResult(string url)
     {
+        Stopwatch stopwatch = Stopwatch.StartNew();
         LastError = string.Empty;
         string? normalizedUrl = NormalizeUrl(url);
         string? scriptPath = FindResolverScript();
         string? pythonPath = FindPython();
 
+        AppSessionLogger.Event("info", "business", "stream_resolver_started", "external stream resolver started", new
+        {
+            originalUrl = url,
+            normalizedUrl,
+            scriptFound = !string.IsNullOrWhiteSpace(scriptPath),
+            pythonFound = !string.IsNullOrWhiteSpace(pythonPath),
+            isProxyEnabled = Configurations.IsUseProxy.Get(),
+            quality = Configurations.StreamQuality.Get(),
+        });
+
         if (string.IsNullOrWhiteSpace(normalizedUrl))
         {
             LastError = "empty or invalid url";
+            AppSessionLogger.Event("warn", "business", "stream_resolver_rejected", LastError, new
+            {
+                originalUrl = url,
+                elapsedMilliseconds = stopwatch.ElapsedMilliseconds,
+            });
             return null;
         }
 
         if (string.IsNullOrWhiteSpace(scriptPath))
         {
             LastError = "stream resolver script not found";
+            AppSessionLogger.Event("error", "business", "stream_resolver_rejected", LastError, new
+            {
+                normalizedUrl,
+                elapsedMilliseconds = stopwatch.ElapsedMilliseconds,
+            });
             return null;
         }
 
         if (string.IsNullOrWhiteSpace(pythonPath))
         {
             LastError = "python runtime not found";
+            AppSessionLogger.Event("error", "business", "stream_resolver_rejected", LastError, new
+            {
+                normalizedUrl,
+                scriptPath,
+                elapsedMilliseconds = stopwatch.ElapsedMilliseconds,
+            });
             return null;
         }
 
@@ -112,16 +139,37 @@ internal static class ExternalStreamResolver
                 }
 
                 LastError = "stream resolver timeout";
+                AppSessionLogger.Event("error", "business", "stream_resolver_timeout", LastError, new
+                {
+                    normalizedUrl,
+                    pythonPath,
+                    scriptPath,
+                    elapsedMilliseconds = stopwatch.ElapsedMilliseconds,
+                });
                 return null;
             }
 
             string output = outputTask.GetAwaiter().GetResult();
             string error = errorTask.GetAwaiter().GetResult();
 
+            AppSessionLogger.Event("debug", "system", "process_completed", "stream resolver process completed", new
+            {
+                normalizedUrl,
+                exitCode = process.ExitCode,
+                elapsedMilliseconds = stopwatch.ElapsedMilliseconds,
+                stdoutLength = output.Length,
+                stderrLength = error.Length,
+            });
+
             if (!string.IsNullOrWhiteSpace(error))
             {
                 LastError = TrimError(error);
                 Debug.WriteLine(error);
+                AppSessionLogger.Event("warn", "system", "process_stderr", LastError, new
+                {
+                    normalizedUrl,
+                    elapsedMilliseconds = stopwatch.ElapsedMilliseconds,
+                });
             }
 
             if (process.ExitCode != 0)
@@ -129,6 +177,12 @@ internal static class ExternalStreamResolver
                 LastError = string.IsNullOrWhiteSpace(LastError)
                     ? $"stream resolver exited with code {process.ExitCode}"
                     : $"stream resolver exited with code {process.ExitCode}: {LastError}";
+                AppSessionLogger.Event("error", "business", "stream_resolver_failed", LastError, new
+                {
+                    normalizedUrl,
+                    exitCode = process.ExitCode,
+                    elapsedMilliseconds = stopwatch.ElapsedMilliseconds,
+                });
                 return null;
             }
 
@@ -138,6 +192,11 @@ internal static class ExternalStreamResolver
                 LastError = string.IsNullOrWhiteSpace(LastError)
                     ? "stream resolver returned no JSON output"
                     : $"stream resolver returned no JSON output: {LastError}";
+                AppSessionLogger.Event("warn", "business", "stream_resolver_no_json", LastError, new
+                {
+                    normalizedUrl,
+                    elapsedMilliseconds = stopwatch.ElapsedMilliseconds,
+                });
                 return null;
             }
 
@@ -148,6 +207,11 @@ internal static class ExternalStreamResolver
                 LastError = string.IsNullOrWhiteSpace(LastError)
                     ? "stream resolver returned invalid JSON"
                     : $"stream resolver returned invalid JSON: {LastError}";
+                AppSessionLogger.Event("warn", "business", "stream_resolver_invalid_json", LastError, new
+                {
+                    normalizedUrl,
+                    elapsedMilliseconds = stopwatch.ElapsedMilliseconds,
+                });
                 return null;
             }
 
@@ -162,16 +226,36 @@ internal static class ExternalStreamResolver
                     LastError = "stream resolver returned no room data";
                 }
 
+                AppSessionLogger.Event("warn", "business", "stream_resolver_no_room_data", LastError, new
+                {
+                    normalizedUrl,
+                    platform = result.Platform,
+                    isLiveStreaming = result.IsLiveStreaming,
+                    elapsedMilliseconds = stopwatch.ElapsedMilliseconds,
+                });
                 return null;
             }
 
             LastError = string.IsNullOrWhiteSpace(result.Error) ? string.Empty : result.Error;
+            AppSessionLogger.Event("info", "business", "stream_resolver_succeeded", "stream resolver returned room data", new
+            {
+                normalizedUrl,
+                platform = result.Platform,
+                nickname = result.Nickname,
+                isLiveStreaming = result.IsLiveStreaming,
+                hasRecordUrl = !string.IsNullOrWhiteSpace(result.RecordUrl),
+                hasFlvUrl = !string.IsNullOrWhiteSpace(result.FlvUrl),
+                hasHlsUrl = !string.IsNullOrWhiteSpace(result.HlsUrl),
+                error = result.Error,
+                elapsedMilliseconds = stopwatch.ElapsedMilliseconds,
+            });
             return result.ToSpiderResult(normalizedUrl);
         }
         catch (Exception e)
         {
             LastError = e.Message;
             Debug.WriteLine(e);
+            AppSessionLogger.WriteException(e);
             return null;
         }
     }

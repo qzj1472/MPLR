@@ -84,23 +84,7 @@ public partial class MainViewModel : ReactiveObject
     private int statusOfRoutineInterval = Configurations.RoutineInterval.Get();
 
     public string StatusOfRoutineIntervalWithUnit
-    {
-        get
-        {
-            if (StatusOfRoutineInterval > 60000d)
-            {
-                return $"{Math.Round(StatusOfRoutineInterval / 60000d, 1)}min";
-            }
-            else if (StatusOfRoutineInterval > 1000d)
-            {
-                return $"{StatusOfRoutineInterval / 1000d}s";
-            }
-            else
-            {
-                return $"{StatusOfRoutineInterval}ms";
-            }
-        }
-    }
+        => RoutineIntervalUnitHelper.FormatDisplayValue(StatusOfRoutineInterval);
 
     [ObservableProperty]
     private bool isReadyToShutdown = false;

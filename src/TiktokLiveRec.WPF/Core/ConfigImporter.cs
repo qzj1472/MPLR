@@ -15,6 +15,7 @@ public static class ConfigImporter
         nameof(Configurations.IsOffRemindCloseToTray),
         nameof(Configurations.Rooms),
         nameof(Configurations.IsUseStatusTray),
+        nameof(Configurations.IsSessionLogEnabled),
         nameof(Configurations.RoutineInterval),
         nameof(Configurations.IsMonitorRunning),
         nameof(Configurations.IsToNotify),
@@ -73,6 +74,61 @@ public static class ConfigImporter
         return backupPath;
     }
 
+    public static string Export(string targetPath)
+    {
+        string sourcePath = ConfigurationManager.FilePath;
+        string? targetDirectory = Path.GetDirectoryName(targetPath);
+
+        if (!string.IsNullOrWhiteSpace(targetDirectory))
+        {
+            Directory.CreateDirectory(targetDirectory);
+        }
+
+        ConfigurationManager.Save();
+        File.Copy(sourcePath, targetPath, true);
+
+        return targetPath;
+    }
+
+    public static string[] Reset()
+    {
+        AppSessionLogger.Write("config reset requested");
+        List<string> backupPaths = [];
+
+        try
+        {
+            ResetFile(ConfigurationManager.FilePath, backupPaths);
+
+            foreach (string file in AppPaths.GetLegacyConfigFiles())
+            {
+                ResetFile(file, backupPaths);
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            AppSessionLogger.WriteException(exception);
+            throw;
+        }
+
+        AppSessionLogger.Write($"config reset completed; backups={string.Join("|", backupPaths)}");
+
+        return [.. backupPaths];
+    }
+
+    private static void ResetFile(string targetPath, List<string> backupPaths)
+    {
+        if (!File.Exists(targetPath))
+        {
+            return;
+        }
+
+        string backupPath = GetBackupPath(targetPath);
+        AppSessionLogger.Write($"config reset deleting {targetPath}; backup={backupPath}");
+        File.Copy(targetPath, backupPath, false);
+        File.Delete(targetPath);
+        backupPaths.Add(backupPath);
+    }
+
     private static void Validate(string sourcePath)
     {
         if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
@@ -102,11 +158,21 @@ public static class ConfigImporter
 
     private static string GetBackupPath(string targetPath)
     {
-        string directory = Path.GetDirectoryName(targetPath) ?? AppContext.BaseDirectory;
         string fileName = Path.GetFileNameWithoutExtension(targetPath);
         string extension = Path.GetExtension(targetPath);
         string timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
 
-        return Path.Combine(directory, $"{fileName}.bak-{timestamp}{extension}");
+        Directory.CreateDirectory(AppPaths.ConfigDirectory);
+
+        for (int index = 1; ; index++)
+        {
+            string suffix = index == 1 ? string.Empty : $"-{index}";
+            string backupPath = Path.Combine(AppPaths.ConfigDirectory, $"{fileName}.bak-{timestamp}{suffix}{extension}");
+
+            if (!File.Exists(backupPath))
+            {
+                return backupPath;
+            }
+        }
     }
 }

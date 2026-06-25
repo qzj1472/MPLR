@@ -1,7 +1,6 @@
 import argparse
 import asyncio
 import contextlib
-import importlib.util
 import io
 import json
 import os
@@ -17,8 +16,6 @@ from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parent
 DLR_ROOT = ROOT / "vendor" / "douyin_live_recorder"
-REAL_URL_ROOT = ROOT / "vendor" / "real_url"
-
 QUALITY_ALIASES = {
     "0": "OD",
     "1": "BD",
@@ -81,29 +78,6 @@ RECORD_HEADERS = {
     "twitch": "User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36;Referer:https://www.twitch.tv/;Origin:https://www.twitch.tv",
     "Bilibili": "User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36;Referer:https://live.bilibili.com/;Origin:https://live.bilibili.com",
 }
-
-REAL_URL_RULES = [
-    ("bilibili", "Bilibili", ("live.bilibili.com",), lambda u: last_path(u)),
-    ("douyu", "Douyu", ("douyu.com",), lambda u: douyu_room_id(u)),
-    ("kuaishou", "Kuaishou", ("live.kuaishou.com",), lambda u: last_path(u)),
-    ("tiktok", "TikTok", ("tiktok.com",), lambda u: u),
-    ("twitch", "Twitch", ("twitch.tv",), lambda u: last_path(u)),
-    ("acfun", "Acfun", ("live.acfun.cn", "m.acfun.cn"), lambda u: last_path(u)),
-    ("bigo", "Bigo", ("bigo.tv",), lambda u: last_path(u)),
-    ("cc", "NetEaseCC", ("cc.163.com",), lambda u: last_path(u)),
-    ("huajiao", "Huajiao", ("huajiao.com",), lambda u: last_path(u)),
-    ("inke", "Yingke", ("inke.cn",), lambda u: last_path(u)),
-    ("jd", "JD", ("jd.com", "3.cn"), lambda u: last_path(u)),
-    ("kugou", "Kugou", ("kugou.com",), lambda u: last_path(u)),
-    ("look", "Look", ("look.163.com",), lambda u: last_path(u)),
-    ("maoer", "MaoerFM", ("missevan.com",), lambda u: last_path(u)),
-    ("migu", "Migu", ("miguvideo.com",), lambda u: last_path(u)),
-    ("ppsport", "PPSport", ("ppsport.com",), lambda u: u),
-    ("17live", "17Live", ("17.live",), lambda u: last_path(u)),
-    ("yy", "YY", ("yy.com",), lambda u: last_path(u)),
-    ("zhanqi", "Zhanqi", ("zhanqi.tv",), lambda u: last_path(u)),
-    ("zhibotv", "ZhiboTV", ("zhibotv.com",), lambda u: last_path(u)),
-]
 
 
 def normalize_url(url):
@@ -915,10 +889,6 @@ async def resolve_dlr(url, quality, proxy, args, config):
             if preview_url:
                 info["hls_url"] = preview_url
                 info["record_url"] = preview_url
-        if not has_stream(info):
-            fallback = resolve_real_url(url, quality)
-            if fallback:
-                info = merge_stream_result(info, fallback)
     elif is_match(url, "https://www.yy.com/"):
         platform = "YY"
         data = await spider.get_yy_stream_data(url=url, proxy_addr=proxy, cookies=cookie(config, "yy", domestic_cookie))
@@ -1108,34 +1078,6 @@ async def resolve_dlr(url, quality, proxy, args, config):
     return None
 
 
-def resolve_real_url(url, quality):
-    if str(REAL_URL_ROOT) not in sys.path:
-        sys.path.insert(0, str(REAL_URL_ROOT))
-    for module_name, platform, needles, rid_getter in REAL_URL_RULES:
-        if not is_match(url, *needles):
-            continue
-        module_path = REAL_URL_ROOT / f"{module_name}.py"
-        if not module_path.exists():
-            continue
-        spec = importlib.util.spec_from_file_location(f"real_url_{module_name}", module_path)
-        if not spec or not spec.loader:
-            continue
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        if not hasattr(module, "get_real_url"):
-            continue
-        value = module.get_real_url(rid_getter(url))
-        record_url = flatten_url(value)
-        if not record_url:
-            continue
-        return normalize_info(url, platform, {
-            "anchor_name": f"{platform}_{last_path(url)}",
-            "is_live": True,
-            "record_url": record_url,
-        }, quality, "real_url")
-    return None
-
-
 async def resolve(args):
     url = normalize_url(args.url)
     quality = normalize_quality(args.quality)
@@ -1153,13 +1095,6 @@ async def resolve(args):
             return result
     except Exception as exc:
         errors.append(f"douyin_live_recorder: {type(exc).__name__}: {exc}")
-
-    try:
-        result = resolve_real_url(url, quality)
-        if result:
-            return result
-    except Exception as exc:
-        errors.append(f"real_url: {type(exc).__name__}: {exc}")
 
     return {
         "room_url": url,

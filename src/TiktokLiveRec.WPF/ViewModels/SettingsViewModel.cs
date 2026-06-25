@@ -28,6 +28,10 @@ public partial class SettingsViewModel : ReactiveObject
 {
     public static event EventHandler<int>? DisplayScaleChanged;
 
+    public string RoutineIntervalSecondsText => RoutineIntervalUnitHelper.GetUnitText(RoutineIntervalUnitHelper.Seconds);
+
+    public string RoutineIntervalMinutesText => RoutineIntervalUnitHelper.GetUnitText(RoutineIntervalUnitHelper.Minutes);
+
     private enum LanguageIndexEnum
     {
         Auto,
@@ -125,6 +129,24 @@ public partial class SettingsViewModel : ReactiveObject
         TrayIconManager.GetInstance().UpdateTrayIcon();
     }
 
+    [ObservableProperty]
+    private bool isSessionLogEnabled = Configurations.IsSessionLogEnabled.Get();
+
+    partial void OnIsSessionLogEnabledChanged(bool value)
+    {
+        Configurations.IsSessionLogEnabled.Set(value);
+        ConfigurationManager.Save();
+
+        if (value)
+        {
+            AppSessionLogger.StartNow("session logging enabled");
+        }
+        else
+        {
+            AppSessionLogger.Stop("session logging disabled");
+        }
+    }
+
     [RelayCommand]
     private void CreateDesktopShortcut()
     {
@@ -158,12 +180,67 @@ public partial class SettingsViewModel : ReactiveObject
         try
         {
             string backupPath = ConfigImporter.Import(dialog.FileName);
+            AppSessionLogger.Write($"config imported from {dialog.FileName}; backup={backupPath}");
             Toast.Success("ImportConfigSuccess".Tr());
             _ = await MessageBox.InformationAsync("ImportConfigRestartHint".Tr(backupPath));
+            AppSessionLogger.Write("application restarting after config import");
+            AppSessionLogger.Stop("application restarting");
+            RuntimeHelper.Restart(forced: true);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException or YamlException)
         {
+            AppSessionLogger.WriteException(e);
             Toast.Error("ImportConfigFailed".Tr(e.Message));
+        }
+    }
+
+    [RelayCommand]
+    private void ExportConfig()
+    {
+        using CommonSaveFileDialog dialog = new()
+        {
+            DefaultExtension = "yaml",
+            DefaultFileName = $"config-{DateTime.Now:yyyyMMddHHmmss}.yaml",
+            Title = "导出配置",
+        };
+
+        dialog.Filters.Add(new CommonFileDialogFilter("YAML", "*.yaml;*.yml"));
+
+        if (dialog.ShowDialog() != CommonFileDialogResult.Ok)
+        {
+            return;
+        }
+
+        try
+        {
+            ConfigImporter.Export(dialog.FileName);
+            Toast.Success("配置已导出");
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Toast.Error($"配置导出失败：{e.Message}");
+        }
+    }
+
+    [RelayCommand]
+    private async Task ResetConfigAsync()
+    {
+        if (MessageBox.Question("确定要重置配置文件吗？当前配置会先备份，重启应用后生效。") != System.Windows.MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            string[] backupPaths = ConfigImporter.Reset();
+            string backupText = backupPaths.Length == 0 ? "没有找到需要备份的配置文件。" : string.Join(Environment.NewLine, backupPaths);
+            Toast.Success("配置已重置");
+            _ = await MessageBox.InformationAsync($"配置已重置，应用将立即退出。配置备份：{Environment.NewLine}{backupText}");
+            TrayIconManager.GetInstance().RequestShutdown(confirmRecording: false);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Toast.Error($"配置重置失败：{e.Message}");
         }
     }
 
@@ -267,12 +344,53 @@ public partial class SettingsViewModel : ReactiveObject
     }
 
     [ObservableProperty]
-    private int routineInterval = Configurations.RoutineInterval.Get();
+    private double routineIntervalValue = RoutineIntervalUnitHelper.ToDisplayValue(
+        Configurations.RoutineInterval.Get(),
+        RoutineIntervalUnitHelper.GetPreferredUnitIndex(Configurations.RoutineInterval.Get()));
 
-    partial void OnRoutineIntervalChanged(int value)
+    [ObservableProperty]
+    private int routineIntervalUnitIndex = RoutineIntervalUnitHelper.GetPreferredUnitIndex(Configurations.RoutineInterval.Get());
+
+    private bool isUpdatingRoutineInterval;
+
+    partial void OnRoutineIntervalValueChanged(double value)
     {
-        GlobalMonitor.RoutinePeriodicWait.Period = TimeSpan.FromMilliseconds(int.Max(value, 500));
-        Configurations.RoutineInterval.Set(value);
+        if (isUpdatingRoutineInterval)
+        {
+            return;
+        }
+
+        ApplyRoutineInterval(value, RoutineIntervalUnitIndex);
+    }
+
+    partial void OnRoutineIntervalUnitIndexChanged(int value)
+    {
+        if (isUpdatingRoutineInterval)
+        {
+            return;
+        }
+
+        int milliseconds = RoutineIntervalUnitHelper.ToMilliseconds(RoutineIntervalValue, value);
+        double displayValue = RoutineIntervalUnitHelper.ToDisplayValue(milliseconds, value);
+
+        isUpdatingRoutineInterval = true;
+        try
+        {
+            RoutineIntervalValue = displayValue;
+        }
+        finally
+        {
+            isUpdatingRoutineInterval = false;
+        }
+
+        ApplyRoutineInterval(displayValue, value);
+    }
+
+    private void ApplyRoutineInterval(double value, int unitIndex)
+    {
+        int milliseconds = RoutineIntervalUnitHelper.ToMilliseconds(value, unitIndex);
+        GlobalMonitor.RoutinePeriodicWait.Period = TimeSpan.FromMilliseconds(milliseconds);
+        Configurations.RoutineInterval.Set(milliseconds);
         ConfigurationManager.Save();
     }
 
@@ -515,7 +633,8 @@ public partial class SettingsViewModel : ReactiveObject
     private async Task OpenHowToGetCookieChinaAsync()
     {
         string html = ResourcesProvider.GetString("pack://application:,,,/Assets/GETCOOKIE_DOUYIN.html");
-        string filePath = Path.GetFullPath(ConfigurationSpecialPath.GetPath("GETCOOKIE_DOUYIN.html", AppConfig.PackName));
+        Directory.CreateDirectory(AppPaths.CacheDirectory);
+        string filePath = Path.GetFullPath(Path.Combine(AppPaths.CacheDirectory, "GETCOOKIE_DOUYIN.html"));
 
         File.WriteAllText(filePath, html);
 
@@ -534,7 +653,14 @@ public partial class SettingsViewModel : ReactiveObject
 
     public SettingsViewModel()
     {
+        Locale.CultureChanged += LocaleCultureChanged;
         LoadPlatformCookieItems();
+    }
+
+    private void LocaleCultureChanged(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(RoutineIntervalSecondsText));
+        OnPropertyChanged(nameof(RoutineIntervalMinutesText));
     }
 
     private void LoadPlatformCookieItems()

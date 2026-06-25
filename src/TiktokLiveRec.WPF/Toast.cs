@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Media;
+using TiktokLiveRec.Core;
 using Wpf.Ui.Violeta.Controls;
 
 namespace TiktokLiveRec;
@@ -20,6 +21,11 @@ public static class Toast
 
     private static void Show(string message, ToastIcon icon)
     {
+        AppSessionLogger.Event(GetLevel(icon), "result", "toast", message, new
+        {
+            icon = icon.ToString(),
+        });
+
         ToastConfig config = new(icon, ToastLocation.TopCenter, Offset, ToastConfig.NormalTime)
         {
             FontSize = 24,
@@ -31,5 +37,15 @@ public static class Toast
         };
 
         Wpf.Ui.Violeta.Controls.Toast.Show(Application.Current.MainWindow, message, config);
+    }
+
+    private static string GetLevel(ToastIcon icon)
+    {
+        return icon.ToString() switch
+        {
+            "Error" => "error",
+            "Warning" => "warn",
+            _ => "info",
+        };
     }
 }

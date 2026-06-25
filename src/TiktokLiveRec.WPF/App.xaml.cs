@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
+using TiktokLiveRec.Core;
 using TiktokLiveRec.Extensions;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Violeta.Appearance;
@@ -19,15 +20,16 @@ public partial class App : Application
         SystemMenuThemeManager.Apply();
         Directory.SetCurrentDirectory(AppContext.BaseDirectory);
         _ = DpiAware.SetProcessDpiAwareness();
-        MigrateLegacyAppData();
+        AppPaths.EnsurePortableStorage();
         ConfigurationManager.ConfigurationSerializer = new YamlConfigurationSerializer();
-        ConfigurationManager.Setup(ConfigurationSpecialPath.GetPath("config.yaml", AppConfig.PackName));
+        ConfigurationManager.Setup(AppPaths.ConfigFilePath);
         Locale.Culture = string.IsNullOrWhiteSpace(Configurations.Language.Get()) ? CultureInfo.CurrentUICulture : new CultureInfo(Configurations.Language.Get());
     }
 
     public App()
     {
         InitializeComponent();
+        UserInteractionLogger.Install();
 
         DispatcherUnhandledException += (object s, DispatcherUnhandledExceptionEventArgs e) =>
         {
@@ -39,7 +41,32 @@ public partial class App : Application
             }
 
             e.Handled = true;
+            AppSessionLogger.WriteException(e.Exception);
             ExceptionReport.Show(e.Exception);
+        };
+
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            if (e.ExceptionObject is Exception exception)
+            {
+                AppSessionLogger.Event("fatal", "exception", exception.GetType().Name, exception.Message, new
+                {
+                    type = exception.GetType().FullName,
+                    exception.Message,
+                    stackTrace = exception.ToString(),
+                    e.IsTerminating,
+                });
+            }
+        };
+
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            AppSessionLogger.Event("error", "exception", "unobserved_task_exception", e.Exception.Message, new
+            {
+                type = e.Exception.GetType().FullName,
+                e.Exception.Message,
+                stackTrace = e.Exception.ToString(),
+            });
         };
 
         if (Enum.TryParse(Configurations.Theme.Get(), out ApplicationTheme applicationTheme))
@@ -60,6 +87,8 @@ public partial class App : Application
         base.OnStartup(e);
 
         RuntimeHelper.CheckSingleInstance(AppConfig.PackName + (Debugger.IsAttached ? "_DEBUG" : string.Empty));
+        AppSessionLogger.Start();
+        ConfigChangeLogger.Start();
         TrayIconManager.Start();
     }
 
@@ -68,41 +97,9 @@ public partial class App : Application
     /// </summary>
     protected override void OnExit(ExitEventArgs e)
     {
+        ConfigChangeLogger.Stop();
+        AppSessionLogger.Stop();
         base.OnExit(e);
     }
 
-    private static void MigrateLegacyAppData()
-    {
-        string legacyConfig = ConfigurationSpecialPath.GetPath("config.yaml", AppConfig.LegacyPackName);
-        string currentConfig = ConfigurationSpecialPath.GetPath("config.yaml", AppConfig.PackName);
-        string? legacyDirectory = Path.GetDirectoryName(legacyConfig);
-        string? currentDirectory = Path.GetDirectoryName(currentConfig);
-
-        if (string.IsNullOrWhiteSpace(legacyDirectory) ||
-            string.IsNullOrWhiteSpace(currentDirectory) ||
-            !Directory.Exists(legacyDirectory) ||
-            File.Exists(currentConfig))
-        {
-            return;
-        }
-
-        CopyDirectory(legacyDirectory, currentDirectory);
-    }
-
-    private static void CopyDirectory(string sourceDirectory, string targetDirectory)
-    {
-        Directory.CreateDirectory(targetDirectory);
-
-        foreach (string directory in Directory.GetDirectories(sourceDirectory, "*", SearchOption.AllDirectories))
-        {
-            Directory.CreateDirectory(directory.Replace(sourceDirectory, targetDirectory));
-        }
-
-        foreach (string file in Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories))
-        {
-            string target = file.Replace(sourceDirectory, targetDirectory);
-            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            File.Copy(file, target, false);
-        }
-    }
 }

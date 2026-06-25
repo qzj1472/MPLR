@@ -65,16 +65,11 @@ https://www.twitch.tv/XXX
 
 为了加快初版开发实现，首版基于 WPF 开发了 Windows 版本。
 
-其他系统的实现会基于个人需求和用户反馈推进。
+当前仅保留 Windows 桌面版入口。
 
 | 操作系统 | 开发框架 | 状态 |
 | -------- | -------- | ---- |
 | Windows | WPF | 支持 |
-| macOS | Avalonia | 开发中 |
-| Ubuntu | Avalonia | 待开发 |
-| Android | Avalonia | 待开发 |
-| iOS | Avalonia | 待开发 |
-| tvOS | 待定 | 待开发 |
 
 ## Cookie
 
