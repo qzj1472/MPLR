@@ -537,7 +537,9 @@
                                 </ComboBox>
                             </ui:Grid>
                         </ui:CardExpander.Header>
-                        <ui:StackPanel Margin="42,0,28,0" Spacing="12">
+                        <ui:StackPanel Margin="42,0,28,0"
+                                       Spacing="12"
+                                       Visibility="{Binding IsRoutineScheduleCustom, Converter={x:Static c:BoolToVisibilityConverter.Instance}}">
                             <UniformGrid Columns="5">
                                 <CheckBox Content="{I18N DayMonday}" IsChecked="{Binding RoutineScheduleMonday, Mode=TwoWay}" />
                                 <CheckBox Content="{I18N DayTuesday}" IsChecked="{Binding RoutineScheduleTuesday, Mode=TwoWay}" />
@@ -549,34 +551,45 @@
                                 <CheckBox Content="{I18N DaySaturday}" IsChecked="{Binding RoutineScheduleSaturday, Mode=TwoWay}" />
                                 <CheckBox Content="{I18N DaySunday}" IsChecked="{Binding RoutineScheduleSunday, Mode=TwoWay}" />
                             </UniformGrid>
-                            <ui:Grid ColumnDefinitions="72,Auto,72,Auto,72,Auto,72">
+                            <ui:Grid ColumnDefinitions="76,Auto,76,Auto,76,Auto,76">
                                 <ui:NumberBox Grid.Column="0"
+                                              FontSize="16"
                                               Maximum="23"
                                               Minimum="0"
+                                              SpinButtonPlacementMode="Compact"
                                               Value="{Binding RoutineScheduleStartHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Grid.Column="1"
                                            Margin="6,0"
                                            VerticalAlignment="Center"
+                                           FontSize="18"
                                            Text=":" />
                                 <ui:NumberBox Grid.Column="2"
+                                              FontSize="16"
                                               Maximum="59"
                                               Minimum="0"
+                                              SpinButtonPlacementMode="Compact"
                                               Value="{Binding RoutineScheduleStartMinute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Grid.Column="3"
                                            Margin="12,0"
                                            VerticalAlignment="Center"
+                                           FontSize="18"
                                            Text="~" />
                                 <ui:NumberBox Grid.Column="4"
+                                              FontSize="16"
                                               Maximum="23"
                                               Minimum="0"
+                                              SpinButtonPlacementMode="Compact"
                                               Value="{Binding RoutineScheduleEndHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Grid.Column="5"
                                            Margin="6,0"
                                            VerticalAlignment="Center"
+                                           FontSize="18"
                                            Text=":" />
                                 <ui:NumberBox Grid.Column="6"
+                                              FontSize="16"
                                               Maximum="59"
                                               Minimum="0"
+                                              SpinButtonPlacementMode="Compact"
                                               Value="{Binding RoutineScheduleEndMinute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                             </ui:Grid>
                         </ui:StackPanel>
@@ -603,9 +616,11 @@
                                      Margin="0,0,28,0"
                                      ColumnDefinitions="*,86">
                                 <ui:NumberBox MinWidth="82"
+                                              FontSize="15"
                                               Margin="0,0,8,0"
                                               Maximum="{c:DoubleMaxValue}"
                                               Minimum="0.5"
+                                              SpinButtonPlacementMode="Compact"
                                               Value="{Binding RoutineIntervalValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 <ComboBox Grid.Column="1"
                                           MinWidth="86"
@@ -685,10 +700,12 @@
                                                VerticalAlignment="Center"
                                                Text="{I18N SegmentTime}" />
                                     <ui:NumberBox Grid.Column="1"
+                                                  FontSize="15"
                                                   MinWidth="100"
                                                   Margin="8,0,0,0"
                                                   Maximum="2147483647"
                                                   Minimum="10"
+                                                  SpinButtonPlacementMode="Compact"
                                                   Value="{Binding SegmentTimeValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                     <ComboBox Grid.Column="2"
                                               MinWidth="86"

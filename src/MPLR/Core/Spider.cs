@@ -29,6 +29,12 @@ internal static class Spider
 
         if (externalResult != null)
         {
+            if (url.Contains("douyin") && string.IsNullOrWhiteSpace(externalResult.AvatarThumbUrl))
+            {
+                ISpiderResult douyinResult = DouyinSpider.Instance.Value.GetResult(url);
+                FillMissingDouyinFields(externalResult, douyinResult);
+            }
+
             return externalResult;
         }
 
@@ -42,6 +48,29 @@ internal static class Spider
         }
 
         return null;
+    }
+
+    private static void FillMissingDouyinFields(ISpiderResult target, ISpiderResult source)
+    {
+        if (string.IsNullOrWhiteSpace(target.AvatarThumbUrl))
+        {
+            target.AvatarThumbUrl = source.AvatarThumbUrl;
+        }
+
+        if (string.IsNullOrWhiteSpace(target.Nickname))
+        {
+            target.Nickname = source.Nickname;
+        }
+
+        if (string.IsNullOrWhiteSpace(target.RoomUrl))
+        {
+            target.RoomUrl = source.RoomUrl;
+        }
+
+        if (target.IsLiveStreaming == null)
+        {
+            target.IsLiveStreaming = source.IsLiveStreaming;
+        }
     }
 }
 
