@@ -4,32 +4,34 @@ English | [简体中文](README.zh-Hans.md)
 
 <img src="src/MPLR/Assets/Favicon.png" alt="MPLR icon" width="96" />
 
-MPLR is a Windows desktop live-stream recorder focused on room monitoring, live preview, and unattended FFmpeg recording. The current application is WPF-only and continues from [emako/TiktokLiveRec](https://github.com/emako/TiktokLiveRec), while the bundled Python stream resolver follows the maintained approach from [ihmily/DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder).
+MPLR is a Windows-only WPF desktop app for live-room monitoring and unattended recording. It centers on quick room management, live preview, automatic recording, and local FFmpeg-based capture. The project continues from [emako/TiktokLiveRec](https://github.com/emako/TiktokLiveRec), and the bundled Python resolver follows the maintained approach from [ihmily/DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder) and [wbt5/real-url](https://github.com/wbt5/real-url).
 
-## Features
+## What It Does
 
-- Single Windows WPF entry point.
-- Room list management with independent monitor, record, and notify switches.
-- Auto polling, auto record, and live preview.
-- Built-in FFmpeg, FFprobe, and FFplay portable packaging.
-- Portable `config`, `logs`, and `cache` folders under the app root.
-- Real-time session logging, interaction logging, and config change logging.
-- Stream preview header completion for `User-Agent`, `Referer`, and related request headers.
-- Built-in Douyin and TikTok fallback parsers plus a bundled Python multi-platform resolver.
+- Add live room links and monitor them from one list.
+- Switch monitor, record, and notification behavior per room.
+- Preview streams before recording and keep recording unattended.
+- Use the bundled FFmpeg, FFprobe, and FFplay binaries.
+- Resolve stream URLs through the included Python resolver when needed.
+- Store config, logs, and cache locally under the app directory.
+- Support platform cookies for cases where the platform requires them.
+
+## Supported Platforms
+
+- Douyin
+- TikTok
+- Douyu
+- Huya
+- Kuaishou
+- Bilibili
+- Twitch
+- Xiaohongshu
 
 ## Requirements
 
 - Windows
-- [.NET Desktop Runtime 9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
-- Python 3.11 or newer for the bundled resolver
-
-Optional local development tools:
-
-```powershell
-scoop bucket add versions
-scoop bucket add extras
-scoop install versions/dotnet9-sdk ffmpeg extras/vcredist2022 python311 nodejs
-```
+- .NET Desktop Runtime 9.0
+- Python 3.11 or newer
 
 ## Build
 
@@ -37,27 +39,39 @@ scoop install versions/dotnet9-sdk ffmpeg extras/vcredist2022 python311 nodejs
 dotnet build .\src\MPLR\MPLR.csproj -c Debug -p:Platform=x64
 ```
 
-Run:
+## Run
 
 ```powershell
 .\src\MPLR\bin\x64\Debug\net9.0-windows10.0.26100.0\win-x64\MPLR.exe
 ```
 
-## Project Layout
+## Packaging
+
+```powershell
+.\build\publish_win-x64.cmd
+```
+
+## Repository Layout
 
 ```text
-src/MPLR                    Windows WPF application
-docs                        User documentation
-build                       Packaging scripts and assets
-tools/stream_resolver       Bundled Python stream resolver
-tools/ffmpeg/win-x64        FFmpeg, FFprobe, FFplay binaries
+src/MPLR              Main WPF application
+docs                  Cookie and privacy docs
+build                 Publish scripts and packaging assets
+tools/stream_resolver Bundled Python resolver and vendor code
+tools/ffmpeg/win-x64  FFmpeg, FFprobe, and FFplay binaries
 ```
+
+## Documentation
+
+- [Douyin cookie guide](docs/GETCOOKIE_DOUYIN.md)
+- [TikTok cookie guide](docs/GETCOOKIE_TIKTOK.md)
+- [Privacy policy](docs/PrivacyPolicy.zh-Hans.md)
 
 ## Credits
 
-- [qzj1472/MPLR](https://github.com/qzj1472/MPLR)
 - [emako/TiktokLiveRec](https://github.com/emako/TiktokLiveRec)
 - [ihmily/DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder)
+- [wbt5/real-url](https://github.com/wbt5/real-url)
 
 ## License
 
