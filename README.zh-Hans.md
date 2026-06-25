@@ -1,27 +1,29 @@
-[English](README.md) | [简体中文](README.zh-Hans.md)
+[English](README.md) | 简体中文
 
-<img src="branding/logo.png" />
+<img src="src/MPLR/Assets/Favicon.png" alt="MPLR icon" width="96" />
 
-# 多平台录播
+# MPLR
 
-[![GitHub license](https://img.shields.io/github/license/emako/TiktokLiveRec)](https://github.com/emako/TiktokLiveRec/blob/master/LICENSE) [![Actions](https://github.com/emako/TiktokLiveRec/actions/workflows/build.yml/badge.svg)](https://github.com/emako/TiktokLiveRec/actions/workflows/library.nuget.yml) [![Platform](https://img.shields.io/badge/platform-Windows-blue?logo=windowsxp&color=1E9BFA)](https://dotnet.microsoft.com/en-us/download/dotnet/9.0) [![GitHub downloads](https://img.shields.io/github/downloads/emako/TiktokLiveRec/total)](https://github.com/emako/TiktokLiveRec/releases)
-[![GitHub downloads](https://img.shields.io/github/downloads/emako/TiktokLiveRec/latest/total)](https://github.com/emako/TiktokLiveRec/releases)
+MPLR 是当前的 Windows 桌面版直播录制工具，聚焦直播间巡检、预览和无人值守 FFmpeg 录制。当前仅保留 WPF 单入口，项目延续自 [emako/TiktokLiveRec](https://github.com/emako/TiktokLiveRec)，内置的 Python 解析器参考并跟进 [ihmily/DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder) 的维护方案。
 
-具有图形界面、无人值守、直播预览和直播流录制功能。
+## 功能
 
-实现基于 FFmpeg 和 FFplay。
+- 仅保留 Windows WPF 入口。
+- 直播间列表管理，支持单独控制巡检、录制和通知。
+- 自动轮询、自动录制、直播预览。
+- 内置 FFmpeg、FFprobe、FFplay 便携打包。
+- 配置、日志、缓存全部落在软件根目录下的 `config`、`logs`、`cache`。
+- 支持实时会话日志、用户操作日志、配置变更日志。
+- 预览时自动补充 `User-Agent`、`Referer` 及相关请求头。
+- 内置抖音、TikTok 回退解析，并集成 Python 多平台解析器。
 
-## 截图
+## 运行环境
 
-<img src="assets/image-20241113165448238.png" alt="image-20241113165448238" style="transform:scale(0.5);" />
+- Windows
+- [.NET Desktop Runtime 9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
+- Python 3.11 或更新版本，用于内置解析器
 
-## 依赖运行时
-
-Windows: [.NET Desktop Runtime 9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
-
-其他系统: [.NET Runtime 9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
-
-Windows 本地开发可使用 Scoop 安装环境：
+本地开发可选安装：
 
 ```powershell
 scoop bucket add versions
@@ -29,60 +31,34 @@ scoop bucket add extras
 scoop install versions/dotnet9-sdk ffmpeg extras/vcredist2022 python311 nodejs
 ```
 
-## 直播录制
+## 构建
 
-内置 C# 回退解析支持抖音和 TikTok。随包提供的 Python 直播流解析器扩展了更多平台的录制能力。
-
-| 平台 | 状态 |
-| ---- | ---- |
-| 抖音 | 支持 |
-| TikTok | 支持 |
-| 哔哩哔哩 | 通过直播流解析器支持 |
-| 快手 | 通过直播流解析器支持 |
-| 斗鱼 | 通过直播流解析器支持 |
-| 虎牙 | 通过直播流解析器支持 |
-| Twitch | 通过直播流解析器支持 |
-| YouTube 及其他解析器支持的平台 | 解析器能返回直播流时支持 |
-
-怎么添加直播间：
-
-```bash
-# 国内抖音直播间链接类似如下：
-https://live.douyin.com/XXX
-https://www.douyin.com/root/live/XXX
-
-# 海外 TikTok 直播间链接类似如下：
-https://www.tiktok.com/@XXX/live
-
-# 其他平台通常可以直接添加公开直播间链接：
-https://live.bilibili.com/XXX
-https://www.douyu.com/XXX
-https://www.huya.com/XXX
-https://www.twitch.tv/XXX
+```powershell
+dotnet build .\src\MPLR\MPLR.csproj -c Debug -p:Platform=x64
 ```
 
-## 支持系统
+运行：
 
-为了加快初版开发实现，首版基于 WPF 开发了 Windows 版本。
+```powershell
+.\src\MPLR\bin\x64\Debug\net9.0-windows10.0.26100.0\win-x64\MPLR.exe
+```
 
-当前仅保留 Windows 桌面版入口。
+## 项目结构
 
-| 操作系统 | 开发框架 | 状态 |
-| -------- | -------- | ---- |
-| Windows | WPF | 支持 |
+```text
+src/MPLR                    Windows WPF 主程序
+docs                        用户文档
+build                       打包脚本和资源
+tools/stream_resolver       内置 Python 解析器
+tools/ffmpeg/win-x64        FFmpeg、FFprobe、FFplay
+```
 
-## Cookie
+## 致谢
 
-部分平台可能需要 Cookie、登录状态或代理才能稳定解析直播流。可以参考 [GETCOOKIE_DOUYIN.md](doc/GETCOOKIE_DOUYIN.md) 或 [GETCOOKIE_TIKTOK.md](doc/GETCOOKIE_TIKTOK.md)。
+- [qzj1472/MPLR](https://github.com/qzj1472/MPLR)
+- [emako/TiktokLiveRec](https://github.com/emako/TiktokLiveRec)
+- [ihmily/DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder)
 
-## 隐私政策
+## 许可
 
-[查看隐私政策](PrivacyPolicy.zh-Hans.md)。
-
-## 许可证
-
-本项目基于 [MIT 许可证](LICENSE)。
-
-## 鸣谢
-
-为了节约后续维护成本，本项目参考了 [DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder) 以及相关解析器项目的直播流解析方式和字符串数据。
+项目主体以 [MIT License](LICENSE) 发布。

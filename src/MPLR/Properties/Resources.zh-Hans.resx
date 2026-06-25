@@ -1,0 +1,621 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<root xmlns:ns1="urn:schemas-microsoft-com:xml-msdata" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  
+  <xs:schema id="root">
+    <xs:element name="root" ns1:IsDataSet="true">
+      <xs:complexType>
+        <xs:choice maxOccurs="unbounded">
+          <xs:element name="data">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="value" type="xsd:string" minOccurs="0" ns1:Ordinal="1" />
+                <xs:element name="comment" type="xsd:string" minOccurs="0" ns1:Ordinal="2" />
+              </xs:sequence>
+              <xs:attribute name="name" type="xsd:string" ns1:Ordinal="1" />
+              <xs:attribute name="type" type="xsd:string" ns1:Ordinal="3" />
+              <xs:attribute name="mimetype" type="xsd:string" ns1:Ordinal="4" />
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="resheader">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="value" type="xsd:string" minOccurs="0" ns1:Ordinal="1" />
+              </xs:sequence>
+              <xs:attribute name="name" type="xsd:string" use="required" />
+            </xs:complexType>
+          </xs:element>
+        </xs:choice>
+      </xs:complexType>
+    </xs:element>
+  </xs:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>1.3</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=2.0.3500.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.3500.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Add" xml:space="preserve">
+    <value>添加</value>
+  </data>
+  <data name="Version" xml:space="preserve">
+    <value>版本</value>
+  </data>
+  <data name="Language" xml:space="preserve">
+    <value>语言</value>
+  </data>
+  <data name="LiveNotification" xml:space="preserve">
+    <value>开播通知</value>
+  </data>
+  <data name="GotoLiveRoom" xml:space="preserve">
+    <value>进入直播间</value>
+  </data>
+  <data name="MailBodyElement" xml:space="preserve">
+    <value>立即进入{0}的直播间</value>
+  </data>
+  <data name="PlayerErrorOfFFplayNotFound" xml:space="preserve">
+    <value>内置 FFplay 预览播放器不可用。</value>
+  </data>
+  <data name="TrayMenuShowMainWindow" xml:space="preserve">
+    <value>显示界面 (&amp;V)</value>
+  </data>
+  <data name="TrayMenuOpenSettings" xml:space="preserve">
+    <value>打开设置 (&amp;S)</value>
+  </data>
+  <data name="TrayMenuAutoRun" xml:space="preserve">
+    <value>启动时自动运行 (&amp;A)</value>
+  </data>
+  <data name="TrayMenuRestart" xml:space="preserve">
+    <value>重启 (&amp;R)</value>
+  </data>
+  <data name="TrayMenuExit" xml:space="preserve">
+    <value>退出 (&amp;E)</value>
+  </data>
+  <data name="PlayerErrorOfNoFile" xml:space="preserve">
+    <value>没有可播放的录制文件</value>
+  </data>
+  <data name="PlayerErrorOfPotPlayerNotFound" xml:space="preserve">
+    <value>内置 FFplay 预览播放器不可用。</value>
+  </data>
+  <data name="PlayerErrorOfNoPlayerFound" xml:space="preserve">
+    <value>未找到应用内置播放器，无法预览。</value>
+  </data>
+  <data name="PlayerErrorOfNoPreviewStream" xml:space="preserve">
+    <value>未解析到可预览的直播间画面。</value>
+  </data>
+  <data name="SureRemoveRoom" xml:space="preserve">
+    <value>是否删除 {0} 直播间？</value>
+  </data>
+  <data name="SuccOp" xml:space="preserve">
+    <value>操作成功</value>
+  </data>
+  <data name="FailOp" xml:space="preserve">
+    <value>操作失败</value>
+  </data>
+  <data name="SureStopRecord" xml:space="preserve">
+    <value>是否停止 {0} 的录制？</value>
+  </data>
+  <data name="NoRecordTask" xml:space="preserve">
+    <value>当前没有录制任务</value>
+  </data>
+  <data name="StreamStatusOfUnknown" xml:space="preserve">
+    <value>未知</value>
+  </data>
+  <data name="StreamStatusOfInitialized" xml:space="preserve">
+    <value>初始化</value>
+  </data>
+  <data name="StreamStatusOfDisabled" xml:space="preserve">
+    <value>已禁用</value>
+  </data>
+  <data name="StreamStatusOfNotStreaming" xml:space="preserve">
+    <value>未开播</value>
+  </data>
+  <data name="StreamStatusOfStreaming" xml:space="preserve">
+    <value>直播中</value>
+  </data>
+  <data name="RecordStatusOfInitialized" xml:space="preserve">
+    <value>初始化</value>
+  </data>
+  <data name="RecordStatusOfDisabled" xml:space="preserve">
+    <value>已禁用</value>
+  </data>
+  <data name="RecordStatusOfUnknown" xml:space="preserve">
+    <value>未知</value>
+  </data>
+  <data name="RecordStatusOfNotRecording" xml:space="preserve">
+    <value>未录制</value>
+  </data>
+  <data name="RecordStatusOfRecording" xml:space="preserve">
+    <value>录制中</value>
+  </data>
+  <data name="RecordStatusOfError" xml:space="preserve">
+    <value>出错啦</value>
+  </data>
+  <data name="ProxyErrorOfEmptyUrl" xml:space="preserve">
+    <value>代理 URL 不能为空</value>
+  </data>
+  <data name="ProxyErrorOfMissHostOrPort" xml:space="preserve">
+    <value>代理 URL 缺失主机名或端口号</value>
+  </data>
+  <data name="ProxyErrorOfFormat" xml:space="preserve">
+    <value>代理 URL 格式有误</value>
+  </data>
+  <data name="ProxyErrorOfHostFormatError" xml:space="preserve">
+    <value>代理 URL 主机格式有误</value>
+  </data>
+  <data name="ProxyErrorOfPortFormatError" xml:space="preserve">
+    <value>代理 URL 端口号格式有误</value>
+  </data>
+  <data name="ProxyErrorOfPortOutOfRange" xml:space="preserve">
+    <value>代理 URL 端口号超出范围</value>
+  </data>
+  <data name="ProxySuccOfStatusCode" xml:space="preserve">
+    <value>代理可用，响应状态 {0}</value>
+  </data>
+  <data name="ProxyErrorOfExceptionMessage" xml:space="preserve">
+    <value>代理无效或请求失败：{0}</value>
+  </data>
+  <data name="About" xml:space="preserve">
+    <value>关于</value>
+  </data>
+  <data name="ButtonOfClose" xml:space="preserve">
+    <value>关闭</value>
+  </data>
+  <data name="ButtonOfAdd" xml:space="preserve">
+    <value>添加</value>
+  </data>
+  <data name="AddRoom" xml:space="preserve">
+    <value>添加房间</value>
+  </data>
+  <data name="EnterRoomUrl" xml:space="preserve">
+    <value>输入直播间链接</value>
+  </data>
+  <data name="GetRoomInfoError" xml:space="preserve">
+    <value>获取直播间信息失败</value>
+  </data>
+  <data name="GetRoomInfoCookieError" xml:space="preserve">
+    <value>获取直播间信息失败，平台可能需要 Cookie 或触发了风控，请在设置中补充对应平台 Cookie 后重试</value>
+  </data>
+  <data name="AddRoomSucc" xml:space="preserve">
+    <value>成功添加 {0} 直播间</value>
+  </data>
+  <data name="ErrorRoomUrl" xml:space="preserve">
+    <value>错误的直播间链接</value>
+  </data>
+  <data name="ButtonOfSettings" xml:space="preserve">
+    <value>设置</value>
+  </data>
+  <data name="SaveFolder" xml:space="preserve">
+    <value>保存目录</value>
+  </data>
+  <data name="RowUpRoom" xml:space="preserve">
+    <value>上移直播间</value>
+  </data>
+  <data name="RowDownRoom" xml:space="preserve">
+    <value>下移直播间</value>
+  </data>
+  <data name="RemoveRoom" xml:space="preserve">
+    <value>移除直播间</value>
+  </data>
+  <data name="PlayRecord" xml:space="preserve">
+    <value>播放录制</value>
+  </data>
+  <data name="StopRecord" xml:space="preserve">
+    <value>停止录制</value>
+  </data>
+  <data name="RecordLog" xml:space="preserve">
+    <value>录制日志</value>
+  </data>
+  <data name="SingleSettings" xml:space="preserve">
+    <value>单独设置</value>
+  </data>
+  <data name="LiveNotificationHint" xml:space="preserve">
+    <value>是否通过 Windows 系统通知等方式通知开播</value>
+  </data>
+  <data name="EnableRecord" xml:space="preserve">
+    <value>启用录制</value>
+  </data>
+  <data name="EnableRecordHint" xml:space="preserve">
+    <value>指示是否启用直播录制</value>
+  </data>
+  <data name="LiveRoom" xml:space="preserve">
+    <value>直播间</value>
+  </data>
+  <data name="StreamStatus" xml:space="preserve">
+    <value>直播状态</value>
+  </data>
+  <data name="RecordStatus" xml:space="preserve">
+    <value>录制状态</value>
+  </data>
+  <data name="Operation" xml:space="preserve">
+    <value>操作</value>
+  </data>
+  <data name="ButtonOfPlay" xml:space="preserve">
+    <value>播放</value>
+  </data>
+  <data name="ButtonOfGoto" xml:space="preserve">
+    <value>进入</value>
+  </data>
+  <data name="SettingsFile" xml:space="preserve">
+    <value>设置文件</value>
+  </data>
+  <data name="ToolbarNew" xml:space="preserve">
+    <value>新建</value>
+  </data>
+  <data name="ToolbarMonitor" xml:space="preserve">
+    <value>监控</value>
+  </data>
+  <data name="ToolbarRecord" xml:space="preserve">
+    <value>录制</value>
+  </data>
+  <data name="ToolbarTranscode" xml:space="preserve">
+    <value>转码</value>
+  </data>
+  <data name="ToolbarExit" xml:space="preserve">
+    <value>退出</value>
+  </data>
+  <data name="Preview" xml:space="preserve">
+    <value>预览</value>
+  </data>
+  <data name="PreviewHint" xml:space="preserve">
+    <value>使用应用内置播放器预览直播间画面。</value>
+  </data>
+  <data name="RoomDetails" xml:space="preserve">
+    <value>直播间信息</value>
+  </data>
+  <data name="QuickActions" xml:space="preserve">
+    <value>简易操作</value>
+  </data>
+  <data name="Actions" xml:space="preserve">
+    <value>操作</value>
+  </data>
+  <data name="RoomUrl" xml:space="preserve">
+    <value>房间地址</value>
+  </data>
+  <data name="RoomPlatform" xml:space="preserve">
+    <value>平台</value>
+  </data>
+  <data name="RoomTitle" xml:space="preserve">
+    <value>标题</value>
+  </data>
+  <data name="StreamQuality" xml:space="preserve">
+    <value>画质</value>
+  </data>
+  <data name="Resolution" xml:space="preserve">
+    <value>分辨率</value>
+  </data>
+  <data name="Bitrate" xml:space="preserve">
+    <value>码率</value>
+  </data>
+  <data name="LiveStream" xml:space="preserve">
+    <value>直播流</value>
+  </data>
+  <data name="Copy" xml:space="preserve">
+    <value>复制</value>
+  </data>
+  <data name="Copied" xml:space="preserve">
+    <value>已复制</value>
+  </data>
+  <data name="AutoMonitor" xml:space="preserve">
+    <value>监控</value>
+  </data>
+  <data name="FollowGlobalSettings" xml:space="preserve">
+    <value>跟随全局设置</value>
+  </data>
+  <data name="LocalSettings" xml:space="preserve">
+    <value>局部设置</value>
+  </data>
+  <data name="MonitorStarted" xml:space="preserve">
+    <value>已启动自动巡检</value>
+  </data>
+  <data name="MonitorStopped" xml:space="preserve">
+    <value>已停止自动巡检</value>
+  </data>
+  <data name="RecordStarted" xml:space="preserve">
+    <value>已启动自动录制</value>
+  </data>
+  <data name="RecordStopped" xml:space="preserve">
+    <value>已停止自动录制</value>
+  </data>
+  <data name="AppearanceSettings" xml:space="preserve">
+    <value>外观设置</value>
+  </data>
+  <data name="LanguageHint" xml:space="preserve">
+    <value>默认跟随系统语言</value>
+  </data>
+  <data name="TrackingSystem" xml:space="preserve">
+    <value>跟随系统</value>
+  </data>
+  <data name="ThemeOfDarkMode" xml:space="preserve">
+    <value>深色</value>
+  </data>
+  <data name="ThemeOfLightMode" xml:space="preserve">
+    <value>浅色</value>
+  </data>
+  <data name="ThemeColor" xml:space="preserve">
+    <value>主题颜色</value>
+  </data>
+  <data name="ThemeColorHint" xml:space="preserve">
+    <value>选择您习惯使用的主题色</value>
+  </data>
+  <data name="TrayStatus" xml:space="preserve">
+    <value>托盘图标</value>
+  </data>
+  <data name="TrayStatusHint" xml:space="preserve">
+    <value>启用录制中提示状态的托盘图标</value>
+  </data>
+  <data name="RecordSettings" xml:space="preserve">
+    <value>录制设置</value>
+  </data>
+  <data name="LiveNotificationToSystem" xml:space="preserve">
+    <value>通过 Windows 系统通知</value>
+  </data>
+  <data name="LiveNotificationToPlayMusic" xml:space="preserve">
+    <value>通过播放音乐通知</value>
+  </data>
+  <data name="LiveNotificationToPlayMusicPath" xml:space="preserve">
+    <value>使用内置音乐或指定音乐文件路径</value>
+  </data>
+  <data name="LiveNotificationToMail" xml:space="preserve">
+    <value>通过邮件通知</value>
+  </data>
+  <data name="Account" xml:space="preserve">
+    <value>账号</value>
+  </data>
+  <data name="Password" xml:space="preserve">
+    <value>密码</value>
+  </data>
+  <data name="LiveNotificationToGotoLiveRoom" xml:space="preserve">
+    <value>自动进入直播间</value>
+  </data>
+  <data name="LiveNotificationToGotoLiveRoomAndMute" xml:space="preserve">
+    <value>自动系统静音</value>
+  </data>
+  <data name="RoutineInterval" xml:space="preserve">
+    <value>循环周期</value>
+  </data>
+  <data name="RoutineIntervalHint" xml:space="preserve">
+    <value>检测开播状态等动作的循环周期（毫秒）</value>
+  </data>
+  <data name="RecordFormat" xml:space="preserve">
+    <value>录制格式</value>
+  </data>
+  <data name="RecordFormatHint" xml:space="preserve">
+    <value>为保证录制稳定源格式仅支持 TS/FLV 或稍后自动转格式</value>
+  </data>
+  <data name="RecordFormatAutoRemove" xml:space="preserve">
+    <value>是否转换格式后自动删除原 TS/FLV 文件</value>
+  </data>
+  <data name="SaveFolderHint" xml:space="preserve">
+    <value>指定录制视频的保存目录</value>
+  </data>
+  <data name="SelectFolder" xml:space="preserve">
+    <value>选择目录</value>
+  </data>
+  <data name="OpenFolder" xml:space="preserve">
+    <value>打开目录</value>
+  </data>
+  <data name="PlayRecordHint" xml:space="preserve">
+    <value>支持播放录制中的视频</value>
+  </data>
+  <data name="Player" xml:space="preserve">
+    <value>预览播放器</value>
+  </data>
+  <data name="PlayerInner" xml:space="preserve">
+    <value>内置 FFplay 播放器</value>
+  </data>
+  <data name="PlayerSystem" xml:space="preserve">
+    <value>系统播放器</value>
+  </data>
+  <data name="PlayerInnerHint" xml:space="preserve">
+    <value>使用软件内置 FFplay 播放器预览直播间画面。</value>
+  </data>
+  <data name="PlayerSystemHint" xml:space="preserve">
+    <value>启用您的系统默认播放器</value>
+  </data>
+  <data name="PlayerInnerUseRect" xml:space="preserve">
+    <value>启用直角窗口模式便于截图</value>
+  </data>
+  <data name="NetworkSettings" xml:space="preserve">
+    <value>网络设置</value>
+  </data>
+  <data name="UseProxy" xml:space="preserve">
+    <value>使用代理</value>
+  </data>
+  <data name="UseProxyHint" xml:space="preserve">
+    <value>指定您的网络代理 URL</value>
+  </data>
+  <data name="ProxyHostAndPort" xml:space="preserve">
+    <value>主机名以及端口号</value>
+  </data>
+  <data name="CheckConnectivity" xml:space="preserve">
+    <value>检查连接</value>
+  </data>
+  <data name="UseCookie" xml:space="preserve">
+    <value>使用 Cookie</value>
+  </data>
+  <data name="UseCookieHint" xml:space="preserve">
+    <value>不同平台可使用独立 Cookie。优先使用平台专属 Cookie，留空时回退到国区或海外 Cookie。</value>
+  </data>
+  <data name="UseCookieOfPlatform" xml:space="preserve">
+    <value>平台专属 Cookie</value>
+  </data>
+  <data name="UseCookiePlatformEnterHint" xml:space="preserve">
+    <value>每行一个平台，例如：douyin=你的 Cookie</value>
+  </data>
+  <data name="UseCookieOfDouyin" xml:space="preserve">
+    <value>国区 Cookie</value>
+  </data>
+  <data name="UseCookieEnterHint" xml:space="preserve">
+    <value>留白则使用内置 Cookie</value>
+  </data>
+  <data name="HowToGet" xml:space="preserve">
+    <value>如何获取？</value>
+  </data>
+  <data name="UseCookieOfOversea" xml:space="preserve">
+    <value>海外 Cookie</value>
+  </data>
+  <data name="UserAgent" xml:space="preserve">
+    <value>浏览器 UserAgent</value>
+  </data>
+  <data name="UserAgentHint" xml:space="preserve">
+    <value>您可以使用自定义浏览器 UserAgent</value>
+  </data>
+  <data name="UserAgentEnterHint" xml:space="preserve">
+    <value>留白则使用内置浏览器 UserAgent 标识</value>
+  </data>
+  <data name="Settings" xml:space="preserve">
+    <value>设置</value>
+  </data>
+  <data name="Title" xml:space="preserve">
+    <value>MPLR</value>
+  </data>
+  <data name="EmptyRoomHint" xml:space="preserve">
+    <value>未添加直播间~</value>
+  </data>
+  <data name="AddRoomErrorDuplicated" xml:space="preserve">
+    <value>该直播间 {0} 已添加</value>
+  </data>
+  <data name="NotSupportedOnRecording" xml:space="preserve">
+    <value>此功能在录制模式下不受支持</value>
+  </data>
+  <data name="SureOnRecording" xml:space="preserve">
+    <value>正在录制中，您确定要继续您的操作吗？</value>
+  </data>
+  <data name="ComingSoon" xml:space="preserve">
+    <value>敬请期待</value>
+  </data>
+  <data name="CloseToTrayHint" xml:space="preserve">
+    <value>已进入后台运行</value>
+  </data>
+  <data name="ButtonOfOffRemind" xml:space="preserve">
+    <value>不再提示</value>
+  </data>
+  <data name="CreateDesktopShortcut" xml:space="preserve">
+    <value>快捷方式</value>
+  </data>
+  <data name="CreateDesktopShortcutHint" xml:space="preserve">
+    <value>创建桌面快捷方式</value>
+  </data>
+  <data name="ButtonOfCreateNow" xml:space="preserve">
+    <value>立即创建</value>
+  </data>
+  <data name="ImportConfig" xml:space="preserve">
+    <value>导入配置</value>
+  </data>
+  <data name="ImportConfigHint" xml:space="preserve">
+    <value>导入 YAML 配置文件，导入后需要重启生效</value>
+  </data>
+  <data name="ButtonOfImport" xml:space="preserve">
+    <value>导入</value>
+  </data>
+  <data name="ImportConfigSuccess" xml:space="preserve">
+    <value>配置已导入</value>
+  </data>
+  <data name="ImportConfigFailed" xml:space="preserve">
+    <value>配置导入失败：{0}</value>
+  </data>
+  <data name="ImportConfigRestartHint" xml:space="preserve">
+    <value>配置已导入，重启应用后生效。当前配置备份：{0}</value>
+  </data>
+  <data name="LongRunningSettings" xml:space="preserve">
+    <value>挂机设置</value>
+  </data>
+  <data name="KeepAwake" xml:space="preserve">
+    <value>保持唤醒</value>
+  </data>
+  <data name="KeepActiveHint" xml:space="preserve">
+    <value>保持 Windows 系统不进入睡眠</value>
+  </data>
+  <data name="AutoShutdown" xml:space="preserve">
+    <value>自动关机</value>
+  </data>
+  <data name="AutoShutdownHint" xml:space="preserve">
+    <value>没有录制状态时自动关机</value>
+  </data>
+  <data name="AutoShutdownTime" xml:space="preserve">
+    <value>自动关机时间 (时 : 分)</value>
+  </data>
+  <data name="ButtonOfCancel" xml:space="preserve">
+    <value>取消</value>
+  </data>
+  <data name="AutoShutdownInTime" xml:space="preserve">
+    <value>系统将会在1分钟后自动关机</value>
+  </data>
+  <data name="StatusOn" xml:space="preserve">
+    <value>已启用</value>
+  </data>
+  <data name="StatusOff" xml:space="preserve">
+    <value>已禁用</value>
+  </data>
+  <data name="Avatar" xml:space="preserve">
+    <value>头像</value>
+  </data>
+  <data name="SaveFolderDistinguishedByAuthors" xml:space="preserve">
+    <value>保存目录是否以作者区分</value>
+  </data>
+  <data name="AddRoomForce" xml:space="preserve">
+    <value>不检测有效性直接添加</value>
+  </data>
+  <data name="SegmentTime" xml:space="preserve">
+    <value>视频分段时间（秒）</value>
+  </data>
+  <data name="Segment" xml:space="preserve">
+    <value>视频分段</value>
+  </data>
+  <data name="SegmentHint" xml:space="preserve">
+    <value>指定每个输出视频的时间长度（单位为秒）</value>
+  </data>
+  <data name="CardSort" xml:space="preserve">
+    <value>卡片排序</value>
+  </data>
+  <data name="CardSortByName" xml:space="preserve">
+    <value>名称</value>
+  </data>
+  <data name="CardSortByAddedAt" xml:space="preserve">
+    <value>添加日期</value>
+  </data>
+  <data name="CardSize" xml:space="preserve">
+    <value>卡片大小</value>
+  </data>
+  <data name="CardSizeLarge" xml:space="preserve">
+    <value>大</value>
+  </data>
+  <data name="CardSizeMedium" xml:space="preserve">
+    <value>中</value>
+  </data>
+  <data name="CardSizeSmall" xml:space="preserve">
+    <value>小</value>
+  </data>
+  <data name="CardRefresh" xml:space="preserve">
+    <value>刷新</value>
+  </data>
+  <data name="CardEdit" xml:space="preserve">
+    <value>编辑</value>
+  </data>
+  <data name="RoomCardsRefreshed" xml:space="preserve">
+    <value>卡片状态已刷新</value>
+  </data>
+  <data name="CardEditModeOn" xml:space="preserve">
+    <value>已进入卡片编辑模式</value>
+  </data>
+  <data name="CardEditModeOff" xml:space="preserve">
+    <value>已退出卡片编辑模式</value>
+  </data>
+  <data name="Uid" xml:space="preserve">
+    <value>账号</value>
+  </data>
+  <data name="ButtonOfSave" xml:space="preserve">
+    <value>保存</value>
+  </data>
+  <data name="RoomInfoRefreshed" xml:space="preserve">
+    <value>直播间信息已刷新</value>
+  </data>
+</root>
+
+
