@@ -28,7 +28,7 @@
         <sys:Double x:Key="SettingsCardExpanderChevronSize">16.0</sys:Double>
         <local:AnimationFactorToValueConverter x:Key="SettingsAnimationFactorToValueConverter" />
         <local:CornerRadiusSplitConverter x:Key="SettingsCornerRadiusSplitConverter" />
-        <Style x:Key="SettingsNumberInputTextBoxStyle" TargetType="{x:Type ui:TextBox}">
+        <Style x:Key="SettingsNumberInputTextBoxStyle" TargetType="{x:Type ui:TextBox}" BasedOn="{StaticResource {x:Type ui:TextBox}}">
             <Setter Property="Height" Value="36" />
             <Setter Property="MinHeight" Value="36" />
             <Setter Property="Padding" Value="12,0" />
@@ -644,14 +644,13 @@
                             </ui:Grid>
                             <ui:Grid Grid.Column="2"
                                      Margin="0,0,28,0"
-                                     ColumnDefinitions="112,92">
+                                     ColumnDefinitions="112,12,92">
                                 <ui:TextBox Width="112"
                                             FontSize="15"
-                                            Margin="0,0,8,0"
                                             Style="{StaticResource SettingsNumberInputTextBoxStyle}"
                                             Tag="Decimal"
                                             Text="{Binding RoutineIntervalValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                <ComboBox Grid.Column="1"
+                                <ComboBox Grid.Column="2"
                                           MinWidth="92"
                                           SelectedIndex="{Binding RoutineIntervalUnitIndex, Mode=TwoWay}">
                                     <ComboBoxItem Content="{Binding RoutineIntervalSecondsText}" />
@@ -724,20 +723,18 @@
                             <ui:StackPanel Margin="42,0,28,0"
                                            IsEnabled="{Binding IsToSegment}"
                                            Spacing="12">
-                                <ui:Grid ColumnDefinitions="Auto,112,112">
+                                <ui:Grid ColumnDefinitions="Auto,8,112,12,112">
                                     <TextBlock Grid.Column="0"
                                                VerticalAlignment="Center"
                                                Text="{I18N SegmentTime}" />
-                                    <ui:TextBox Grid.Column="1"
+                                    <ui:TextBox Grid.Column="2"
                                                 Width="112"
                                                 FontSize="15"
-                                                Margin="8,0,0,0"
                                                 Style="{StaticResource SettingsNumberInputTextBoxStyle}"
                                                 Tag="Decimal"
                                                 Text="{Binding SegmentTimeValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                    <ComboBox Grid.Column="2"
+                                    <ComboBox Grid.Column="4"
                                               MinWidth="104"
-                                              Margin="8,0,0,0"
                                               SelectedIndex="{Binding SegmentTimeUnitIndex, Mode=TwoWay}">
                                         <ComboBoxItem Content="{Binding SegmentTimeSecondsText}" />
                                         <ComboBoxItem Content="{Binding SegmentTimeMinutesText}" />
