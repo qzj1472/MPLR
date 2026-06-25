@@ -437,7 +437,7 @@
     <value>Cycle Period</value>
   </data>
   <data name="RoutineIntervalHint" xml:space="preserve">
-    <value>The cycle period (ms) for detecting the status and other actions</value>
+    <value>The cycle period (seconds/minutes) for detecting status and other actions</value>
   </data>
   <data name="RecordFormat" xml:space="preserve">
     <value>Recording Format</value>
@@ -672,6 +672,54 @@
   </data>
   <data name="RoomInfoRefreshed" xml:space="preserve">
     <value>Live room info refreshed</value>
+  </data>
+  <data name="ToolbarScreenRecordList" xml:space="preserve">
+    <value>Screen Records</value>
+  </data>
+  <data name="RoutineSchedule" xml:space="preserve">
+    <value>Schedule Rule</value>
+  </data>
+  <data name="RoutineScheduleHint" xml:space="preserve">
+    <value>Set when cyclic polling runs</value>
+  </data>
+  <data name="RoutineScheduleAlways" xml:space="preserve">
+    <value>All day (24 hours)</value>
+  </data>
+  <data name="RoutineScheduleCustom" xml:space="preserve">
+    <value>Custom</value>
+  </data>
+  <data name="DayMonday" xml:space="preserve">
+    <value>Mon</value>
+  </data>
+  <data name="DayTuesday" xml:space="preserve">
+    <value>Tue</value>
+  </data>
+  <data name="DayWednesday" xml:space="preserve">
+    <value>Wed</value>
+  </data>
+  <data name="DayThursday" xml:space="preserve">
+    <value>Thu</value>
+  </data>
+  <data name="DayFriday" xml:space="preserve">
+    <value>Fri</value>
+  </data>
+  <data name="DaySaturday" xml:space="preserve">
+    <value>Sat</value>
+  </data>
+  <data name="DaySunday" xml:space="preserve">
+    <value>Sun</value>
+  </data>
+  <data name="SavePathLevel" xml:space="preserve">
+    <value>Path Level</value>
+  </data>
+  <data name="SavePathLevelAuthorDate" xml:space="preserve">
+    <value>Author -> Year -> Month -> Video</value>
+  </data>
+  <data name="SavePathLevelPlatformAuthorDate" xml:space="preserve">
+    <value>Platform -> Author -> Year -> Month</value>
+  </data>
+  <data name="SavePathLevelCustom" xml:space="preserve">
+    <value>Custom</value>
   </data>
 </root>
 

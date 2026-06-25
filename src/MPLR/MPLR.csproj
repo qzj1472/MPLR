@@ -10,9 +10,9 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <LangVersion>latest</LangVersion>
         <ApplicationIcon>Assets\Favicon.ico</ApplicationIcon>
-        <AssemblyVersion>1.6.7.1</AssemblyVersion>
-        <FileVersion>1.6.7.1</FileVersion>
-        <Version>$(VersionPrefix)1.6.7.1</Version>
+        <AssemblyVersion>1.6.8.1</AssemblyVersion>
+        <FileVersion>1.6.8.1</FileVersion>
+        <Version>$(VersionPrefix)1.6.8.1</Version>
         <Platforms>x64</Platforms>
         <RuntimeIdentifier>win-x64</RuntimeIdentifier>
         <SelfContained>true</SelfContained>

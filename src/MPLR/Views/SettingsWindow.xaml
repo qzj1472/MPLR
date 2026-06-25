@@ -509,6 +509,78 @@
                                              IsChecked="{Binding IsToRecord, Mode=TwoWay}" />
                         </ui:Grid>
                     </ui:Card>
+                    <ui:CardExpander IsExpanded="{Binding IsRoutineScheduleCustom, Mode=OneWay}">
+                        <ui:CardExpander.Header>
+                            <ui:Grid ColumnDefinitions="Auto,*,Auto">
+                                <Grid Grid.Column="0" Margin="0,0,12,0">
+                                    <TextBlock MinWidth="26"
+                                               Margin="4,0,0,0"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                               FontSize="18"
+                                               Text="{x:Static ui:FontSymbols.Calendar}" />
+                                </Grid>
+                                <ui:Grid Grid.Column="1" RowDefinitions="Auto,Auto">
+                                    <TextBlock Grid.Row="0" Text="{I18N RoutineSchedule}" />
+                                    <TextBlock Grid.Row="1"
+                                               FontSize="11"
+                                               Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                               Text="{I18N RoutineScheduleHint}" />
+                                </ui:Grid>
+                                <ComboBox Grid.Column="2"
+                                          MinWidth="150"
+                                          Margin="0,0,12,0"
+                                          SelectedIndex="{Binding RoutineScheduleModeIndex, Mode=TwoWay}">
+                                    <ComboBoxItem Content="{I18N RoutineScheduleAlways}" />
+                                    <ComboBoxItem Content="{I18N RoutineScheduleCustom}" />
+                                </ComboBox>
+                            </ui:Grid>
+                        </ui:CardExpander.Header>
+                        <ui:StackPanel Margin="42,0,28,0" Spacing="12">
+                            <UniformGrid Columns="5">
+                                <CheckBox Content="{I18N DayMonday}" IsChecked="{Binding RoutineScheduleMonday, Mode=TwoWay}" />
+                                <CheckBox Content="{I18N DayTuesday}" IsChecked="{Binding RoutineScheduleTuesday, Mode=TwoWay}" />
+                                <CheckBox Content="{I18N DayWednesday}" IsChecked="{Binding RoutineScheduleWednesday, Mode=TwoWay}" />
+                                <CheckBox Content="{I18N DayThursday}" IsChecked="{Binding RoutineScheduleThursday, Mode=TwoWay}" />
+                                <CheckBox Content="{I18N DayFriday}" IsChecked="{Binding RoutineScheduleFriday, Mode=TwoWay}" />
+                            </UniformGrid>
+                            <UniformGrid Columns="5">
+                                <CheckBox Content="{I18N DaySaturday}" IsChecked="{Binding RoutineScheduleSaturday, Mode=TwoWay}" />
+                                <CheckBox Content="{I18N DaySunday}" IsChecked="{Binding RoutineScheduleSunday, Mode=TwoWay}" />
+                            </UniformGrid>
+                            <ui:Grid ColumnDefinitions="72,Auto,72,Auto,72,Auto,72">
+                                <ui:NumberBox Grid.Column="0"
+                                              Maximum="23"
+                                              Minimum="0"
+                                              Value="{Binding RoutineScheduleStartHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Column="1"
+                                           Margin="6,0"
+                                           VerticalAlignment="Center"
+                                           Text=":" />
+                                <ui:NumberBox Grid.Column="2"
+                                              Maximum="59"
+                                              Minimum="0"
+                                              Value="{Binding RoutineScheduleStartMinute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Column="3"
+                                           Margin="12,0"
+                                           VerticalAlignment="Center"
+                                           Text="~" />
+                                <ui:NumberBox Grid.Column="4"
+                                              Maximum="23"
+                                              Minimum="0"
+                                              Value="{Binding RoutineScheduleEndHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Column="5"
+                                           Margin="6,0"
+                                           VerticalAlignment="Center"
+                                           Text=":" />
+                                <ui:NumberBox Grid.Column="6"
+                                              Maximum="59"
+                                              Minimum="0"
+                                              Value="{Binding RoutineScheduleEndMinute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            </ui:Grid>
+                        </ui:StackPanel>
+                    </ui:CardExpander>
                     <ui:Card>
                         <ui:Grid MinHeight="35" ColumnDefinitions="Auto,*,Auto">
                             <Grid Grid.Column="0" Margin="0,0,12,0">
@@ -608,16 +680,24 @@
                             <ui:StackPanel Margin="42,0,28,0"
                                            IsEnabled="{Binding IsToSegment}"
                                            Spacing="12">
-                                <ui:Grid ColumnDefinitions="Auto,Auto">
+                                <ui:Grid ColumnDefinitions="Auto,*,86">
                                     <TextBlock Grid.Column="0"
                                                VerticalAlignment="Center"
                                                Text="{I18N SegmentTime}" />
                                     <ui:NumberBox Grid.Column="1"
-                                                  MinWidth="150"
+                                                  MinWidth="100"
                                                   Margin="8,0,0,0"
                                                   Maximum="2147483647"
                                                   Minimum="10"
-                                                  Value="{Binding SegmentTime, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                                  Value="{Binding SegmentTimeValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <ComboBox Grid.Column="2"
+                                              MinWidth="86"
+                                              Margin="8,0,0,0"
+                                              SelectedIndex="{Binding SegmentTimeUnitIndex, Mode=TwoWay}">
+                                        <ComboBoxItem Content="{Binding SegmentTimeSecondsText}" />
+                                        <ComboBoxItem Content="{Binding SegmentTimeMinutesText}" />
+                                        <ComboBoxItem Content="{Binding SegmentTimeHoursText}" />
+                                    </ComboBox>
                                 </ui:Grid>
                             </ui:StackPanel>
                         </ui:StackPanel>
@@ -635,7 +715,7 @@
                                                Text="{x:Static ui:FontSymbols.Folder}" />
                                 </Grid>
                                 <ui:Grid Grid.Column="1" RowDefinitions="Auto,Auto">
-                                    <TextBlock Grid.Row="0" Text="{I18N SaveFolder}" />
+                                    <TextBlock Grid.Row="0" Text="{I18N ButtonOfSave}" />
                                     <TextBlock Grid.Row="1"
                                                FontSize="11"
                                                Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
@@ -664,8 +744,18 @@
                                         Command="{Binding OpenSaveFolderCommand}"
                                         Content="{I18N OpenFolder}" />
                             </ui:Grid>
-                            <ui:Grid Margin="42,0,28,0" ColumnDefinitions="Auto,*,Auto,Auto">
-                                <CheckBox Content="{I18N SaveFolderDistinguishedByAuthors}" IsChecked="{Binding SaveFolderDistinguishedByAuthors}" />
+                            <ui:Grid Margin="42,0,28,0" ColumnDefinitions="Auto,*">
+                                <TextBlock Grid.Column="0"
+                                           VerticalAlignment="Center"
+                                           Text="{I18N SavePathLevel}" />
+                                <ComboBox Grid.Column="1"
+                                          MinWidth="220"
+                                          Margin="8,0,0,0"
+                                          SelectedIndex="{Binding SaveFolderPathLevelIndex, Mode=TwoWay}">
+                                    <ComboBoxItem Content="{I18N SavePathLevelAuthorDate}" />
+                                    <ComboBoxItem Content="{I18N SavePathLevelPlatformAuthorDate}" />
+                                    <ComboBoxItem Content="{I18N SavePathLevelCustom}" />
+                                </ComboBox>
                             </ui:Grid>
                         </ui:StackPanel>
                     </ui:CardExpander>

@@ -21,9 +21,9 @@
                  mc:Ignorable="d">
     <ui:FluentWindow.Resources>
         <Style x:Key="StatusIconButtonStyle" TargetType="{x:Type Button}">
-            <Setter Property="Width" Value="18" />
-            <Setter Property="Height" Value="18" />
-            <Setter Property="MinWidth" Value="18" />
+            <Setter Property="Width" Value="16" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="MinWidth" Value="16" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Background" Value="Transparent" />
@@ -98,11 +98,11 @@
                             </ui:StackPanel>
                         </Button.Content>
                     </Button>
-                    <Button MinWidth="72" Command="{Binding OpenTranscodeSettingsCommand}">
+                    <Button MinWidth="72" Click="OpenScreenRecordListClick">
                         <Button.Content>
                             <ui:StackPanel Orientation="Horizontal" Spacing="8">
-                                <ui:FontIcon FontFamily="{DynamicResource SymbolThemeFontFamily}" Glyph="{x:Static ui:FontSymbols.Trim}" />
-                                <TextBlock Text="{I18N ToolbarTranscode}" />
+                                <ui:FontIcon FontFamily="{DynamicResource SymbolThemeFontFamily}" Glyph="{x:Static ui:FontSymbols.Video}" />
+                                <TextBlock Text="{I18N ToolbarScreenRecordList}" />
                             </ui:StackPanel>
                         </Button.Content>
                     </Button>
@@ -242,12 +242,18 @@
                                ShowAsMonochrome="True"
                                UriSource="pack://application:,,,/Assets/Background.png" />
                 <Border Grid.Column="0"
+                        x:Name="RoomCardPanel"
                         Padding="10"
                         Background="#0E000000"
                         BorderBrush="{DynamicResource SystemFillColorSolidNeutralBrush}"
                         BorderThickness="1"
                         CornerRadius="8"
-                        ClipToBounds="False">
+                        ClipToBounds="False"
+                        PreviewMouseLeftButtonDown="RoomCardListPreviewMouseLeftButtonDown"
+                        PreviewMouseLeftButtonUp="RoomCardListPreviewMouseLeftButtonUp"
+                        PreviewMouseMove="RoomCardListPreviewMouseMove"
+                        PreviewMouseRightButtonDown="RoomCardListPreviewMouseRightButtonDown"
+                        MouseLeftButtonDown="RoomCardPanelMouseLeftButtonDown">
                     <Grid ClipToBounds="False">
                         <ListBox x:Name="RoomCardList"
                                  Background="Transparent"
@@ -256,11 +262,6 @@
                                  ItemsSource="{Binding RoomStatuses}"
                                  Padding="0"
                                  Style="{StaticResource RoomCardListBoxStyle}"
-                                 PreviewMouseLeftButtonDown="RoomCardListPreviewMouseLeftButtonDown"
-                                 PreviewMouseLeftButtonUp="RoomCardListPreviewMouseLeftButtonUp"
-                                 PreviewMouseMove="RoomCardListPreviewMouseMove"
-                                 PreviewMouseRightButtonDown="RoomCardListPreviewMouseRightButtonDown"
-                                 MouseDoubleClick="RoomCardListMouseDoubleClick"
                                  Loaded="RoomCardListLoaded"
                                  SizeChanged="RoomCardListSizeChanged"
                                  LostMouseCapture="RoomCardListLostMouseCapture"
@@ -268,25 +269,6 @@
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  ScrollViewer.VerticalScrollBarVisibility="Auto"
                                  SelectedItem="{Binding SelectedItem, Mode=TwoWay}">
-                            <ListBox.ContextMenu>
-                                <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                                    <MenuItem Header="{I18N CardSort}">
-                                        <MenuItem Header="{I18N CardSortByName}" Command="{Binding SortRoomsByNameCommand}" />
-                                        <MenuItem Header="{I18N CardSortByAddedAt}" Command="{Binding SortRoomsByAddedAtCommand}" />
-                                    </MenuItem>
-                                    <MenuItem Header="{I18N CardSize}">
-                                        <MenuItem x:Name="RoomCardLargeMenuItem" Header="{I18N CardSizeLarge}" Click="SetRoomCardLargeClick" />
-                                        <MenuItem Header="{I18N CardSizeMedium}" Click="SetRoomCardMediumClick" />
-                                        <MenuItem Header="{I18N CardSizeSmall}" Click="SetRoomCardSmallClick" />
-                                    </MenuItem>
-                                    <Separator />
-                                    <MenuItem Header="{I18N CardRefresh}" Command="{Binding RefreshRoomCardsCommand}" />
-                                    <MenuItem Header="{I18N CardEdit}"
-                                              Command="{Binding ToggleCardEditModeCommand}"
-                                              IsCheckable="True"
-                                              IsChecked="{Binding IsCardEditMode, Mode=OneWay}" />
-                                </ContextMenu>
-                            </ListBox.ContextMenu>
                             <ListBox.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <WrapPanel IsItemsHost="True"
@@ -875,7 +857,7 @@
                 </ScrollViewer>
             </ui:Grid>
             <ui:Grid Grid.Row="2">
-                <ui:StackPanel Margin="0,5,0,0"
+                <ui:StackPanel Margin="0,2,0,0"
                                HorizontalAlignment="Right"
                                Opacity="0.9"
                                Orientation="Horizontal"

@@ -32,6 +32,12 @@ public partial class SettingsViewModel : ReactiveObject
 
     public string RoutineIntervalMinutesText => RoutineIntervalUnitHelper.GetUnitText(RoutineIntervalUnitHelper.Minutes);
 
+    public string SegmentTimeSecondsText => SegmentTimeUnitHelper.GetUnitText(SegmentTimeUnitHelper.Seconds);
+
+    public string SegmentTimeMinutesText => SegmentTimeUnitHelper.GetUnitText(SegmentTimeUnitHelper.Minutes);
+
+    public string SegmentTimeHoursText => SegmentTimeUnitHelper.GetUnitText(SegmentTimeUnitHelper.Hours);
+
     private enum LanguageIndexEnum
     {
         Auto,
@@ -395,6 +401,185 @@ public partial class SettingsViewModel : ReactiveObject
     }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsRoutineScheduleCustom))]
+    private int routineScheduleModeIndex = Math.Clamp(Configurations.RoutineScheduleMode.Get(), 0, 1);
+
+    public bool IsRoutineScheduleCustom => RoutineScheduleModeIndex == 1;
+
+    partial void OnRoutineScheduleModeIndexChanged(int value)
+    {
+        int mode = Math.Clamp(value, 0, 1);
+
+        if (mode != value)
+        {
+            RoutineScheduleModeIndex = mode;
+            return;
+        }
+
+        Configurations.RoutineScheduleMode.Set(mode);
+        ConfigurationManager.Save();
+    }
+
+    [ObservableProperty]
+    private bool routineScheduleMonday = IsRoutineScheduleDayEnabled(DayOfWeek.Monday);
+
+    [ObservableProperty]
+    private bool routineScheduleTuesday = IsRoutineScheduleDayEnabled(DayOfWeek.Tuesday);
+
+    [ObservableProperty]
+    private bool routineScheduleWednesday = IsRoutineScheduleDayEnabled(DayOfWeek.Wednesday);
+
+    [ObservableProperty]
+    private bool routineScheduleThursday = IsRoutineScheduleDayEnabled(DayOfWeek.Thursday);
+
+    [ObservableProperty]
+    private bool routineScheduleFriday = IsRoutineScheduleDayEnabled(DayOfWeek.Friday);
+
+    [ObservableProperty]
+    private bool routineScheduleSaturday = IsRoutineScheduleDayEnabled(DayOfWeek.Saturday);
+
+    [ObservableProperty]
+    private bool routineScheduleSunday = IsRoutineScheduleDayEnabled(DayOfWeek.Sunday);
+
+    partial void OnRoutineScheduleMondayChanged(bool value) => SaveRoutineScheduleDays();
+
+    partial void OnRoutineScheduleTuesdayChanged(bool value) => SaveRoutineScheduleDays();
+
+    partial void OnRoutineScheduleWednesdayChanged(bool value) => SaveRoutineScheduleDays();
+
+    partial void OnRoutineScheduleThursdayChanged(bool value) => SaveRoutineScheduleDays();
+
+    partial void OnRoutineScheduleFridayChanged(bool value) => SaveRoutineScheduleDays();
+
+    partial void OnRoutineScheduleSaturdayChanged(bool value) => SaveRoutineScheduleDays();
+
+    partial void OnRoutineScheduleSundayChanged(bool value) => SaveRoutineScheduleDays();
+
+    [ObservableProperty]
+    private int routineScheduleStartHour = Math.Clamp(Configurations.RoutineScheduleStartHour.Get(), 0, 23);
+
+    [ObservableProperty]
+    private int routineScheduleStartMinute = Math.Clamp(Configurations.RoutineScheduleStartMinute.Get(), 0, 59);
+
+    [ObservableProperty]
+    private int routineScheduleEndHour = Math.Clamp(Configurations.RoutineScheduleEndHour.Get(), 0, 23);
+
+    [ObservableProperty]
+    private int routineScheduleEndMinute = Math.Clamp(Configurations.RoutineScheduleEndMinute.Get(), 0, 59);
+
+    partial void OnRoutineScheduleStartHourChanged(int value)
+    {
+        int next = Math.Clamp(value, 0, 23);
+
+        if (next != value)
+        {
+            RoutineScheduleStartHour = next;
+            return;
+        }
+
+        Configurations.RoutineScheduleStartHour.Set(next);
+        ConfigurationManager.Save();
+    }
+
+    partial void OnRoutineScheduleStartMinuteChanged(int value)
+    {
+        int next = Math.Clamp(value, 0, 59);
+
+        if (next != value)
+        {
+            RoutineScheduleStartMinute = next;
+            return;
+        }
+
+        Configurations.RoutineScheduleStartMinute.Set(next);
+        ConfigurationManager.Save();
+    }
+
+    partial void OnRoutineScheduleEndHourChanged(int value)
+    {
+        int next = Math.Clamp(value, 0, 23);
+
+        if (next != value)
+        {
+            RoutineScheduleEndHour = next;
+            return;
+        }
+
+        Configurations.RoutineScheduleEndHour.Set(next);
+        ConfigurationManager.Save();
+    }
+
+    partial void OnRoutineScheduleEndMinuteChanged(int value)
+    {
+        int next = Math.Clamp(value, 0, 59);
+
+        if (next != value)
+        {
+            RoutineScheduleEndMinute = next;
+            return;
+        }
+
+        Configurations.RoutineScheduleEndMinute.Set(next);
+        ConfigurationManager.Save();
+    }
+
+    private static bool IsRoutineScheduleDayEnabled(DayOfWeek day)
+    {
+        foreach (string item in (Configurations.RoutineScheduleDays.Get() ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (int.TryParse(item, out int value) && value == (int)day)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void SaveRoutineScheduleDays()
+    {
+        List<int> days = [];
+
+        if (RoutineScheduleMonday)
+        {
+            days.Add((int)DayOfWeek.Monday);
+        }
+
+        if (RoutineScheduleTuesday)
+        {
+            days.Add((int)DayOfWeek.Tuesday);
+        }
+
+        if (RoutineScheduleWednesday)
+        {
+            days.Add((int)DayOfWeek.Wednesday);
+        }
+
+        if (RoutineScheduleThursday)
+        {
+            days.Add((int)DayOfWeek.Thursday);
+        }
+
+        if (RoutineScheduleFriday)
+        {
+            days.Add((int)DayOfWeek.Friday);
+        }
+
+        if (RoutineScheduleSaturday)
+        {
+            days.Add((int)DayOfWeek.Saturday);
+        }
+
+        if (RoutineScheduleSunday)
+        {
+            days.Add((int)DayOfWeek.Sunday);
+        }
+
+        Configurations.RoutineScheduleDays.Set(string.Join(",", days));
+        ConfigurationManager.Save();
+    }
+
+    [ObservableProperty]
     private int recordFormatIndex = Configurations.RecordFormat.Get() switch
     {
         "TS/FLV -> MP4" => 1,
@@ -432,12 +617,65 @@ public partial class SettingsViewModel : ReactiveObject
     }
 
     [ObservableProperty]
-    private int segmentTime = Configurations.SegmentTime.Get();
+    private double segmentTimeValue = SegmentTimeUnitHelper.ToDisplayValue(Configurations.SegmentTime.Get(), GetInitialSegmentTimeUnitIndex());
 
-    partial void OnSegmentTimeChanged(int value)
+    [ObservableProperty]
+    private int segmentTimeUnitIndex = GetInitialSegmentTimeUnitIndex();
+
+    private bool isUpdatingSegmentTime;
+
+    partial void OnSegmentTimeValueChanged(double value)
     {
-        Configurations.SegmentTime.Set(value);
+        if (isUpdatingSegmentTime)
+        {
+            return;
+        }
+
+        ApplySegmentTime(value, SegmentTimeUnitIndex);
+    }
+
+    partial void OnSegmentTimeUnitIndexChanged(int value)
+    {
+        int unitIndex = Math.Clamp(value, SegmentTimeUnitHelper.Seconds, SegmentTimeUnitHelper.Hours);
+
+        if (unitIndex != value)
+        {
+            SegmentTimeUnitIndex = unitIndex;
+            return;
+        }
+
+        int seconds = Configurations.SegmentTime.Get();
+        double displayValue = SegmentTimeUnitHelper.ToDisplayValue(seconds, unitIndex);
+
+        isUpdatingSegmentTime = true;
+        try
+        {
+            SegmentTimeValue = displayValue;
+        }
+        finally
+        {
+            isUpdatingSegmentTime = false;
+        }
+
+        Configurations.SegmentTimeUnit.Set(unitIndex);
         ConfigurationManager.Save();
+    }
+
+    private void ApplySegmentTime(double value, int unitIndex)
+    {
+        int seconds = SegmentTimeUnitHelper.ToSeconds(value, unitIndex);
+        Configurations.SegmentTime.Set(seconds);
+        Configurations.SegmentTimeUnit.Set(unitIndex);
+        ConfigurationManager.Save();
+    }
+
+    private static int GetInitialSegmentTimeUnitIndex()
+    {
+        int configuredUnit = Configurations.SegmentTimeUnit.Get();
+
+        return configuredUnit is >= SegmentTimeUnitHelper.Seconds and <= SegmentTimeUnitHelper.Hours
+            ? configuredUnit
+            : SegmentTimeUnitHelper.GetPreferredUnitIndex(Configurations.SegmentTime.Get());
     }
 
     [ObservableProperty]
@@ -450,11 +688,19 @@ public partial class SettingsViewModel : ReactiveObject
     }
 
     [ObservableProperty]
-    private bool saveFolderDistinguishedByAuthors = Configurations.SaveFolderDistinguishedByAuthors.Get();
+    private int saveFolderPathLevelIndex = Math.Clamp(Configurations.SaveFolderPathLevel.Get(), 0, 2);
 
-    partial void OnSaveFolderDistinguishedByAuthorsChanged(bool value)
+    partial void OnSaveFolderPathLevelIndexChanged(int value)
     {
-        Configurations.SaveFolderDistinguishedByAuthors.Set(value);
+        int next = Math.Clamp(value, 0, 2);
+
+        if (next != value)
+        {
+            SaveFolderPathLevelIndex = next;
+            return;
+        }
+
+        Configurations.SaveFolderPathLevel.Set(next);
         ConfigurationManager.Save();
     }
 
@@ -661,6 +907,9 @@ public partial class SettingsViewModel : ReactiveObject
     {
         OnPropertyChanged(nameof(RoutineIntervalSecondsText));
         OnPropertyChanged(nameof(RoutineIntervalMinutesText));
+        OnPropertyChanged(nameof(SegmentTimeSecondsText));
+        OnPropertyChanged(nameof(SegmentTimeMinutesText));
+        OnPropertyChanged(nameof(SegmentTimeHoursText));
     }
 
     private void LoadPlatformCookieItems()

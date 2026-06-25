@@ -14,6 +14,12 @@ public static class Configurations
     public static ConfigurationDefinition<bool> IsUseStatusTray { get; } = new(nameof(IsUseStatusTray), true);
     public static ConfigurationDefinition<bool> IsSessionLogEnabled { get; } = new(nameof(IsSessionLogEnabled), false);
     public static ConfigurationDefinition<int> RoutineInterval { get; } = new(nameof(RoutineInterval), 3000);
+    public static ConfigurationDefinition<int> RoutineScheduleMode { get; } = new(nameof(RoutineScheduleMode), 0);
+    public static ConfigurationDefinition<string> RoutineScheduleDays { get; } = new(nameof(RoutineScheduleDays), "1,2,3,4,5,6,0");
+    public static ConfigurationDefinition<int> RoutineScheduleStartHour { get; } = new(nameof(RoutineScheduleStartHour), 0);
+    public static ConfigurationDefinition<int> RoutineScheduleStartMinute { get; } = new(nameof(RoutineScheduleStartMinute), 0);
+    public static ConfigurationDefinition<int> RoutineScheduleEndHour { get; } = new(nameof(RoutineScheduleEndHour), 23);
+    public static ConfigurationDefinition<int> RoutineScheduleEndMinute { get; } = new(nameof(RoutineScheduleEndMinute), 59);
     public static ConfigurationDefinition<bool> IsMonitorRunning { get; } = new(nameof(IsMonitorRunning), true);
     public static ConfigurationDefinition<bool> IsToNotify { get; } = new(nameof(IsToNotify), true);
     public static ConfigurationDefinition<bool> IsToNotifyWithSystem { get; } = new(nameof(IsToNotifyWithSystem), true);
@@ -31,8 +37,10 @@ public static class Configurations
     public static ConfigurationDefinition<bool> IsRemoveTs { get; } = new(nameof(IsRemoveTs), false);
     public static ConfigurationDefinition<bool> IsToSegment { get; } = new(nameof(IsToSegment), false);
     public static ConfigurationDefinition<int> SegmentTime { get; } = new(nameof(SegmentTime), 1800);
+    public static ConfigurationDefinition<int> SegmentTimeUnit { get; } = new(nameof(SegmentTimeUnit), -1);
     public static ConfigurationDefinition<string> SaveFolder { get; } = new(nameof(SaveFolder), string.Empty);
     public static ConfigurationDefinition<bool> SaveFolderDistinguishedByAuthors { get; } = new(nameof(SaveFolderDistinguishedByAuthors), true);
+    public static ConfigurationDefinition<int> SaveFolderPathLevel { get; } = new(nameof(SaveFolderPathLevel), 0);
     public static ConfigurationDefinition<string> Player { get; } = new(nameof(Player), "ffplay");
     public static ConfigurationDefinition<bool> IsPlayerRect { get; } = new(nameof(IsPlayerRect), false);
     public static ConfigurationDefinition<bool> IsUseKeepAwake { get; } = new(nameof(IsUseKeepAwake), false);

@@ -22,7 +22,11 @@ public partial class RoomStatusReactive : ReactiveObject
     [ObservableProperty]
     private string avatarLocalPath = string.Empty;
 
-    public string AvatarDisplaySource => string.IsNullOrWhiteSpace(AvatarLocalPath) ? AvatarThumbUrl : AvatarLocalPath;
+    public string AvatarDisplaySource => string.IsNullOrWhiteSpace(AvatarLocalPath)
+        ? string.IsNullOrWhiteSpace(AvatarThumbUrl)
+            ? PlatformIconSource
+            : AvatarThumbUrl
+        : AvatarLocalPath;
 
     partial void OnAvatarLocalPathChanged(string value)
     {
@@ -60,6 +64,7 @@ public partial class RoomStatusReactive : ReactiveObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PlatformDisplayName))]
     [NotifyPropertyChangedFor(nameof(PlatformIconSource))]
+    [NotifyPropertyChangedFor(nameof(AvatarDisplaySource))]
     private string platform = string.Empty;
 
     public string PlatformDisplayName => NormalizePlatformName(Platform);
@@ -425,6 +430,11 @@ public partial class RoomStatusReactive : ReactiveObject
             return "tiktok";
         }
 
+        if (platform.Equals("youtube", StringComparison.OrdinalIgnoreCase))
+        {
+            return "youtube";
+        }
+
         if (platform.Equals("twitch", StringComparison.OrdinalIgnoreCase) ||
             platform.Equals("twitchtv", StringComparison.OrdinalIgnoreCase))
         {
@@ -460,6 +470,72 @@ public partial class RoomStatusReactive : ReactiveObject
             platform.Contains("\u5c0f\u7ea2\u4e66", StringComparison.OrdinalIgnoreCase))
         {
             return "xiaohongshu";
+        }
+
+        string compact = platform
+            .Replace(" ", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("(", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace(")", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("\uff08", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("\uff09", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .ToLowerInvariant();
+
+        string[] aliases =
+        [
+            "yy",
+            "bigo",
+            "blued",
+            "soop",
+            "afreecatv",
+            "soop\u539fafreecatv",
+            "\u7f51\u6613cc",
+            "\u5343\u5ea6\u70ed\u64ad",
+            "pandatv",
+            "\u732b\u8033fm",
+            "look\u76f4\u64ad",
+            "winktv",
+            "ttinglive",
+            "flextv",
+            "ttinglive\u539fflextv",
+            "popkontv",
+            "twitcasting",
+            "\u767e\u5ea6\u76f4\u64ad",
+            "\u5fae\u535a\u76f4\u64ad",
+            "\u9177\u72d7\u76f4\u64ad",
+            "liveme",
+            "\u82b1\u6912\u76f4\u64ad",
+            "\u6d41\u661f\u76f4\u64ad",
+            "showroom",
+            "acfun",
+            "\u6620\u5ba2\u76f4\u64ad",
+            "\u97f3\u64ad\u76f4\u64ad",
+            "\u77e5\u4e4e\u76f4\u64ad",
+            "chzzk",
+            "\u55e8\u79c0\u76f4\u64ad",
+            "vv\u661f\u7403\u76f4\u64ad",
+            "17live",
+            "\u6d6alive",
+            "\u7545\u804a\u76f4\u64ad",
+            "\u98d8\u98d8\u76f4\u64ad",
+            "\u516d\u95f4\u623f\u76f4\u64ad",
+            "\u4e50\u55e8\u76f4\u64ad",
+            "\u82b1\u732b\u76f4\u64ad",
+            "shopee",
+            "\u6dd8\u5b9d",
+            "\u4eac\u4e1c",
+            "faceit",
+            "\u54aa\u5495",
+            "\u8fde\u63a5\u76f4\u64ad",
+            "\u6765\u79c0\u76f4\u64ad",
+            "picarto",
+        ];
+
+        foreach (string alias in aliases)
+        {
+            if (compact.Contains(alias, StringComparison.OrdinalIgnoreCase))
+            {
+                return "favicon";
+            }
         }
 
         return string.Empty;

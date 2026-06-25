@@ -192,6 +192,11 @@ internal static class GlobalMonitor
                 break;
             }
 
+            if (!RoutineScheduleHelper.IsActive(DateTime.Now))
+            {
+                continue;
+            }
+
             await RunOnceAsync(token);
         }
     }

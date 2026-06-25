@@ -342,10 +342,6 @@ public partial class MainWindow : FluentWindow
         RoomCardHeight = cardHeight;
         RoomCardMargin = new Thickness(RoomCardHorizontalGap / 2d, RoomCardVerticalGap / 2d, RoomCardHorizontalGap / 2d, RoomCardVerticalGap / 2d);
         CanUseLargeRoomCards = CanUseRoomCardScale(availableWidth, baseWidth, RoomCardLargeSizeScale, RoomCardHorizontalGap);
-        if (RoomCardLargeMenuItem != null)
-        {
-            RoomCardLargeMenuItem.IsEnabled = CanUseLargeRoomCards;
-        }
         UpdateRoomCardVisualMetrics(cardWidth, baseWidth);
     }
 
@@ -575,6 +571,13 @@ public partial class MainWindow : FluentWindow
             RoomCardList.SelectedItem = room;
             ViewModel.SelectedItem = room;
             item.Focus();
+            return;
+        }
+
+        if (ViewModel.ToggleCardEditModeCommand.CanExecute(null))
+        {
+            ViewModel.ToggleCardEditModeCommand.Execute(null);
+            e.Handled = true;
         }
     }
 
@@ -593,6 +596,31 @@ public partial class MainWindow : FluentWindow
         }
 
         e.Handled = true;
+    }
+
+    private void RoomCardPanelMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount >= 2)
+        {
+            RoomCardListMouseDoubleClick(sender, e);
+        }
+    }
+
+    private void OpenScreenRecordListClick(object sender, RoutedEventArgs e)
+    {
+        foreach (Window win in Application.Current.Windows)
+        {
+            if (win is ScreenRecordListWindow)
+            {
+                win.Activate();
+                return;
+            }
+        }
+
+        new ScreenRecordListWindow
+        {
+            Owner = Application.Current.MainWindow,
+        }.ShowDialog();
     }
 
     private void BeginRoomCardsFlashAnimation()

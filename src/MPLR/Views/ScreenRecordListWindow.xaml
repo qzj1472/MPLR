@@ -1,0 +1,23 @@
+<ui:FluentWindow x:Class="MPLR.Views.ScreenRecordListWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 Title="{I18N ToolbarScreenRecordList}"
+                 Width="560"
+                 Height="360"
+                 d:Background="#FF101010"
+                 ExtendsContentIntoTitleBar="True"
+                 WindowBackdropType="Mica"
+                 WindowStartupLocation="CenterOwner"
+                 mc:Ignorable="d">
+    <Grid Margin="16,48,16,16">
+        <Button Width="86"
+                Height="34"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Bottom"
+                Click="CloseButtonClick"
+                Content="{I18N ButtonOfClose}" />
+    </Grid>
+</ui:FluentWindow>

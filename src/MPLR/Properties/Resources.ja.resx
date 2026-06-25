@@ -382,7 +382,7 @@
     <value>サイクル間隔</value>
   </data>
   <data name="RoutineIntervalHint" xml:space="preserve">
-    <value>配信状態などの検知動作のサイクリング間隔（ミリ秒）</value>
+    <value>配信状態などの検知動作のサイクリング間隔（秒/分）</value>
   </data>
   <data name="RecordFormat" xml:space="preserve">
     <value>録画フォーマット</value>
@@ -617,6 +617,54 @@
   </data>
   <data name="RoomInfoRefreshed" xml:space="preserve">
     <value>ライブ情報を更新しました</value>
+  </data>
+  <data name="ToolbarScreenRecordList" xml:space="preserve">
+    <value>画面録画リスト</value>
+  </data>
+  <data name="RoutineSchedule" xml:space="preserve">
+    <value>周期ルール</value>
+  </data>
+  <data name="RoutineScheduleHint" xml:space="preserve">
+    <value>周期処理を実行する時間帯を設定</value>
+  </data>
+  <data name="RoutineScheduleAlways" xml:space="preserve">
+    <value>終日(24時間)</value>
+  </data>
+  <data name="RoutineScheduleCustom" xml:space="preserve">
+    <value>カスタム</value>
+  </data>
+  <data name="DayMonday" xml:space="preserve">
+    <value>月</value>
+  </data>
+  <data name="DayTuesday" xml:space="preserve">
+    <value>火</value>
+  </data>
+  <data name="DayWednesday" xml:space="preserve">
+    <value>水</value>
+  </data>
+  <data name="DayThursday" xml:space="preserve">
+    <value>木</value>
+  </data>
+  <data name="DayFriday" xml:space="preserve">
+    <value>金</value>
+  </data>
+  <data name="DaySaturday" xml:space="preserve">
+    <value>土</value>
+  </data>
+  <data name="DaySunday" xml:space="preserve">
+    <value>日</value>
+  </data>
+  <data name="SavePathLevel" xml:space="preserve">
+    <value>パス階層</value>
+  </data>
+  <data name="SavePathLevelAuthorDate" xml:space="preserve">
+    <value>配信者->年->月->動画</value>
+  </data>
+  <data name="SavePathLevelPlatformAuthorDate" xml:space="preserve">
+    <value>プラットフォーム->配信者->年->月</value>
+  </data>
+  <data name="SavePathLevelCustom" xml:space="preserve">
+    <value>カスタム</value>
   </data>
 </root>
 

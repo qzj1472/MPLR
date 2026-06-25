@@ -50,13 +50,7 @@ public sealed class Recorder
                     return;
                 }
 
-                string saveFolder = SaveFolderHelper.GetSaveFolder(Configurations.SaveFolder.Get());
-
-                saveFolder = Path.Combine(saveFolder,
-                    Configurations.SaveFolderDistinguishedByAuthors.Get()
-                        ? startInfo.NickName.SanitizeFileName().ReplaceTrailingDotsWithUnderscores()
-                        : string.Empty
-                );
+                string saveFolder = SaveFolderHelper.GetRecordFolder(Configurations.SaveFolder.Get(), startInfo, DateTime.Now);
                 if (!Directory.Exists(saveFolder))
                 {
                     Directory.CreateDirectory(saveFolder);
