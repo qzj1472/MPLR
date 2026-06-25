@@ -5,4 +5,4 @@
 3. Click to `Network` page, and select the earliest small part of the timeline to quickly find `live`.
 4. You can find your `Cookie` from `Headers` label.
 
-<img src="./assets/image-20250411230809151.png" alt="image-20250411230809151" style="border-radius: 10px" />
+<img src="./assets/cookies/image-20250411230809151.png" alt="image-20250411230809151" style="border-radius: 10px" />

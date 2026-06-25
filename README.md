@@ -69,7 +69,7 @@ https://www.twitch.tv/example
 https://www.youtube.com/watch?v=example
 ```
 
-Some platforms may require cookies, a valid login session, a proxy, or a longer polling interval to avoid request throttling. See [GETCOOKIE_DOUYIN.md](doc/GETCOOKIE_DOUYIN.md) and [GETCOOKIE_TIKTOK.md](doc/GETCOOKIE_TIKTOK.md).
+Some platforms may require cookies, a valid login session, a proxy, or a longer polling interval to avoid request throttling. See [GETCOOKIE_DOUYIN.md](docs/GETCOOKIE_DOUYIN.md) and [GETCOOKIE_TIKTOK.md](docs/GETCOOKIE_TIKTOK.md).
 
 ## Project Layout
 
@@ -77,10 +77,11 @@ Some platforms may require cookies, a valid login session, a proxy, or a longer 
 src/TiktokLiveRec.WPF             Windows WPF app, current primary UI
 src/TiktokLiveRec.Avalonia        Avalonia desktop prototype
 src/FluentAvaloniaUI.Violeta      Local Avalonia UI controls
-tools/stream_resolver             Python stream resolver wrapper and vendored resolver code
-tools/ffmpeg/win-x64              Windows FFmpeg, FFplay, and FFprobe binaries
-doc                               Cookie and usage notes
-build                             Publish scripts and packaging assets
+docs                             User-facing documentation and documentation images
+build                            Publish scripts and packaging assets
+build/assets                     Branding and installer/package assets
+tools/stream_resolver            Python stream resolver wrapper and vendored resolver code
+tools/ffmpeg/win-x64             Windows FFmpeg, FFplay, and FFprobe binaries
 ```
 
 ## How It Works

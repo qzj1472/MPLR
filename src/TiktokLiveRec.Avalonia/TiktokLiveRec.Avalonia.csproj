@@ -31,7 +31,7 @@
         <MacOSBundleName>TiktokLiveRec</MacOSBundleName>
         <MacOSBundleIdentifier>com.github.tiktokliverec</MacOSBundleIdentifier>
         <MacOSBundleIcon>Assets/Favicon.icns</MacOSBundleIcon>
-        <MacOSBundleInfoPlist>../build/Info.plist</MacOSBundleInfoPlist>
+        <MacOSBundleInfoPlist>../../build/assets/package/Info.plist</MacOSBundleInfoPlist>
         <CFBundleShortVersionString>1.6.7.0</CFBundleShortVersionString>
         <CFBundleVersion>1.6.7.0</CFBundleVersion>
     </PropertyGroup>

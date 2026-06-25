@@ -69,7 +69,7 @@ https://www.twitch.tv/example
 https://www.youtube.com/watch?v=example
 ```
 
-部分平台可能需要 Cookie、登录态、代理或更长的轮询间隔才能稳定解析。抖音和 TikTok 的 Cookie 获取方式可参考 [GETCOOKIE_DOUYIN.md](doc/GETCOOKIE_DOUYIN.md) 与 [GETCOOKIE_TIKTOK.md](doc/GETCOOKIE_TIKTOK.md)。
+部分平台可能需要 Cookie、登录态、代理或更长的轮询间隔才能稳定解析。抖音和 TikTok 的 Cookie 获取方式可参考 [GETCOOKIE_DOUYIN.md](docs/GETCOOKIE_DOUYIN.md) 与 [GETCOOKIE_TIKTOK.md](docs/GETCOOKIE_TIKTOK.md)。
 
 ## 项目结构
 
@@ -77,10 +77,11 @@ https://www.youtube.com/watch?v=example
 src/TiktokLiveRec.WPF             Windows WPF 主程序
 src/TiktokLiveRec.Avalonia        Avalonia 桌面端原型
 src/FluentAvaloniaUI.Violeta      本地 Avalonia UI 控件
-tools/stream_resolver             Python 直播流解析器和 vendored 解析代码
-tools/ffmpeg/win-x64              Windows FFmpeg、FFplay、FFprobe
-doc                               Cookie 和使用说明
-build                             发布脚本和打包资源
+docs                             用户文档和文档图片
+build                            发布脚本和打包资源
+build/assets                     品牌、安装器和包资源
+tools/stream_resolver            Python 直播流解析器和 vendored 解析代码
+tools/ffmpeg/win-x64             Windows FFmpeg、FFplay、FFprobe
 ```
 
 ## 工作流程
@@ -112,7 +113,7 @@ build                             发布脚本和打包资源
 
 ## 隐私政策
 
-[查看隐私政策](PrivacyPolicy.zh-Hans.md)。
+[查看隐私政策](docs/PrivacyPolicy.zh-Hans.md)。
 
 ## 许可证
 

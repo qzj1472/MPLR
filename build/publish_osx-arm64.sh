@@ -5,13 +5,13 @@ dotnet publish ../src/TiktokLiveRec.Avalonia/TiktokLiveRec.Avalonia.csproj -c Re
 mkdir -p TiktokLiveRec.app/Contents/{MacOS,Resources}
 
 # Copy executable files
-cp -r ../src/TikTokLiveRec.Avalonia/bin/Release/net9.0/osx-arm64/publish/* TiktokLiveRec.app/Contents/MacOS/
+cp -r ../src/TiktokLiveRec.Avalonia/bin/Release/net9.0/osx-arm64/publish/* TiktokLiveRec.app/Contents/MacOS/
 
 # Copy Info.plist from project directory
-cp ./Info.plist TiktokLiveRec.app/Contents/
+cp ./assets/package/Info.plist TiktokLiveRec.app/Contents/
 
 # Copy icon file (if exists)
-cp ./Favicon.icns TiktokLiveRec.app/Contents/Resources/
+cp ./assets/package/Favicon.icns TiktokLiveRec.app/Contents/Resources/
 
 # Set executable permissions
 chmod +x TiktokLiveRec.app/Contents/MacOS/TiktokLiveRec

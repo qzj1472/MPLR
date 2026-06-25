@@ -10,4 +10,4 @@
 
 5. 在 `标头` 栏向下滑动至请求标头，在请求标头中找到 `Cookie` 并将对应的值复制至工具中即可。
 
-<img src="./assets/image-20241030012941645.png" alt="image-20241030012941645" style="border-radius: 10px" />
+<img src="./assets/cookies/image-20241030012941645.png" alt="image-20241030012941645" style="border-radius: 10px" />
