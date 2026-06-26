@@ -25,7 +25,9 @@ bld/
 [Bb]in/
 [Oo]bj/
 [Ll]og/
-[Rr]eport/ 
+[Rr]eport/
+!docs/releases/
+!docs/releases/**
 
 # Visual Studio cache/options directory
 .vs/

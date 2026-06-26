@@ -4,7 +4,7 @@
 
 # MPLR
 
-MPLR 是一款仅支持 Windows 的 WPF 桌面端直播录制工具，主要面向直播间监控、直播预览和无人值守录制。项目继承自 [emako/TiktokLiveRec](https://github.com/emako/TiktokLiveRec)，内置的 Python 解析器参考了 [ihmily/DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder) 和 [wbt5/real-url](https://github.com/wbt5/real-url) 的思路。
+MPLR 是一款仅支持 Windows 的 WPF 桌面端直播录制工具，主要面向直播间监控、直播预览和无人值守录制。项目继承自 [emako/TiktokLiveRec](https://github.com/emako/TiktokLiveRec)，内置的 Python 解析器参考了 [ihmily/DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder) 的思路。
 
 ## 主要功能
 
@@ -71,7 +71,6 @@ tools/ffmpeg/win-x64  FFmpeg、FFprobe、FFplay 二进制
 
 - [emako/TiktokLiveRec](https://github.com/emako/TiktokLiveRec)
 - [ihmily/DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder)
-- [wbt5/real-url](https://github.com/wbt5/real-url)
 
 ## 许可
 

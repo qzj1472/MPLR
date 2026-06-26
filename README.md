@@ -4,7 +4,7 @@ English | [简体中文](README.zh-Hans.md)
 
 <img src="src/MPLR/Assets/Favicon.png" alt="MPLR icon" width="96" />
 
-MPLR is a Windows-only WPF desktop app for live-room monitoring and unattended recording. It centers on quick room management, live preview, automatic recording, and local FFmpeg-based capture. The project continues from [emako/TiktokLiveRec](https://github.com/emako/TiktokLiveRec), and the bundled Python resolver follows the maintained approach from [ihmily/DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder) and [wbt5/real-url](https://github.com/wbt5/real-url).
+MPLR is a Windows-only WPF desktop app for live-room monitoring and unattended recording. It centers on quick room management, live preview, automatic recording, and local FFmpeg-based capture. The project continues from [emako/TiktokLiveRec](https://github.com/emako/TiktokLiveRec), and the bundled Python resolver follows the maintained approach from [ihmily/DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder).
 
 ## What It Does
 
@@ -71,7 +71,6 @@ tools/ffmpeg/win-x64  FFmpeg, FFprobe, and FFplay binaries
 
 - [emako/TiktokLiveRec](https://github.com/emako/TiktokLiveRec)
 - [ihmily/DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder)
-- [wbt5/real-url](https://github.com/wbt5/real-url)
 
 ## License
 
