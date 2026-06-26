@@ -180,7 +180,7 @@ jobs:
           }
           $commitRows = git log --pretty=format:"%s%x1f%H%x1f%h%x1f%an" "$previousTag..HEAD"
           Add-Separator
-          $lines.Add("## Commits")
+          $lines.Add("### Commits")
           $lines.Add("")
           if ([string]::IsNullOrWhiteSpace(($commitRows -join "`n"))) {
             $lines.Add("- No commits found in range.")
