@@ -18,6 +18,7 @@ public partial class App : Application
     static App()
     {
         SystemMenuThemeManager.Apply();
+        TaskbarGrouping.SetCurrentProcessAppId();
         Directory.SetCurrentDirectory(AppContext.BaseDirectory);
         _ = DpiAware.SetProcessDpiAwareness();
         AppPaths.EnsurePortableStorage();

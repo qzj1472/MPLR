@@ -12,7 +12,7 @@ public static class Configurations
     public static ConfigurationDefinition<bool> IsOffRemindCloseToTray { get; } = new(nameof(IsOffRemindCloseToTray), false);
     public static ConfigurationDefinition<Room[]> Rooms { get; } = new(nameof(Rooms), []);
     public static ConfigurationDefinition<bool> IsUseStatusTray { get; } = new(nameof(IsUseStatusTray), true);
-    public static ConfigurationDefinition<bool> IsSessionLogEnabled { get; } = new(nameof(IsSessionLogEnabled), false);
+    public static ConfigurationDefinition<bool> IsSessionLogEnabled { get; } = new(nameof(IsSessionLogEnabled), true);
     public static ConfigurationDefinition<int> RoutineInterval { get; } = new(nameof(RoutineInterval), 3000);
     public static ConfigurationDefinition<int> RoutineScheduleMode { get; } = new(nameof(RoutineScheduleMode), 0);
     public static ConfigurationDefinition<string> RoutineScheduleDays { get; } = new(nameof(RoutineScheduleDays), "1,2,3,4,5,6,0");

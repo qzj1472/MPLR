@@ -4,6 +4,7 @@ using ComputedConverters;
 using Fischless.Configuration;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
@@ -150,6 +151,63 @@ public partial class SettingsViewModel : ReactiveObject
         else
         {
             AppSessionLogger.Stop("session logging disabled");
+        }
+    }
+
+    [RelayCommand]
+    private void OpenLogFolder()
+    {
+        Directory.CreateDirectory(AppPaths.LogsDirectory);
+        Process.Start(new ProcessStartInfo()
+        {
+            FileName = AppPaths.LogsDirectory,
+            UseShellExecute = true,
+        });
+    }
+
+    [RelayCommand]
+    private async Task ExportLogsAsync()
+    {
+        ContentDialog dialog = new()
+        {
+            Title = "导出运行日志",
+            Content = "请选择要导出的日志范围。",
+            PrimaryButtonText = "导出最近",
+            SecondaryButtonText = "导出全部",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Primary,
+        };
+
+        ContentDialogResult result = await dialog.ShowAsync();
+
+        if (result == ContentDialogResult.None)
+        {
+            return;
+        }
+
+        using CommonOpenFileDialog folderDialog = new()
+        {
+            IsFolderPicker = true,
+            EnsurePathExists = true,
+            Title = "选择日志导出目录",
+        };
+
+        if (folderDialog.ShowDialog() != CommonFileDialogResult.Ok)
+        {
+            return;
+        }
+
+        try
+        {
+            string archivePath = result == ContentDialogResult.Primary
+                ? LogExporter.ExportLatest(folderDialog.FileName)
+                : LogExporter.ExportAll(folderDialog.FileName);
+
+            Toast.Success($"日志已导出：{archivePath}");
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Toast.Error($"日志导出失败：{e.Message}");
         }
     }
 

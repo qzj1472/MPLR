@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -77,6 +78,7 @@ internal static class ExternalStreamResolver
             normalizedUrl,
             scriptFound = !string.IsNullOrWhiteSpace(scriptPath),
             pythonFound = !string.IsNullOrWhiteSpace(pythonPath),
+            pythonPath,
             isProxyEnabled = Configurations.IsUseProxy.Get(),
             quality = Configurations.StreamQuality.Get(),
         });
@@ -95,7 +97,7 @@ internal static class ExternalStreamResolver
         if (string.IsNullOrWhiteSpace(scriptPath))
         {
             LastError = "stream resolver script not found";
-            AppSessionLogger.Event("error", "business", "stream_resolver_rejected", LastError, new
+            AppSessionLogger.Event("warn", "business", "stream_resolver_rejected", LastError, new
             {
                 normalizedUrl,
                 elapsedMilliseconds = stopwatch.ElapsedMilliseconds,
@@ -155,6 +157,8 @@ internal static class ExternalStreamResolver
             AppSessionLogger.Event("debug", "system", "process_completed", "stream resolver process completed", new
             {
                 normalizedUrl,
+                pythonPath,
+                scriptPath,
                 exitCode = process.ExitCode,
                 elapsedMilliseconds = stopwatch.ElapsedMilliseconds,
                 stdoutLength = output.Length,
@@ -180,6 +184,8 @@ internal static class ExternalStreamResolver
                 AppSessionLogger.Event("error", "business", "stream_resolver_failed", LastError, new
                 {
                     normalizedUrl,
+                    pythonPath,
+                    scriptPath,
                     exitCode = process.ExitCode,
                     elapsedMilliseconds = stopwatch.ElapsedMilliseconds,
                 });
@@ -450,7 +456,7 @@ internal static class ExternalStreamResolver
     private static string? FindPython()
     {
         string? configured = Environment.GetEnvironmentVariable("STREAM_RESOLVER_PYTHON");
-        if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured))
+        if (!string.IsNullOrWhiteSpace(configured) && IsUsablePython(configured))
         {
             return configured;
         }
@@ -467,13 +473,65 @@ internal static class ExternalStreamResolver
 
         foreach (string candidate in candidates)
         {
-            if (!candidate.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) || File.Exists(candidate))
+            if (IsUsablePython(candidate))
             {
                 return candidate;
             }
         }
 
         return null;
+    }
+
+    private static bool IsUsablePython(string candidate)
+    {
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            return false;
+        }
+
+        if (candidate.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && !File.Exists(candidate))
+        {
+            return false;
+        }
+
+        try
+        {
+            using Process process = new()
+            {
+                StartInfo = new ProcessStartInfo()
+                {
+                    FileName = candidate,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                },
+            };
+
+            process.StartInfo.ArgumentList.Add("--version");
+            process.Start();
+
+            if (!process.WaitForExit(3000))
+            {
+                try
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+                catch (Exception e)
+                {
+                    Debug.WriteLine(e);
+                }
+
+                return false;
+            }
+
+            return process.ExitCode == 0;
+        }
+        catch (Exception e) when (e is Win32Exception or InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            Debug.WriteLine(e);
+            return false;
+        }
     }
 
     private sealed class ResolverJsonResult

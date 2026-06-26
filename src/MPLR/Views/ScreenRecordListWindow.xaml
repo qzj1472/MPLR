@@ -86,7 +86,7 @@
             <Setter Property="MinHeight" Value="24" />
             <Setter Property="Padding" Value="10,3" />
             <Setter Property="Margin" Value="0,0,8,0" />
-            <Setter Property="CornerRadius" Value="99" />
+            <Setter Property="CornerRadius" Value="7" />
             <Setter Property="Background" Value="#18337DFF" />
             <Setter Property="BorderBrush" Value="#30337DFF" />
             <Setter Property="BorderThickness" Value="1" />
@@ -165,7 +165,7 @@
                             <Style TargetType="{x:Type ui:StackPanel}">
                                 <Setter Property="Visibility" Value="Collapsed" />
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding HasSelectedVideos}" Value="True">
+                                    <DataTrigger Binding="{Binding IsMultiSelectMode}" Value="True">
                                         <Setter Property="Visibility" Value="Visible" />
                                     </DataTrigger>
                                 </Style.Triggers>
@@ -175,18 +175,21 @@
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                    Text="{Binding SelectedVideoSummary}" />
                         <Button Click="DeleteSelectedClick"
+                                IsEnabled="{Binding HasSelectedVideos}"
                                 Style="{StaticResource VideoListAccentIconButtonStyle}"
                                 ToolTip="删除">
                             <ui:FontIcon FontFamily="{DynamicResource SymbolThemeFontFamily}"
                                          Glyph="{x:Static ui:FontSymbols.Delete}" />
                         </Button>
                         <Button Click="MoveSelectedClick"
+                                IsEnabled="{Binding HasSelectedVideos}"
                                 Style="{StaticResource VideoListAccentIconButtonStyle}"
                                 ToolTip="移动">
                             <ui:FontIcon FontFamily="{DynamicResource SymbolThemeFontFamily}"
                                          Glyph="{x:Static ui:FontSymbols.FolderOpen}" />
                         </Button>
                         <Button Click="CopySelectedClick"
+                                IsEnabled="{Binding HasSelectedVideos}"
                                 Style="{StaticResource VideoListAccentIconButtonStyle}"
                                 ToolTip="复制">
                             <ui:FontIcon FontFamily="{DynamicResource SymbolThemeFontFamily}"
@@ -199,8 +202,17 @@
                                          Glyph="{x:Static ui:FontSymbols.CalculatorMultiply}" />
                         </Button>
                     </ui:StackPanel>
-                    <Button Click="ToggleMultiSelectClick"
-                            Style="{StaticResource VideoListAccentToolbarButtonStyle}">
+                    <Button Click="ToggleMultiSelectClick">
+                        <Button.Style>
+                            <Style TargetType="{x:Type Button}" BasedOn="{StaticResource VideoListAccentToolbarButtonStyle}">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsMultiSelectMode}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
                         <ui:StackPanel Orientation="Horizontal" Spacing="7">
                             <ui:FontIcon FontFamily="{DynamicResource SymbolThemeFontFamily}"
                                          Glyph="{x:Static ui:FontSymbols.Accept}" />

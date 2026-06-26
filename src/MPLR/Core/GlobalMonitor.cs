@@ -209,6 +209,9 @@ internal static class GlobalMonitor
             bool isGlobalToRecord = Configurations.IsToRecord.Get();
             bool isGlobalMonitorRunning = Configurations.IsMonitorRunning.Get();
 
+            using SemaphoreSlim semaphore = new(Math.Clamp(Environment.ProcessorCount, 4, 8));
+            List<Task> tasks = [];
+
             foreach (Room room in rooms)
             {
                 token.ThrowIfCancellationRequested();
@@ -226,7 +229,7 @@ internal static class GlobalMonitor
 
                 if (shouldMonitor)
                 {
-                    await RunRoomCheckAsync(room, roomStatus, shouldNotify, shouldRecord, token);
+                    tasks.Add(RunRoomCheckWithSemaphoreAsync(semaphore, room, roomStatus, shouldNotify, shouldRecord, token));
                 }
                 else
                 {
@@ -237,6 +240,8 @@ internal static class GlobalMonitor
                     roomStatus.StreamStatus = StreamStatus.Disabled;
                 }
             }
+
+            await Task.WhenAll(tasks);
         }
         catch (OperationCanceledException)
         {
@@ -247,9 +252,30 @@ internal static class GlobalMonitor
         }
     }
 
+    private static async Task RunRoomCheckWithSemaphoreAsync(SemaphoreSlim semaphore, Room room, RoomStatus roomStatus, bool shouldNotify, bool shouldRecord, CancellationToken token)
+    {
+        await semaphore.WaitAsync(token);
+        try
+        {
+            await RunRoomCheckAsync(room, roomStatus, shouldNotify, shouldRecord, token);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception e)
+        {
+            Debug.WriteLine(e);
+            AppSessionLogger.WriteException(e);
+        }
+        finally
+        {
+            semaphore.Release();
+        }
+    }
+
     private static async Task RunRoomCheckAsync(Room room, RoomStatus roomStatus, bool shouldNotify, bool shouldRecord, CancellationToken token)
     {
-        ISpiderResult? spiderResult = Spider.GetResult(room.RoomUrl);
+        ISpiderResult? spiderResult = await Task.Run(() => Spider.GetResult(room.RoomUrl), token);
 
         if (spiderResult == null)
         {
@@ -282,13 +308,16 @@ internal static class GlobalMonitor
             roomStatus.Bitrate = spiderResult.Bitrate!;
         }
 
-        Room[] rooms = Configurations.Rooms.Get();
-        Room? cachedRoom = rooms.FirstOrDefault(item => string.Equals(item.RoomUrl, room.RoomUrl, StringComparison.OrdinalIgnoreCase));
-        if (cachedRoom != null)
+        lock (MonitorLock)
         {
-            RoomInfoCache.Apply(roomStatus, cachedRoom);
-            Configurations.Rooms.Set(rooms);
-            ConfigurationManager.Save();
+            Room[] rooms = Configurations.Rooms.Get();
+            Room? cachedRoom = rooms.FirstOrDefault(item => string.Equals(item.RoomUrl, room.RoomUrl, StringComparison.OrdinalIgnoreCase));
+            if (cachedRoom != null)
+            {
+                RoomInfoCache.Apply(roomStatus, cachedRoom);
+                Configurations.Rooms.Set(rooms);
+                ConfigurationManager.Save();
+            }
         }
 
         bool isLiveStreaming = IsLiveStreaming(spiderResult);
@@ -304,7 +333,7 @@ internal static class GlobalMonitor
             {
                 true => StreamStatus.Streaming,
                 false => StreamStatus.NotStreaming,
-                null or _ => isLiveStreaming ? StreamStatus.Streaming : roomStatus.StreamStatus,
+                null or _ => isLiveStreaming ? StreamStatus.Streaming : StreamStatus.NotStreaming,
             };
         }
 

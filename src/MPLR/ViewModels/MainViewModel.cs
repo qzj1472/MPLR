@@ -494,7 +494,7 @@ public partial class MainViewModel : ReactiveObject
     }
 
     [RelayCommand]
-    private async Task ToggleMonitorAsync()
+    private void ToggleMonitor()
     {
         bool isMonitorRunning = !Configurations.IsMonitorRunning.Get();
         Configurations.IsMonitorRunning.Set(isMonitorRunning);
@@ -504,7 +504,7 @@ public partial class MainViewModel : ReactiveObject
         if (isMonitorRunning)
         {
             GlobalMonitor.Start();
-            await GlobalMonitor.RunOnceAsync();
+            _ = Task.Run(() => GlobalMonitor.RunOnceAsync());
             Toast.Success("MonitorStarted".Tr());
         }
         else
@@ -515,7 +515,7 @@ public partial class MainViewModel : ReactiveObject
     }
 
     [RelayCommand]
-    private async Task ToggleRecordAsync()
+    private void ToggleRecord()
     {
         bool isToRecord = !Configurations.IsToRecord.Get();
         Configurations.IsToRecord.Set(isToRecord);
@@ -525,7 +525,7 @@ public partial class MainViewModel : ReactiveObject
         if (isToRecord && Configurations.IsMonitorRunning.Get())
         {
             GlobalMonitor.Start();
-            await GlobalMonitor.RunOnceAsync();
+            _ = Task.Run(() => GlobalMonitor.RunOnceAsync());
         }
         else if (!isToRecord)
         {
@@ -661,7 +661,7 @@ public partial class MainViewModel : ReactiveObject
         RoomStatusReactive[] rooms = [.. RoomStatuses];
         WeakReferenceMessenger.Default.Send(new RoomCardsFlashMessage());
 
-        (RoomStatusReactive Room, ISpiderResult? Result, string AvatarLocalPath, MediaProbeResult Probe)[] results = await RefreshRoomsInParallelAsync(rooms, true);
+        (RoomStatusReactive Room, ISpiderResult? Result, string AvatarLocalPath, MediaProbeResult Probe)[] results = await RefreshRoomsInParallelAsync(rooms, showToast);
 
         foreach ((RoomStatusReactive room, ISpiderResult? result, string avatarLocalPath, MediaProbeResult probe) in results)
         {
@@ -672,7 +672,14 @@ public partial class MainViewModel : ReactiveObject
 
         if (showToast)
         {
-            Toast.Success("RoomCardsRefreshed".Tr());
+            if (results.Any(item => item.Result != null))
+            {
+                Toast.Success("RoomCardsRefreshed".Tr());
+            }
+            else
+            {
+                Toast.Error("GetRoomInfoFailed".Tr());
+            }
         }
     }
 
@@ -904,6 +911,12 @@ public partial class MainViewModel : ReactiveObject
 
         if (spiderResult == null)
         {
+            AppSessionLogger.Event("warn", "business", "room_card_refresh_no_result", "room refresh returned no result", new
+            {
+                room.RoomUrl,
+                externalResolverError = ExternalStreamResolver.LastError,
+            });
+
             if (!string.IsNullOrWhiteSpace(probe.Resolution))
             {
                 room.Resolution = probe.Resolution;
@@ -927,20 +940,10 @@ public partial class MainViewModel : ReactiveObject
             room.AvatarThumbUrl = spiderResult.AvatarThumbUrl;
         }
 
-        if (!string.IsNullOrWhiteSpace(spiderResult.FlvUrl))
-        {
-            room.FlvUrl = spiderResult.FlvUrl;
-        }
-
-        if (!string.IsNullOrWhiteSpace(spiderResult.HlsUrl))
-        {
-            room.HlsUrl = spiderResult.HlsUrl;
-        }
-
-        if (!string.IsNullOrWhiteSpace(spiderResult.RecordUrl))
-        {
-            room.RecordUrl = spiderResult.RecordUrl;
-        }
+        bool hasRecordableStream = HasRecordableStream(spiderResult);
+        room.FlvUrl = spiderResult.FlvUrl ?? string.Empty;
+        room.HlsUrl = spiderResult.HlsUrl ?? string.Empty;
+        room.RecordUrl = spiderResult.RecordUrl ?? string.Empty;
 
         if (!string.IsNullOrWhiteSpace(spiderResult.Platform))
         {
@@ -991,7 +994,7 @@ public partial class MainViewModel : ReactiveObject
         {
             true => StreamStatus.Streaming,
             false => StreamStatus.NotStreaming,
-            _ => HasRecordableStream(spiderResult) ? StreamStatus.Streaming : room.StreamStatus,
+            _ => hasRecordableStream ? StreamStatus.Streaming : StreamStatus.NotStreaming,
         };
 
         if (GlobalMonitor.RoomStatus.TryGetValue(room.RoomUrl, out RoomStatus? roomStatus))
@@ -1017,7 +1020,9 @@ public partial class MainViewModel : ReactiveObject
 
     private static string SelectProbeUrl(ISpiderResult? result, RoomStatusReactive room)
     {
-        return SelectFirstNonWhite(result?.RecordUrl, result?.HlsUrl, result?.FlvUrl, room.RecordUrl, room.HlsUrl, room.FlvUrl);
+        return result == null
+            ? string.Empty
+            : SelectFirstNonWhite(result.RecordUrl, result.HlsUrl, result.FlvUrl);
     }
 
     private static string SelectFirstNonWhite(params string?[] values)

@@ -535,9 +535,15 @@
                                            Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
                                            Text="开启后每次启动生成一个日志文件，仅保留最近一周" />
                             </ui:Grid>
-                            <ui:ToggleSwitch Grid.Column="2"
-                                             Margin="0,0,28,0"
-                                             IsChecked="{Binding IsSessionLogEnabled, Mode=TwoWay}" />
+                            <ui:StackPanel Grid.Column="2"
+                                           Margin="0,0,28,0"
+                                           HorizontalAlignment="Right"
+                                           Orientation="Horizontal"
+                                           Spacing="8">
+                                <Button Command="{Binding OpenLogFolderCommand}" Content="打开目录" />
+                                <Button Command="{Binding ExportLogsCommand}" Content="导出" />
+                                <ui:ToggleSwitch IsChecked="{Binding IsSessionLogEnabled, Mode=TwoWay}" />
+                            </ui:StackPanel>
                         </ui:Grid>
                     </ui:Card>
                     <TextBlock Margin="4,0,0,4"
