@@ -98,27 +98,53 @@ jobs:
       - name: Generate release notes
         id: notes
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           $version = "${{ steps.version.outputs.version }}"
           $tag = "${{ steps.version.outputs.tag }}"
           $notesPath = Join-Path $env:PACKAGE_DIR "release-notes.md"
           $releaseDocPath = "docs/releases/v$version.md"
           $lines = [System.Collections.Generic.List[string]]::new()
-          $lines.Add("# MPLR v$version")
-          $lines.Add("")
-          $lines.Add("## Release Info")
-          $lines.Add("")
-          $lines.Add("- Version: $version")
-          $lines.Add("- Tag: $tag")
-          $lines.Add("- Target: win-x64")
-          $lines.Add("- Artifact: ${{ steps.version.outputs.asset_name }}")
-          $lines.Add("- Commit: $env:GITHUB_SHA")
-          $lines.Add("")
+          function Add-Separator {
+            if ($lines.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($lines[$lines.Count - 1])) {
+              $lines.Add("")
+            }
+            $lines.Add("---")
+            $lines.Add("")
+          }
+          function Add-MarkdownBody([string[]]$content) {
+            $start = 0
+            if ($content.Count -gt 0 -and $content[0].StartsWith("# ")) {
+              $start = 1
+              while ($start -lt $content.Count -and [string]::IsNullOrWhiteSpace($content[$start])) {
+                $start++
+              }
+            }
+            for ($i = $start; $i -lt $content.Count; $i++) {
+              $lines.Add($content[$i])
+            }
+            if ($lines.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($lines[$lines.Count - 1])) {
+              $lines.Add("")
+            }
+          }
+          function Get-UserFacingSubject([string]$subject) {
+            return ($subject -replace "\s+in CI$", "").Trim()
+          }
+          function Get-GitHubMention([string]$hash, [string]$fallback) {
+            $login = gh api "repos/$env:GITHUB_REPOSITORY/commits/$hash" --jq ".author.login // empty" 2>$null
+            if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($login)) {
+              return "@$($login.Trim())"
+            }
+            if ($fallback -match "^[A-Za-z0-9-]+$") {
+              return "@$fallback"
+            }
+            return $fallback
+          }
+          $openParen = [char]0xff08
+          $closeParen = [char]0xff09
           if (Test-Path -LiteralPath $releaseDocPath) {
-            $lines.Add("## Release Notes")
-            $lines.Add("")
-            $lines.AddRange([string[]](Get-Content -LiteralPath $releaseDocPath))
-            $lines.Add("")
+            Add-MarkdownBody ([string[]](Get-Content -LiteralPath $releaseDocPath))
           }
           $changelogRef = "${{ inputs.changelog_ref }}".Trim()
           if (-not [string]::IsNullOrWhiteSpace($changelogRef)) {
@@ -137,10 +163,10 @@ jobs:
               $extraNotes = git show "$resolvedRef`:CHANGELOG.md" 2>$null
             }
             if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace(($extraNotes -join "`n"))) {
+              Add-Separator
               $lines.Add("## Additional Notes From $changelogRef")
               $lines.Add("")
-              $lines.AddRange([string[]]$extraNotes)
-              $lines.Add("")
+              Add-MarkdownBody ([string[]]$extraNotes)
             }
           }
           git rev-parse $tag 2>$null
@@ -152,8 +178,9 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($previousTag)) {
             $previousTag = git rev-list --max-parents=0 HEAD
           }
-          $commitRows = git log --pretty=format:"%s%x1f%h%x1f%an" "$previousTag..HEAD"
-          $contributors = git log --pretty=format:"%an" "$previousTag..HEAD" | Sort-Object -Unique
+          $commitRows = git log --pretty=format:"%s%x1f%H%x1f%h%x1f%an" "$previousTag..HEAD"
+          $contributorRows = git log --pretty=format:"%H%x1f%an" "$previousTag..HEAD"
+          Add-Separator
           $lines.Add("## Commits")
           $lines.Add("")
           if ([string]::IsNullOrWhiteSpace(($commitRows -join "`n"))) {
@@ -161,13 +188,22 @@ jobs:
           } else {
             foreach ($row in $commitRows) {
               $parts = $row -split [char]0x1f
-              if ($parts.Count -ge 3) {
-                $lines.Add("- $($parts[0]) ($($parts[1])) by $($parts[2])")
+              if ($parts.Count -ge 4) {
+                $subject = Get-UserFacingSubject $parts[0]
+                $mention = Get-GitHubMention $parts[1] $parts[3]
+                $lines.Add("- $subject$openParen$($parts[2])$closeParen $mention")
               }
             }
           }
-          if (-not [string]::IsNullOrWhiteSpace(($contributors -join "`n"))) {
-            $lines.Add("")
+          if (-not [string]::IsNullOrWhiteSpace(($contributorRows -join "`n"))) {
+            $contributors = [System.Collections.Generic.SortedSet[string]]::new()
+            foreach ($row in $contributorRows) {
+              $parts = $row -split [char]0x1f
+              if ($parts.Count -ge 2) {
+                [void]$contributors.Add((Get-GitHubMention $parts[0] $parts[1]))
+              }
+            }
+            Add-Separator
             $lines.Add("## Contributors")
             $lines.Add("")
             foreach ($contributor in $contributors) {
