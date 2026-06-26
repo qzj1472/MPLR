@@ -9,7 +9,7 @@ internal static class RoomInfoCache
     public static void Apply(Room room, RoomStatusReactive target)
     {
         target.AvatarThumbUrl = room.AvatarThumbUrl ?? string.Empty;
-        target.Platform = room.Platform ?? string.Empty;
+        target.Platform = GetPlatform(room.Platform, room.RoomUrl);
         target.Title = room.Title ?? string.Empty;
         target.Uid = room.Uid ?? string.Empty;
         target.Quality = room.Quality ?? string.Empty;
@@ -27,7 +27,7 @@ internal static class RoomInfoCache
         bool changed = HasRoomInfoChanged(source, target);
 
         target.AvatarThumbUrl = source.AvatarThumbUrl ?? string.Empty;
-        target.Platform = source.Platform ?? string.Empty;
+        target.Platform = GetPlatform(source.Platform, target.RoomUrl);
         target.Title = source.Title ?? string.Empty;
         target.Uid = source.Uid ?? string.Empty;
         target.Quality = source.Quality ?? string.Empty;
@@ -49,7 +49,7 @@ internal static class RoomInfoCache
         bool changed = HasRoomInfoChanged(source, target);
 
         target.AvatarThumbUrl = source.AvatarThumbUrl ?? string.Empty;
-        target.Platform = source.Platform ?? string.Empty;
+        target.Platform = GetPlatform(source.Platform, target.RoomUrl);
         target.Title = source.Title ?? string.Empty;
         target.Uid = source.Uid ?? string.Empty;
         target.Quality = source.Quality ?? string.Empty;
@@ -119,6 +119,11 @@ internal static class RoomInfoCache
                IsDifferent(string.Empty, target.FlvUrl) ||
                IsDifferent(string.Empty, target.HlsUrl) ||
                IsDifferent(string.Empty, target.RecordUrl);
+    }
+
+    private static string GetPlatform(string? platform, string? roomUrl)
+    {
+        return string.IsNullOrWhiteSpace(platform) ? PlatformDetector.DetectFromUrl(roomUrl) : platform;
     }
 
     private static bool IsDifferent(string? source, string? target)

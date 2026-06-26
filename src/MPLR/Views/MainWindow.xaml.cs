@@ -287,6 +287,7 @@ public partial class MainWindow : FluentWindow
     public MainWindow()
     {
         DataContext = ViewModel = new();
+        WindowSizing.UseRelativeScreenSize(this, 1290d, 900d);
         InitializeComponent();
         PreviewMouseDown += MainWindowPreviewMouseDown;
         StateChanged += MainWindowStateChanged;

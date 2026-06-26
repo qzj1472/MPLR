@@ -24,7 +24,7 @@ public partial class RoomStatusReactive : ReactiveObject
 
     public string AvatarDisplaySource => string.IsNullOrWhiteSpace(AvatarLocalPath)
         ? string.IsNullOrWhiteSpace(AvatarThumbUrl)
-            ? PlatformIconSource
+            ? "pack://application:,,,/Assets/Favicon.png"
             : AvatarThumbUrl
         : AvatarLocalPath;
 

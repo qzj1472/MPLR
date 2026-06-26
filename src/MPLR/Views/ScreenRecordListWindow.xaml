@@ -7,12 +7,10 @@
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                  x:Name="Root"
                  Title="{I18N ToolbarScreenRecordList}"
-                 Width="1226"
-                 Height="855"
                  d:Background="#FF101010"
                  ExtendsContentIntoTitleBar="True"
                  WindowBackdropType="Mica"
-                 WindowStartupLocation="CenterOwner"
+                 WindowStartupLocation="Manual"
                  mc:Ignorable="d">
     <ui:FluentWindow.Resources>
         <SolidColorBrush x:Key="VideoListAccentHoverBrush" Color="#003C6A" />

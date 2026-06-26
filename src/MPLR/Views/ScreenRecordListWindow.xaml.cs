@@ -77,6 +77,7 @@ public partial class ScreenRecordListWindow : FluentWindow, INotifyPropertyChang
     public ScreenRecordListWindow()
     {
         DataContext = this;
+        WindowSizing.UseRelativeMainWindowSize(this, 1226d, 855d);
         InitializeComponent();
         Loaded += async (_, _) => await ReloadVideosAsync();
     }

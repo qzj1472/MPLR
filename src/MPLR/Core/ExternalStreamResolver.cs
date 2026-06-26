@@ -9,6 +9,7 @@ namespace MPLR.Core;
 internal static class ExternalStreamResolver
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(75);
+    private static readonly SemaphoreSlim ResolverSemaphore = new(3);
 
     public static string LastError { get; private set; } = string.Empty;
 
@@ -120,6 +121,7 @@ internal static class ExternalStreamResolver
 
         try
         {
+            using ResolverConcurrencyLease lease = EnterResolverConcurrency();
             using Process process = new()
             {
                 StartInfo = CreateStartInfo(pythonPath, scriptPath, normalizedUrl),
@@ -237,7 +239,7 @@ internal static class ExternalStreamResolver
                 AppSessionLogger.Event("warn", "business", "stream_resolver_no_room_data", LastError, new
                 {
                     normalizedUrl,
-                    platform = result.Platform,
+                    platform = GetPlatform(result.Platform, normalizedUrl),
                     isLiveStreaming = result.IsLiveStreaming,
                     elapsedMilliseconds = stopwatch.ElapsedMilliseconds,
                 });
@@ -248,7 +250,7 @@ internal static class ExternalStreamResolver
             AppSessionLogger.Event("info", "business", "stream_resolver_succeeded", "stream resolver returned room data", new
             {
                 normalizedUrl,
-                platform = result.Platform,
+                platform = GetPlatform(result.Platform, normalizedUrl),
                 nickname = result.Nickname,
                 isLiveStreaming = result.IsLiveStreaming,
                 hasRecordUrl = !string.IsNullOrWhiteSpace(result.RecordUrl),
@@ -265,6 +267,25 @@ internal static class ExternalStreamResolver
             Debug.WriteLine(e);
             AppSessionLogger.WriteException(e);
             return null;
+        }
+    }
+
+    private static string GetPlatform(string? platform, string? url)
+    {
+        return string.IsNullOrWhiteSpace(platform) ? PlatformDetector.DetectFromUrl(url) : platform;
+    }
+
+    private static ResolverConcurrencyLease EnterResolverConcurrency()
+    {
+        ResolverSemaphore.Wait();
+        return new ResolverConcurrencyLease();
+    }
+
+    private sealed class ResolverConcurrencyLease : IDisposable
+    {
+        public void Dispose()
+        {
+            ResolverSemaphore.Release();
         }
     }
 
@@ -593,7 +614,7 @@ internal static class ExternalStreamResolver
             FlvUrl = FlvUrl,
             HlsUrl = HlsUrl,
             RecordUrl = RecordUrl,
-            Platform = Platform,
+            Platform = GetPlatform(Platform, RoomUrl ?? fallbackUrl),
             Title = Title,
             Quality = Quality,
             Uid = Uid,

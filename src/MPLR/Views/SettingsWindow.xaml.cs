@@ -1,4 +1,5 @@
 using MPLR.ViewModels;
+using MPLR.Core;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
@@ -13,6 +14,7 @@ public partial class SettingsWindow : FluentWindow
     public SettingsWindow()
     {
         DataContext = ViewModel = new();
+        WindowSizing.UseRelativeMainWindowSize(this, 700d, 560d);
         InitializeComponent();
     }
 

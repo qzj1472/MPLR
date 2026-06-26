@@ -308,9 +308,24 @@ internal static class GlobalMonitor
     private static async Task RunRoomCheckAsync(Room room, RoomStatus roomStatus, bool shouldNotify, bool shouldRecord, CancellationToken token)
     {
         ISpiderResult? spiderResult = await Task.Run(() => Spider.GetResult(room.RoomUrl), token);
+        shouldRecord = GetEffectiveRoomRecord(room);
+
+        if (!GetEffectiveRoomMonitor(room))
+        {
+            if (roomStatus.RecordStatus == RecordStatus.Recording)
+            {
+                roomStatus.Recorder.Stop();
+            }
+
+            roomStatus.RecordStatus = RecordStatus.Disabled;
+            roomStatus.StreamStatus = StreamStatus.Disabled;
+            return;
+        }
 
         if (spiderResult == null)
         {
+            roomStatus.Platform = PlatformDetector.DetectFromUrl(room.RoomUrl);
+
             if (roomStatus.RecordStatus != RecordStatus.Recording)
             {
                 roomStatus.RecordStatus = shouldRecord ? RecordStatus.NotRecording : RecordStatus.Disabled;
@@ -330,11 +345,29 @@ internal static class GlobalMonitor
         roomStatus.FlvUrl = spiderResult.FlvUrl ?? string.Empty;
         roomStatus.HlsUrl = spiderResult.HlsUrl ?? string.Empty;
         roomStatus.RecordUrl = spiderResult.RecordUrl ?? string.Empty;
-        roomStatus.Platform = spiderResult.Platform ?? string.Empty;
-        roomStatus.Title = spiderResult.Title ?? string.Empty;
-        roomStatus.Uid = spiderResult.Uid ?? string.Empty;
-        roomStatus.Quality = spiderResult.Quality ?? string.Empty;
-        roomStatus.Headers = spiderResult.Headers ?? string.Empty;
+        roomStatus.Platform = string.IsNullOrWhiteSpace(spiderResult.Platform)
+            ? PlatformDetector.DetectFromUrl(room.RoomUrl)
+            : spiderResult.Platform;
+
+        if (!string.IsNullOrWhiteSpace(spiderResult.Title))
+        {
+            roomStatus.Title = spiderResult.Title;
+        }
+
+        if (!string.IsNullOrWhiteSpace(spiderResult.Uid))
+        {
+            roomStatus.Uid = spiderResult.Uid;
+        }
+
+        if (!string.IsNullOrWhiteSpace(spiderResult.Quality))
+        {
+            roomStatus.Quality = spiderResult.Quality;
+        }
+
+        if (!string.IsNullOrWhiteSpace(spiderResult.Headers))
+        {
+            roomStatus.Headers = spiderResult.Headers;
+        }
 
         if (IsUsableResolution(spiderResult.Resolution))
         {
@@ -504,7 +537,7 @@ internal static class GlobalMonitor
                 FlvUrl = null!,
                 HlsUrl = null!,
                 RecordUrl = null!,
-                Platform = null!,
+                Platform = string.IsNullOrWhiteSpace(room.Platform) ? PlatformDetector.DetectFromUrl(room.RoomUrl) : room.Platform,
                 Title = null!,
                 Uid = null!,
                 Quality = null!,

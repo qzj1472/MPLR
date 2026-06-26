@@ -63,10 +63,7 @@ internal class TrayIconManager
                         win.Close();
                         }
 
-                        _ = new SettingsWindow()
-                        {
-                        WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                        }.ShowDialog();
+                        _ = new SettingsWindow().ShowDialog();
                     }),
                 },
                 _itemAutoRun = new TrayMenuItem()

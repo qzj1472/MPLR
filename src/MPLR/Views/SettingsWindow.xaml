@@ -12,13 +12,11 @@
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                  xmlns:vio="http://schemas.lepo.co/wpfui/2022/xaml/violeta"
                  Title="{I18N Settings}"
-                 Width="700"
-                 Height="560"
                  d:Background="#FF101010"
                  d:Height="1500"
                  ExtendsContentIntoTitleBar="True"
                  WindowBackdropType="Mica"
-                 WindowStartupLocation="CenterOwner"
+                 WindowStartupLocation="Manual"
                  mc:Ignorable="d">
     <ui:FluentWindow.Resources>
         <CornerRadius x:Key="SettingsCardCornerRadius">10</CornerRadius>

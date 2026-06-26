@@ -103,6 +103,7 @@ public partial class MainViewModel : ReactiveObject
             {
                 NickName = room.NickName,
                 RoomUrl = room.RoomUrl,
+                Platform = PlatformDetector.DetectFromUrl(room.RoomUrl),
                 IsToNotify = room.IsToNotify,
                 IsToRecord = room.IsToRecord,
                 IsToMonitor = room.IsToMonitor,
@@ -326,6 +327,7 @@ public partial class MainViewModel : ReactiveObject
         {
             NickName = nickName,
             RoomUrl = roomUrl,
+            Platform = PlatformDetector.DetectFromUrl(roomUrl),
             AddedAt = DateTime.Now,
             IsToNotify = isToNotify,
             IsFollowGlobalSettings = isFollowGlobalSettings,
@@ -339,6 +341,7 @@ public partial class MainViewModel : ReactiveObject
         {
             NickName = nickName,
             RoomUrl = roomUrl,
+            Platform = PlatformDetector.DetectFromUrl(roomUrl),
             AddedAt = DateTime.Now,
             AvatarLocalPath = AvatarCache.GetCachedAvatarSource(roomUrl),
             IsToNotify = isToNotify,
@@ -927,6 +930,9 @@ public partial class MainViewModel : ReactiveObject
 
         if (spiderResult == null)
         {
+            room.Platform = PlatformDetector.DetectFromUrl(room.RoomUrl);
+            room.StreamStatus = StreamStatus.NotStreaming;
+
             AppSessionLogger.Event("warn", "business", "room_card_refresh_no_result", "room refresh returned no result", new
             {
                 room.RoomUrl,
@@ -964,6 +970,10 @@ public partial class MainViewModel : ReactiveObject
         if (!string.IsNullOrWhiteSpace(spiderResult.Platform))
         {
             room.Platform = spiderResult.Platform;
+        }
+        else
+        {
+            room.Platform = PlatformDetector.DetectFromUrl(room.RoomUrl);
         }
 
         if (!string.IsNullOrWhiteSpace(spiderResult.Title))

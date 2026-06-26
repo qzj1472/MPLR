@@ -11,6 +11,7 @@ public sealed class Player
     private const string FfprobeExeName = "ffprobe.exe";
     private const int PreviewWindowWidth = 960;
     private const int PreviewWindowHeight = 540;
+    private const double PreviewScreenRatio = 0.85d;
     private const int PreviewWindowCenteringSeconds = 8;
     private const int PreviewWindowCenteringIntervalMilliseconds = 120;
 
@@ -313,11 +314,8 @@ public sealed class Player
         System.Windows.Forms.Screen screen = GetPreviewScreen();
         System.Drawing.Rectangle workingArea = screen.WorkingArea;
         WindowFrameMetrics frameMetrics = GetWindowFrameMetrics();
-        int maxVideoWidth = Math.Max(1, workingArea.Width - frameMetrics.Width);
-        int maxVideoHeight = Math.Max(1, workingArea.Height - frameMetrics.Height);
-        int inset = GetPreviewWindowInset();
-        maxVideoWidth = Math.Max(1, maxVideoWidth - inset);
-        maxVideoHeight = Math.Max(1, maxVideoHeight - inset);
+        int maxVideoWidth = Math.Max(1, (int)Math.Floor(workingArea.Width * PreviewScreenRatio) - frameMetrics.Width);
+        int maxVideoHeight = Math.Max(1, (int)Math.Floor(workingArea.Height * PreviewScreenRatio) - frameMetrics.Height);
         double scale = Math.Min((double)maxVideoWidth / sourceSize.Value.Width, (double)maxVideoHeight / sourceSize.Value.Height);
 
         if (scale <= 0 || double.IsNaN(scale) || double.IsInfinity(scale))
@@ -896,9 +894,8 @@ public sealed class Player
         NativeRect workingArea = GetWindowWorkingArea(handle);
         int workingWidth = workingArea.Right - workingArea.Left;
         int workingHeight = workingArea.Bottom - workingArea.Top;
-        int inset = GetPreviewWindowInset();
-        int maxWidth = Math.Max(1, workingWidth - inset);
-        int maxHeight = Math.Max(1, workingHeight - inset);
+        int maxWidth = Math.Max(1, (int)Math.Floor(workingWidth * PreviewScreenRatio));
+        int maxHeight = Math.Max(1, (int)Math.Floor(workingHeight * PreviewScreenRatio));
 
         if (width > maxWidth || height > maxHeight)
         {

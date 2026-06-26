@@ -12,12 +12,10 @@
                  xmlns:views="clr-namespace:MPLR.Views"
                  x:Name="Root"
                  Title="{I18N Title}"
-                 Width="1290"
-                 Height="900"
                  d:Background="#FF101010"
                  ExtendsContentIntoTitleBar="True"
                  WindowBackdropType="Mica"
-                 WindowStartupLocation="CenterScreen"
+                 WindowStartupLocation="Manual"
                  mc:Ignorable="d">
     <ui:FluentWindow.Resources>
         <SolidColorBrush x:Key="MainAccentHoverBrush" Color="#003C6A" />
