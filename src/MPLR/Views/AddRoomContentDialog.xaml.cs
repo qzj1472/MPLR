@@ -14,6 +14,12 @@ public sealed partial class AddRoomContentDialog : ContentDialog
     private bool isForcedAdd = false;
 
     [ObservableProperty]
+    private bool isFollowGlobalSettings = true;
+
+    [ObservableProperty]
+    private bool isToNotify = true;
+
+    [ObservableProperty]
     private string? nickName = null;
 
     public string? RoomUrl = null;
@@ -117,16 +123,29 @@ public sealed partial class AddRoomContentDialog : ContentDialog
         }
 
         string value = message.ToLowerInvariant();
+        bool isDouyinWebDataRisk = value.Contains("douyin", StringComparison.Ordinal) &&
+            (value.Contains("web data fetch error", StringComparison.Ordinal) ||
+             value.Contains("expecting value", StringComparison.Ordinal) ||
+             value.Contains("jsondecodeerror", StringComparison.Ordinal));
+
+        if (isDouyinWebDataRisk)
+        {
+            return true;
+        }
+
         string[] keywords =
         [
             "cookie",
             "login",
             "captcha",
+            "risk",
             "forbidden",
             "blocked",
             "ip banned",
             "403",
             "401",
+            "returned no json",
+            "returned invalid json",
             "登录",
             "登陆",
             "验证码",

@@ -10,9 +10,9 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <LangVersion>latest</LangVersion>
         <ApplicationIcon>Assets\Favicon.ico</ApplicationIcon>
-        <AssemblyVersion>1.6.7.1</AssemblyVersion>
-        <FileVersion>1.6.7.1</FileVersion>
-        <Version>$(VersionPrefix)1.6.7.1</Version>
+        <AssemblyVersion>1.7.2.1</AssemblyVersion>
+        <FileVersion>1.7.2.1</FileVersion>
+        <Version>$(VersionPrefix)1.7.2.1</Version>
         <Platforms>x64</Platforms>
         <RuntimeIdentifier>win-x64</RuntimeIdentifier>
         <SelfContained>true</SelfContained>
@@ -60,6 +60,16 @@
     <ItemGroup>
         <Content Include="..\..\tools\stream_resolver\**\*" Exclude="..\..\tools\stream_resolver\**\__pycache__\**;..\..\tools\stream_resolver\**\__pycache__;..\..\tools\stream_resolver\**\*.pyc;..\..\tools\stream_resolver\vendor\**\__pycache__\**;..\..\tools\stream_resolver\vendor\**\__pycache__;..\..\tools\stream_resolver\vendor\**\*.pyc;..\..\tools\stream_resolver\**\.git\**;..\..\tools\stream_resolver\logs\**">
             <Link>stream_resolver\%(RecursiveDir)%(Filename)%(Extension)</Link>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        </Content>
+        <Content Include="..\..\tools\python\win-x64\**\*" Condition="Exists('..\..\tools\python\win-x64\python.exe')" Exclude="..\..\tools\python\win-x64\**\__pycache__\**;..\..\tools\python\win-x64\**\*.pyc">
+            <Link>python\%(RecursiveDir)%(Filename)%(Extension)</Link>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        </Content>
+        <Content Include="..\..\tools\node\win-x64\**\*" Condition="Exists('..\..\tools\node\win-x64\node.exe')">
+            <Link>stream_resolver\node\%(RecursiveDir)%(Filename)%(Extension)</Link>
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
             <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
         </Content>

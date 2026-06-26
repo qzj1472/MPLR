@@ -25,23 +25,88 @@ internal static class Spider
 
     public static ISpiderResult? GetResult(string url)
     {
+        string? normalizedUrl = ParseUrl(url);
+        string localPlatform = PlatformDetector.DetectFromUrl(normalizedUrl ?? url);
         ISpiderResult? externalResult = ExternalStreamResolver.GetResult(url);
 
         if (externalResult != null)
         {
+            FillLocalFields(externalResult, normalizedUrl ?? url, localPlatform);
+
+            if (url.Contains("douyin") && string.IsNullOrWhiteSpace(externalResult.AvatarThumbUrl))
+            {
+                ISpiderResult douyinResult = DouyinSpider.Instance.Value.GetResult(url);
+                FillMissingDouyinFields(externalResult, douyinResult);
+                FillLocalFields(externalResult, normalizedUrl ?? url, localPlatform);
+            }
+
             return externalResult;
         }
 
         if (url.Contains("douyin"))
         {
-            return DouyinSpider.Instance.Value.GetResult(url);
+            try
+            {
+                ISpiderResult result = DouyinSpider.Instance.Value.GetResult(url);
+                FillLocalFields(result, normalizedUrl ?? url, localPlatform);
+                return result;
+            }
+            catch
+            {
+                return null;
+            }
         }
         else if (url.Contains("tiktok"))
         {
-            return TiktokSpider.Instance.Value.GetResult(url);
+            try
+            {
+                ISpiderResult result = TiktokSpider.Instance.Value.GetResult(url);
+                FillLocalFields(result, normalizedUrl ?? url, localPlatform);
+                return result;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         return null;
+    }
+
+    private static void FillLocalFields(ISpiderResult target, string url, string platform)
+    {
+        if (string.IsNullOrWhiteSpace(target.RoomUrl))
+        {
+            target.RoomUrl = url;
+        }
+
+        if (string.IsNullOrWhiteSpace(target.Platform))
+        {
+            target.Platform = platform;
+        }
+    }
+
+    private static void FillMissingDouyinFields(ISpiderResult target, ISpiderResult source)
+    {
+        if (string.IsNullOrWhiteSpace(target.AvatarThumbUrl))
+        {
+            target.AvatarThumbUrl = source.AvatarThumbUrl;
+        }
+
+        if (string.IsNullOrWhiteSpace(target.Nickname))
+        {
+            target.Nickname = source.Nickname;
+        }
+
+        if (string.IsNullOrWhiteSpace(target.RoomUrl))
+        {
+            target.RoomUrl = source.RoomUrl;
+        }
+
+        if (target.IsLiveStreaming == null)
+        {
+            target.IsLiveStreaming = source.IsLiveStreaming;
+        }
     }
 }
 

@@ -1623,6 +1623,102 @@ namespace MPLR.Properties {
             }
         }
 
+        public static string ToolbarScreenRecordList {
+            get {
+                return ResourceManager.GetString("ToolbarScreenRecordList", resourceCulture);
+            }
+        }
+
+        public static string RoutineSchedule {
+            get {
+                return ResourceManager.GetString("RoutineSchedule", resourceCulture);
+            }
+        }
+
+        public static string RoutineScheduleHint {
+            get {
+                return ResourceManager.GetString("RoutineScheduleHint", resourceCulture);
+            }
+        }
+
+        public static string RoutineScheduleAlways {
+            get {
+                return ResourceManager.GetString("RoutineScheduleAlways", resourceCulture);
+            }
+        }
+
+        public static string RoutineScheduleCustom {
+            get {
+                return ResourceManager.GetString("RoutineScheduleCustom", resourceCulture);
+            }
+        }
+
+        public static string DayMonday {
+            get {
+                return ResourceManager.GetString("DayMonday", resourceCulture);
+            }
+        }
+
+        public static string DayTuesday {
+            get {
+                return ResourceManager.GetString("DayTuesday", resourceCulture);
+            }
+        }
+
+        public static string DayWednesday {
+            get {
+                return ResourceManager.GetString("DayWednesday", resourceCulture);
+            }
+        }
+
+        public static string DayThursday {
+            get {
+                return ResourceManager.GetString("DayThursday", resourceCulture);
+            }
+        }
+
+        public static string DayFriday {
+            get {
+                return ResourceManager.GetString("DayFriday", resourceCulture);
+            }
+        }
+
+        public static string DaySaturday {
+            get {
+                return ResourceManager.GetString("DaySaturday", resourceCulture);
+            }
+        }
+
+        public static string DaySunday {
+            get {
+                return ResourceManager.GetString("DaySunday", resourceCulture);
+            }
+        }
+
+        public static string SavePathLevel {
+            get {
+                return ResourceManager.GetString("SavePathLevel", resourceCulture);
+            }
+        }
+
+        public static string SavePathLevelAuthorDate {
+            get {
+                return ResourceManager.GetString("SavePathLevelAuthorDate", resourceCulture);
+            }
+        }
+
+        public static string SavePathLevelPlatformAuthorDate {
+            get {
+                return ResourceManager.GetString("SavePathLevelPlatformAuthorDate", resourceCulture);
+            }
+        }
+
+        public static string SavePathLevelCustom {
+            get {
+                return ResourceManager.GetString("SavePathLevelCustom", resourceCulture);
+            }
+        }
+
         public static string Uid {
             get {
                 return ResourceManager.GetString("Uid", resourceCulture);

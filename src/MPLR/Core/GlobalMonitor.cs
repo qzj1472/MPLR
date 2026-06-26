@@ -33,6 +33,8 @@ internal static class GlobalMonitor
 
     private static readonly ConcurrentDictionary<string, bool> TemporaryRoomRecordOverrides = new(StringComparer.OrdinalIgnoreCase);
 
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> RoomCheckLocks = new(StringComparer.OrdinalIgnoreCase);
+
     private sealed class GlobalMonitorRecipient : ObservableRecipient
     {
         public static GlobalMonitorRecipient Instance { get; } = new();
@@ -107,6 +109,14 @@ internal static class GlobalMonitor
         }
     }
 
+    public static void StopAllRecorders()
+    {
+        foreach (RoomStatus roomStatus in RoomStatus.Values)
+        {
+            roomStatus.Recorder.Stop();
+        }
+    }
+
     public static bool GetEffectiveRoomNotify(Room room)
     {
         return Configurations.IsToNotify.Get() && room.IsToNotify;
@@ -140,6 +150,19 @@ internal static class GlobalMonitor
         {
             TemporaryRoomRecordOverrides[roomUrl] = enabled;
         }
+    }
+
+    public static void ClearTemporaryRoomRecord(string roomUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(roomUrl))
+        {
+            _ = TemporaryRoomRecordOverrides.TryRemove(roomUrl, out _);
+        }
+    }
+
+    public static void ClearTemporaryRecordOverrides()
+    {
+        TemporaryRoomRecordOverrides.Clear();
     }
 
     public static void SetTemporaryRoomMonitor(string roomUrl, bool enabled)
@@ -192,6 +215,11 @@ internal static class GlobalMonitor
                 break;
             }
 
+            if (!RoutineScheduleHelper.IsActive(DateTime.Now))
+            {
+                continue;
+            }
+
             await RunOnceAsync(token);
         }
     }
@@ -204,7 +232,10 @@ internal static class GlobalMonitor
             bool isGlobalToRecord = Configurations.IsToRecord.Get();
             bool isGlobalMonitorRunning = Configurations.IsMonitorRunning.Get();
 
-            foreach (Room room in rooms)
+            using SemaphoreSlim semaphore = new(Math.Clamp(Environment.ProcessorCount, 4, 8));
+            List<Task> tasks = [];
+
+            foreach (Room room in DistinctRoomsByUrl(rooms))
             {
                 token.ThrowIfCancellationRequested();
 
@@ -221,7 +252,7 @@ internal static class GlobalMonitor
 
                 if (shouldMonitor)
                 {
-                    await RunRoomCheckAsync(room, roomStatus, shouldNotify, shouldRecord, token);
+                    tasks.Add(RunRoomCheckWithSemaphoreAsync(semaphore, room, roomStatus, shouldNotify, shouldRecord, token));
                 }
                 else
                 {
@@ -232,6 +263,8 @@ internal static class GlobalMonitor
                     roomStatus.StreamStatus = StreamStatus.Disabled;
                 }
             }
+
+            await Task.WhenAll(tasks);
         }
         catch (OperationCanceledException)
         {
@@ -242,12 +275,63 @@ internal static class GlobalMonitor
         }
     }
 
+    private static async Task RunRoomCheckWithSemaphoreAsync(SemaphoreSlim semaphore, Room room, RoomStatus roomStatus, bool shouldNotify, bool shouldRecord, CancellationToken token)
+    {
+        await semaphore.WaitAsync(token);
+        SemaphoreSlim roomLock = RoomCheckLocks.GetOrAdd(room.RoomUrl, _ => new SemaphoreSlim(1, 1));
+        bool roomLockTaken = false;
+
+        try
+        {
+            await roomLock.WaitAsync(token);
+            roomLockTaken = true;
+            await RunRoomCheckAsync(room, roomStatus, shouldNotify, shouldRecord, token);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception e)
+        {
+            Debug.WriteLine(e);
+            AppSessionLogger.WriteException(e);
+        }
+        finally
+        {
+            if (roomLockTaken)
+            {
+                roomLock.Release();
+            }
+            semaphore.Release();
+        }
+    }
+
     private static async Task RunRoomCheckAsync(Room room, RoomStatus roomStatus, bool shouldNotify, bool shouldRecord, CancellationToken token)
     {
-        ISpiderResult? spiderResult = Spider.GetResult(room.RoomUrl);
+        ISpiderResult? spiderResult = await Task.Run(() => Spider.GetResult(room.RoomUrl), token);
+        shouldRecord = GetEffectiveRoomRecord(room);
+
+        if (!GetEffectiveRoomMonitor(room))
+        {
+            if (roomStatus.RecordStatus == RecordStatus.Recording)
+            {
+                roomStatus.Recorder.Stop();
+            }
+
+            roomStatus.RecordStatus = RecordStatus.Disabled;
+            roomStatus.StreamStatus = StreamStatus.Disabled;
+            return;
+        }
 
         if (spiderResult == null)
         {
+            roomStatus.Platform = PlatformDetector.DetectFromUrl(room.RoomUrl);
+
+            if (roomStatus.RecordStatus != RecordStatus.Recording)
+            {
+                roomStatus.RecordStatus = shouldRecord ? RecordStatus.NotRecording : RecordStatus.Disabled;
+            }
+
+            roomStatus.StreamStatus = shouldRecord ? StreamStatus.NotStreaming : StreamStatus.Disabled;
             return;
         }
 
@@ -261,11 +345,29 @@ internal static class GlobalMonitor
         roomStatus.FlvUrl = spiderResult.FlvUrl ?? string.Empty;
         roomStatus.HlsUrl = spiderResult.HlsUrl ?? string.Empty;
         roomStatus.RecordUrl = spiderResult.RecordUrl ?? string.Empty;
-        roomStatus.Platform = spiderResult.Platform ?? string.Empty;
-        roomStatus.Title = spiderResult.Title ?? string.Empty;
-        roomStatus.Uid = spiderResult.Uid ?? string.Empty;
-        roomStatus.Quality = spiderResult.Quality ?? string.Empty;
-        roomStatus.Headers = spiderResult.Headers ?? string.Empty;
+        roomStatus.Platform = string.IsNullOrWhiteSpace(spiderResult.Platform)
+            ? PlatformDetector.DetectFromUrl(room.RoomUrl)
+            : spiderResult.Platform;
+
+        if (!string.IsNullOrWhiteSpace(spiderResult.Title))
+        {
+            roomStatus.Title = spiderResult.Title;
+        }
+
+        if (!string.IsNullOrWhiteSpace(spiderResult.Uid))
+        {
+            roomStatus.Uid = spiderResult.Uid;
+        }
+
+        if (!string.IsNullOrWhiteSpace(spiderResult.Quality))
+        {
+            roomStatus.Quality = spiderResult.Quality;
+        }
+
+        if (!string.IsNullOrWhiteSpace(spiderResult.Headers))
+        {
+            roomStatus.Headers = spiderResult.Headers;
+        }
 
         if (IsUsableResolution(spiderResult.Resolution))
         {
@@ -277,13 +379,16 @@ internal static class GlobalMonitor
             roomStatus.Bitrate = spiderResult.Bitrate!;
         }
 
-        Room[] rooms = Configurations.Rooms.Get();
-        Room? cachedRoom = rooms.FirstOrDefault(item => string.Equals(item.RoomUrl, room.RoomUrl, StringComparison.OrdinalIgnoreCase));
-        if (cachedRoom != null)
+        lock (MonitorLock)
         {
-            RoomInfoCache.Apply(roomStatus, cachedRoom);
-            Configurations.Rooms.Set(rooms);
-            ConfigurationManager.Save();
+            Room[] rooms = Configurations.Rooms.Get();
+            Room? cachedRoom = rooms.FirstOrDefault(item => string.Equals(item.RoomUrl, room.RoomUrl, StringComparison.OrdinalIgnoreCase));
+            if (cachedRoom != null)
+            {
+                RoomInfoCache.Apply(roomStatus, cachedRoom);
+                Configurations.Rooms.Set(rooms);
+                ConfigurationManager.Save();
+            }
         }
 
         bool isLiveStreaming = IsLiveStreaming(spiderResult);
@@ -299,7 +404,7 @@ internal static class GlobalMonitor
             {
                 true => StreamStatus.Streaming,
                 false => StreamStatus.NotStreaming,
-                null or _ => isLiveStreaming ? StreamStatus.Streaming : roomStatus.StreamStatus,
+                null or _ => isLiveStreaming ? StreamStatus.Streaming : StreamStatus.NotStreaming,
             };
         }
 
@@ -307,32 +412,55 @@ internal static class GlobalMonitor
         {
             if (isLiveStreaming && HasRecordableStream(roomStatus))
             {
-                _ = roomStatus.Recorder.Start(new RecorderStartInfo()
+                if (roomStatus.RecordStatus != RecordStatus.Recording)
                 {
-                    NickName = room.NickName,
-                    FlvUrl = roomStatus.FlvUrl,
-                    HlsUrl = roomStatus.HlsUrl,
-                    RecordUrl = roomStatus.RecordUrl,
-                    RoomUrl = room.RoomUrl,
-                    Platform = roomStatus.Platform,
-                    Headers = roomStatus.Headers,
-                });
+                    AppSessionLogger.Event("info", "business", "record_start_requested", "record start requested", new
+                    {
+                        room.RoomUrl,
+                        room.NickName,
+                        roomStatus.Platform,
+                        roomStatus.RecordStatus,
+                        hasRecordUrl = !string.IsNullOrWhiteSpace(roomStatus.RecordUrl),
+                        hasFlvUrl = !string.IsNullOrWhiteSpace(roomStatus.FlvUrl),
+                        hasHlsUrl = !string.IsNullOrWhiteSpace(roomStatus.HlsUrl),
+                    });
+
+                    _ = roomStatus.Recorder.Start(new RecorderStartInfo()
+                    {
+                        NickName = room.NickName,
+                        FlvUrl = roomStatus.FlvUrl,
+                        HlsUrl = roomStatus.HlsUrl,
+                        RecordUrl = roomStatus.RecordUrl,
+                        RoomUrl = room.RoomUrl,
+                        Platform = roomStatus.Platform,
+                        Resolution = roomStatus.Resolution,
+                        Headers = roomStatus.Headers,
+                        Title = roomStatus.Title,
+                        Bitrate = roomStatus.Bitrate,
+                        CoverPath = roomStatus.AvatarLocalPath,
+                    });
+                }
             }
-            else if (roomStatus.RecordStatus == RecordStatus.Disabled)
+            else if (roomStatus.RecordStatus != RecordStatus.Recording)
             {
-                roomStatus.RecordStatus = RecordStatus.Initialized;
+                roomStatus.RecordStatus = RecordStatus.NotRecording;
             }
         }
         else
         {
             if (roomStatus.RecordStatus == RecordStatus.Recording)
             {
+                AppSessionLogger.Event("info", "business", "record_stop_requested", "record stop requested because recording is disabled", new
+                {
+                    room.RoomUrl,
+                    room.NickName,
+                    roomStatus.Platform,
+                    roomStatus.RecordStatus,
+                });
                 roomStatus.Recorder.Stop();
             }
-            else
-            {
-                roomStatus.RecordStatus = RecordStatus.Disabled;
-            }
+
+            roomStatus.RecordStatus = RecordStatus.Disabled;
         }
 
         if (shouldNotify && prevStreamStatus != StreamStatus.Streaming && isLiveStreaming)
@@ -375,6 +503,24 @@ internal static class GlobalMonitor
                height >= 180;
     }
 
+    private static IEnumerable<Room> DistinctRoomsByUrl(IEnumerable<Room> rooms)
+    {
+        HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
+
+        foreach (Room room in rooms)
+        {
+            if (string.IsNullOrWhiteSpace(room.RoomUrl))
+            {
+                continue;
+            }
+
+            if (seen.Add(room.RoomUrl))
+            {
+                yield return room;
+            }
+        }
+    }
+
     /// <summary>
     /// Get Room Status
     /// </summary>
@@ -391,7 +537,7 @@ internal static class GlobalMonitor
                 FlvUrl = null!,
                 HlsUrl = null!,
                 RecordUrl = null!,
-                Platform = null!,
+                Platform = string.IsNullOrWhiteSpace(room.Platform) ? PlatformDetector.DetectFromUrl(room.RoomUrl) : room.Platform,
                 Title = null!,
                 Uid = null!,
                 Quality = null!,

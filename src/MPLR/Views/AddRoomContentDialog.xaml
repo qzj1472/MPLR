@@ -20,7 +20,11 @@
         <ui:StackPanel MinWidth="525" Spacing="8">
             <TextBlock Text="{I18N EnterRoomUrl}" />
             <ui:TextBox PlaceholderText="https://live.douyin.com/xxx" Text="{Binding Url, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-            <CheckBox Content="{I18N AddRoomForce}" IsChecked="{Binding IsForcedAdd, Mode=TwoWay}" />
+            <ui:Grid ColumnDefinitions="Auto,Auto,Auto">
+                <CheckBox Grid.Column="0" Content="{I18N AddRoomForce}" IsChecked="{Binding IsForcedAdd, Mode=TwoWay}" />
+                <CheckBox Grid.Column="1" Margin="18,0,0,0" Content="{I18N FollowGlobalSettings}" IsChecked="{Binding IsFollowGlobalSettings, Mode=TwoWay}" />
+                <CheckBox Grid.Column="2" Margin="18,0,0,0" Content="{I18N LiveNotification}" IsChecked="{Binding IsToNotify, Mode=TwoWay}" />
+            </ui:Grid>
         </ui:StackPanel>
     </ui:Grid>
 </vio:ContentDialog>

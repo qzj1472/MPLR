@@ -380,7 +380,7 @@
     <value>循环周期</value>
   </data>
   <data name="RoutineIntervalHint" xml:space="preserve">
-    <value>检测开播状态等动作的循环周期（毫秒）</value>
+    <value>检测开播状态等动作的循环周期（秒/分钟）</value>
   </data>
   <data name="RecordFormat" xml:space="preserve">
     <value>录制格式</value>
@@ -615,6 +615,54 @@
   </data>
   <data name="RoomInfoRefreshed" xml:space="preserve">
     <value>直播间信息已刷新</value>
+  </data>
+  <data name="ToolbarScreenRecordList" xml:space="preserve">
+    <value>视频列表</value>
+  </data>
+  <data name="RoutineSchedule" xml:space="preserve">
+    <value>周期规则</value>
+  </data>
+  <data name="RoutineScheduleHint" xml:space="preserve">
+    <value>设置在哪些时间段进行循环</value>
+  </data>
+  <data name="RoutineScheduleAlways" xml:space="preserve">
+    <value>全天候(24小时)</value>
+  </data>
+  <data name="RoutineScheduleCustom" xml:space="preserve">
+    <value>自定义</value>
+  </data>
+  <data name="DayMonday" xml:space="preserve">
+    <value>周一</value>
+  </data>
+  <data name="DayTuesday" xml:space="preserve">
+    <value>周二</value>
+  </data>
+  <data name="DayWednesday" xml:space="preserve">
+    <value>周三</value>
+  </data>
+  <data name="DayThursday" xml:space="preserve">
+    <value>周四</value>
+  </data>
+  <data name="DayFriday" xml:space="preserve">
+    <value>周五</value>
+  </data>
+  <data name="DaySaturday" xml:space="preserve">
+    <value>周六</value>
+  </data>
+  <data name="DaySunday" xml:space="preserve">
+    <value>周日</value>
+  </data>
+  <data name="SavePathLevel" xml:space="preserve">
+    <value>选择路径层级</value>
+  </data>
+  <data name="SavePathLevelAuthorDate" xml:space="preserve">
+    <value>作者->时间</value>
+  </data>
+  <data name="SavePathLevelPlatformAuthorDate" xml:space="preserve">
+    <value>平台->作者->时间</value>
+  </data>
+  <data name="SavePathLevelCustom" xml:space="preserve">
+    <value>自定义</value>
   </data>
 </root>
 

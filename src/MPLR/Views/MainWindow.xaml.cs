@@ -9,6 +9,7 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Windows.Media.Media3D;
 using System.Windows.Threading;
@@ -279,9 +280,14 @@ public partial class MainWindow : FluentWindow
 
     private bool isUpdatingRoutineIntervalFlyout;
 
+    private readonly BlurEffect modalBlurEffect = new() { Radius = 8 };
+
+    private const double BottomFlyoutGap = 40d;
+
     public MainWindow()
     {
         DataContext = ViewModel = new();
+        WindowSizing.UseRelativeScreenSize(this, 1290d, 900d);
         InitializeComponent();
         PreviewMouseDown += MainWindowPreviewMouseDown;
         StateChanged += MainWindowStateChanged;
@@ -342,10 +348,6 @@ public partial class MainWindow : FluentWindow
         RoomCardHeight = cardHeight;
         RoomCardMargin = new Thickness(RoomCardHorizontalGap / 2d, RoomCardVerticalGap / 2d, RoomCardHorizontalGap / 2d, RoomCardVerticalGap / 2d);
         CanUseLargeRoomCards = CanUseRoomCardScale(availableWidth, baseWidth, RoomCardLargeSizeScale, RoomCardHorizontalGap);
-        if (RoomCardLargeMenuItem != null)
-        {
-            RoomCardLargeMenuItem.IsEnabled = CanUseLargeRoomCards;
-        }
         UpdateRoomCardVisualMetrics(cardWidth, baseWidth);
     }
 
@@ -575,7 +577,11 @@ public partial class MainWindow : FluentWindow
             RoomCardList.SelectedItem = room;
             ViewModel.SelectedItem = room;
             item.Focus();
+            return;
         }
+
+        RoomCardPanel.ContextMenu?.SetCurrentValue(ContextMenu.IsOpenProperty, true);
+        e.Handled = true;
     }
 
     private void RoomCardListMouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -593,6 +599,31 @@ public partial class MainWindow : FluentWindow
         }
 
         e.Handled = true;
+    }
+
+    private void RoomCardPanelMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount >= 2)
+        {
+            RoomCardListMouseDoubleClick(sender, e);
+        }
+    }
+
+    private void OpenScreenRecordListClick(object sender, RoutedEventArgs e)
+    {
+        foreach (Window win in Application.Current.Windows)
+        {
+            if (win is ScreenRecordListWindow)
+            {
+                win.Activate();
+                return;
+            }
+        }
+
+        new ScreenRecordListWindow
+        {
+            Owner = Application.Current.MainWindow,
+        }.ShowDialog();
     }
 
     private void BeginRoomCardsFlashAnimation()
@@ -638,11 +669,6 @@ public partial class MainWindow : FluentWindow
     {
         SetRoutineIntervalFlyoutValue(ViewModel.StatusOfRoutineInterval);
         OpenBoundedFlyout(RoutineIntervalFlyout, RoutineIntervalStatusButton);
-        Dispatcher.BeginInvoke(() =>
-        {
-            RoutineIntervalInput.Focus();
-            RoutineIntervalInput.SelectAll();
-        }, DispatcherPriority.Input);
     }
 
     private void LocaleCultureChanged(object? sender, EventArgs e)
@@ -678,6 +704,17 @@ public partial class MainWindow : FluentWindow
         RoutineIntervalFlyout.Visibility = Visibility.Collapsed;
     }
 
+    private void RoutineIntervalInputKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != System.Windows.Input.Key.Enter)
+        {
+            return;
+        }
+
+        RoutineIntervalConfirmClick(sender, e);
+        e.Handled = true;
+    }
+
     private void RoutineIntervalUnitSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (isUpdatingRoutineIntervalFlyout || RoutineIntervalUnitComboBox.SelectedIndex < 0)
@@ -706,6 +743,46 @@ public partial class MainWindow : FluentWindow
         }
     }
 
+    private void NumberInputPreviewTextInput(object sender, TextCompositionEventArgs e)
+    {
+        e.Handled = sender is not System.Windows.Controls.TextBox textBox || !IsAllowedNumberInput(textBox, e.Text);
+    }
+
+    private void NumberInputPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Space)
+        {
+            e.Handled = true;
+        }
+    }
+
+    private void NumberInputPasting(object sender, DataObjectPastingEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.TextBox textBox ||
+            !e.DataObject.GetDataPresent(System.Windows.DataFormats.Text) ||
+            e.DataObject.GetData(System.Windows.DataFormats.Text) is not string text ||
+            !IsAllowedNumberInput(textBox, text))
+        {
+            e.CancelCommand();
+        }
+    }
+
+    private static bool IsAllowedNumberInput(System.Windows.Controls.TextBox textBox, string input)
+    {
+        string value = textBox.Text.Remove(textBox.SelectionStart, textBox.SelectionLength).Insert(textBox.SelectionStart, input);
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return true;
+        }
+
+        bool allowDecimal = string.Equals((textBox.Tag as string) ?? string.Empty, "Decimal", StringComparison.OrdinalIgnoreCase);
+
+        return allowDecimal
+            ? double.TryParse(value, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out _)
+            : int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out _);
+    }
+
     private void RecordFormatOptionClick(object sender, RoutedEventArgs e)
     {
         if (sender is System.Windows.Controls.Button { Tag: string value } &&
@@ -721,6 +798,8 @@ public partial class MainWindow : FluentWindow
     {
         AddRoomUrlInput.Text = string.Empty;
         AddRoomForceCheckBox.IsChecked = false;
+        AddRoomFollowGlobalSettingsCheckBox.IsChecked = true;
+        AddRoomNotifyCheckBox.IsChecked = true;
         OpenCenteredFlyout(AddRoomFlyout);
         Dispatcher.BeginInvoke(() => AddRoomUrlInput.Focus(), DispatcherPriority.Input);
     }
@@ -732,11 +811,27 @@ public partial class MainWindow : FluentWindow
 
     private async void AddRoomConfirmClick(object sender, RoutedEventArgs e)
     {
-        bool added = await ViewModel.TryAddRoomFromFlyoutAsync(AddRoomUrlInput.Text, AddRoomForceCheckBox.IsChecked == true);
+        bool added = await ViewModel.TryAddRoomFromFlyoutAsync(
+            AddRoomUrlInput.Text,
+            AddRoomForceCheckBox.IsChecked == true,
+            AddRoomNotifyCheckBox.IsChecked == true,
+            AddRoomFollowGlobalSettingsCheckBox.IsChecked == true);
         if (added)
         {
             AddRoomFlyout.Visibility = Visibility.Collapsed;
+            UpdateModalOverlay();
         }
+    }
+
+    private void AddRoomUrlInputKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != System.Windows.Input.Key.Enter)
+        {
+            return;
+        }
+
+        AddRoomConfirmClick(sender, e);
+        e.Handled = true;
     }
 
     private void CloseFloatingPanelsClick(object sender, RoutedEventArgs e)
@@ -759,11 +854,22 @@ public partial class MainWindow : FluentWindow
         double layerWidth = Math.Max(MainFlyoutLayer.ActualWidth, 1);
         double layerHeight = Math.Max(MainFlyoutLayer.ActualHeight, 1);
         double left = targetPosition.X + targetWidth - flyoutWidth;
-        double top = targetPosition.Y - flyoutHeight - 8;
+        double anchorBottom = targetPosition.Y + targetHeight;
+
+        if (target.Parent is FrameworkElement parent)
+        {
+            Point parentPosition = GetRelativePosition(parent, MainFlyoutLayer);
+            if (parent.ActualHeight > targetHeight && parentPosition.Y <= targetPosition.Y)
+            {
+                anchorBottom = parentPosition.Y + parent.ActualHeight;
+            }
+        }
+
+        double top = anchorBottom - flyoutHeight - BottomFlyoutGap;
 
         if (top < 0)
         {
-            top = targetPosition.Y + targetHeight + 8;
+            top = targetPosition.Y + targetHeight + BottomFlyoutGap;
         }
 
         left = Math.Clamp(left, 0, Math.Max(0, layerWidth - flyoutWidth));
@@ -782,7 +888,14 @@ public partial class MainWindow : FluentWindow
 
         CloseFloatingPanels(flyout);
         flyout.Visibility = Visibility.Visible;
+        UpdateModalOverlay();
         Dispatcher.BeginInvoke(() => CenterVisibleFlyout(flyout), DispatcherPriority.Loaded);
+    }
+
+    private void ModalOverlayMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        CloseFloatingPanels();
+        e.Handled = true;
     }
 
     private void CenterVisibleFlyout(FrameworkElement flyout)
@@ -868,6 +981,17 @@ public partial class MainWindow : FluentWindow
                 flyout.Visibility = Visibility.Collapsed;
             }
         }
+
+        UpdateModalOverlay();
+    }
+
+    private void UpdateModalOverlay()
+    {
+        bool modalVisible = AddRoomFlyout.Visibility == Visibility.Visible ||
+            AboutFlyout.Visibility == Visibility.Visible;
+
+        ModalOverlay.Visibility = modalVisible ? Visibility.Visible : Visibility.Collapsed;
+        MainContentRoot.Effect = modalVisible ? modalBlurEffect : null;
     }
 
     private void MainWindowStateChanged(object? sender, EventArgs e)

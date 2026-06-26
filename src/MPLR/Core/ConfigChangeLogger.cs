@@ -84,7 +84,14 @@ internal static partial class ConfigChangeLogger
     {
         try
         {
-            return File.Exists(path) ? SensitiveLineRegex().Replace(File.ReadAllText(path), "$1: [redacted]") : null;
+            if (!File.Exists(path))
+            {
+                return null;
+            }
+
+            using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using StreamReader reader = new(stream, Encoding.UTF8);
+            return SensitiveLineRegex().Replace(reader.ReadToEnd(), "$1: [redacted]");
         }
         catch (IOException e)
         {
