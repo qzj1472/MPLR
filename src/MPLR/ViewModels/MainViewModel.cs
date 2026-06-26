@@ -297,7 +297,7 @@ public partial class MainViewModel : ReactiveObject
 
                 if (string.IsNullOrWhiteSpace(spider?.Nickname) || string.IsNullOrWhiteSpace(spider.RoomUrl))
                 {
-                    Toast.Error(GetRoomInfoErrorMessage());
+                    Toast.Error(GetRoomInfoErrorMessage(url));
                     return false;
                 }
 
@@ -313,7 +313,7 @@ public partial class MainViewModel : ReactiveObject
             }
             catch (Exception exception)
             {
-                Toast.Error(GetRoomInfoErrorMessage(exception.Message));
+                Toast.Error(GetRoomInfoErrorMessage(url, exception.Message));
                 return false;
             }
         }
@@ -363,9 +363,9 @@ public partial class MainViewModel : ReactiveObject
         SelectedItem = roomStatusReactive;
     }
 
-    private static string GetRoomInfoErrorMessage(string? fallback = null)
+    private static string GetRoomInfoErrorMessage(string? roomUrl, string? fallback = null)
     {
-        string error = ExternalStreamResolver.LastError;
+        string error = ExternalStreamResolver.GetLastError(roomUrl);
         string message = string.IsNullOrWhiteSpace(error) ? fallback ?? string.Empty : error;
 
         if (IsCookieOrRiskError(message))
@@ -936,7 +936,7 @@ public partial class MainViewModel : ReactiveObject
             AppSessionLogger.Event("warn", "business", "room_card_refresh_no_result", "room refresh returned no result", new
             {
                 room.RoomUrl,
-                externalResolverError = ExternalStreamResolver.LastError,
+                externalResolverError = ExternalStreamResolver.GetLastError(room.RoomUrl),
             });
 
             if (!string.IsNullOrWhiteSpace(probe.Resolution))

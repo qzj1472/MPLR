@@ -915,8 +915,19 @@ public partial class SettingsViewModel : ReactiveObject
         ConfigurationManager.Save();
     }
 
+    private static int GetAutoShutdownTimePart(int index, int max)
+    {
+        string[] parts = (Configurations.AutoShutdownTime.Get() ?? string.Empty).Split(':');
+        if (parts.Length <= index)
+        {
+            return 0;
+        }
+
+        return Math.Clamp(parts[index].IntParse(fallback: 0), 0, max);
+    }
+
     [ObservableProperty]
-    private int autoShutdownTimeHour = Configurations.AutoShutdownTime.Get().Split(':')[0].IntParse(fallback: 0);
+    private int autoShutdownTimeHour = GetAutoShutdownTimePart(0, 23);
 
     partial void OnAutoShutdownTimeHourChanged(int value)
     {
@@ -933,7 +944,7 @@ public partial class SettingsViewModel : ReactiveObject
     }
 
     [ObservableProperty]
-    private int autoShutdownTimeMinute = Configurations.AutoShutdownTime.Get().Split(':')[1].IntParse(fallback: 0);
+    private int autoShutdownTimeMinute = GetAutoShutdownTimePart(1, 59);
 
     partial void OnAutoShutdownTimeMinuteChanged(int value)
     {
@@ -1025,7 +1036,7 @@ public partial class SettingsViewModel : ReactiveObject
         }
         catch (HttpRequestException e)
         {
-            Toast.Success("ProxyErrorOfExceptionMessage".Tr(e.Message));
+            Toast.Error("ProxyErrorOfExceptionMessage".Tr(e.Message));
         }
     }
 

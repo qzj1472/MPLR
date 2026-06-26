@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.ComponentModel;
+using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using MPLR.Threading;
@@ -10,8 +11,22 @@ internal static class ExternalStreamResolver
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(75);
     private static readonly SemaphoreSlim ResolverSemaphore = new(3);
+    private static readonly ConcurrentDictionary<string, string> LastErrorsByUrl = new(StringComparer.OrdinalIgnoreCase);
 
     public static string LastError { get; private set; } = string.Empty;
+
+    public static string GetLastError(string? url)
+    {
+        foreach (string key in GetErrorKeys(url))
+        {
+            if (LastErrorsByUrl.TryGetValue(key, out string? error))
+            {
+                return error ?? string.Empty;
+            }
+        }
+
+        return LastError;
+    }
 
     public static string? NormalizeUrl(string? url)
     {
@@ -69,8 +84,8 @@ internal static class ExternalStreamResolver
     public static ISpiderResult? GetResult(string url)
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
-        LastError = string.Empty;
         string? normalizedUrl = NormalizeUrl(url);
+        string lastError = SetLastError(url, normalizedUrl, string.Empty);
         string? scriptPath = FindResolverScript();
         string? pythonPath = FindPython();
 
@@ -87,8 +102,8 @@ internal static class ExternalStreamResolver
 
         if (string.IsNullOrWhiteSpace(normalizedUrl))
         {
-            LastError = "empty or invalid url";
-            AppSessionLogger.Event("warn", "business", "stream_resolver_rejected", LastError, new
+            lastError = SetLastError(url, normalizedUrl, "empty or invalid url");
+            AppSessionLogger.Event("warn", "business", "stream_resolver_rejected", lastError, new
             {
                 originalUrl = url,
                 elapsedMilliseconds = stopwatch.ElapsedMilliseconds,
@@ -98,8 +113,8 @@ internal static class ExternalStreamResolver
 
         if (string.IsNullOrWhiteSpace(scriptPath))
         {
-            LastError = "stream resolver script not found";
-            AppSessionLogger.Event("warn", "business", "stream_resolver_rejected", LastError, new
+            lastError = SetLastError(url, normalizedUrl, "stream resolver script not found");
+            AppSessionLogger.Event("warn", "business", "stream_resolver_rejected", lastError, new
             {
                 normalizedUrl,
                 elapsedMilliseconds = stopwatch.ElapsedMilliseconds,
@@ -109,8 +124,8 @@ internal static class ExternalStreamResolver
 
         if (string.IsNullOrWhiteSpace(pythonPath))
         {
-            LastError = "python runtime not found";
-            AppSessionLogger.Event("error", "business", "stream_resolver_rejected", LastError, new
+            lastError = SetLastError(url, normalizedUrl, "python runtime not found");
+            AppSessionLogger.Event("error", "business", "stream_resolver_rejected", lastError, new
             {
                 normalizedUrl,
                 scriptPath,
@@ -144,8 +159,8 @@ internal static class ExternalStreamResolver
                     Debug.WriteLine(e);
                 }
 
-                LastError = "stream resolver timeout";
-                AppSessionLogger.Event("error", "business", "stream_resolver_timeout", LastError, new
+                lastError = SetLastError(url, normalizedUrl, "stream resolver timeout");
+                AppSessionLogger.Event("error", "business", "stream_resolver_timeout", lastError, new
                 {
                     normalizedUrl,
                     pythonPath,
@@ -171,9 +186,9 @@ internal static class ExternalStreamResolver
 
             if (!string.IsNullOrWhiteSpace(error))
             {
-                LastError = TrimError(error);
+                lastError = SetLastError(url, normalizedUrl, TrimError(error));
                 Debug.WriteLine(error);
-                AppSessionLogger.Event("warn", "system", "process_stderr", LastError, new
+                AppSessionLogger.Event("warn", "system", "process_stderr", lastError, new
                 {
                     normalizedUrl,
                     elapsedMilliseconds = stopwatch.ElapsedMilliseconds,
@@ -182,10 +197,10 @@ internal static class ExternalStreamResolver
 
             if (process.ExitCode != 0)
             {
-                LastError = string.IsNullOrWhiteSpace(LastError)
+                lastError = SetLastError(url, normalizedUrl, string.IsNullOrWhiteSpace(lastError)
                     ? $"stream resolver exited with code {process.ExitCode}"
-                    : $"stream resolver exited with code {process.ExitCode}: {LastError}";
-                AppSessionLogger.Event("error", "business", "stream_resolver_failed", LastError, new
+                    : $"stream resolver exited with code {process.ExitCode}: {lastError}");
+                AppSessionLogger.Event("error", "business", "stream_resolver_failed", lastError, new
                 {
                     normalizedUrl,
                     pythonPath,
@@ -199,10 +214,10 @@ internal static class ExternalStreamResolver
             string? json = FindLastJsonObject(output);
             if (string.IsNullOrWhiteSpace(json))
             {
-                LastError = string.IsNullOrWhiteSpace(LastError)
+                lastError = SetLastError(url, normalizedUrl, string.IsNullOrWhiteSpace(lastError)
                     ? "stream resolver returned no JSON output"
-                    : $"stream resolver returned no JSON output: {LastError}";
-                AppSessionLogger.Event("warn", "business", "stream_resolver_no_json", LastError, new
+                    : $"stream resolver returned no JSON output: {lastError}");
+                AppSessionLogger.Event("warn", "business", "stream_resolver_no_json", lastError, new
                 {
                     normalizedUrl,
                     elapsedMilliseconds = stopwatch.ElapsedMilliseconds,
@@ -210,14 +225,19 @@ internal static class ExternalStreamResolver
                 return null;
             }
 
-            ResolverJsonResult? result = DeserializeResult(json);
+            ResolverJsonResult? result = DeserializeResult(json, out string deserializeError);
 
             if (result == null)
             {
-                LastError = string.IsNullOrWhiteSpace(LastError)
+                if (!string.IsNullOrWhiteSpace(deserializeError))
+                {
+                    lastError = SetLastError(url, normalizedUrl, deserializeError);
+                }
+
+                lastError = SetLastError(url, normalizedUrl, string.IsNullOrWhiteSpace(lastError)
                     ? "stream resolver returned invalid JSON"
-                    : $"stream resolver returned invalid JSON: {LastError}";
-                AppSessionLogger.Event("warn", "business", "stream_resolver_invalid_json", LastError, new
+                    : $"stream resolver returned invalid JSON: {lastError}");
+                AppSessionLogger.Event("warn", "business", "stream_resolver_invalid_json", lastError, new
                 {
                     normalizedUrl,
                     elapsedMilliseconds = stopwatch.ElapsedMilliseconds,
@@ -230,13 +250,13 @@ internal static class ExternalStreamResolver
                 string.IsNullOrWhiteSpace(result.FlvUrl) &&
                 string.IsNullOrWhiteSpace(result.HlsUrl))
             {
-                LastError = string.IsNullOrWhiteSpace(result.Error) ? LastError : result.Error;
-                if (string.IsNullOrWhiteSpace(LastError))
+                lastError = SetLastError(url, normalizedUrl, string.IsNullOrWhiteSpace(result.Error) ? lastError : result.Error);
+                if (string.IsNullOrWhiteSpace(lastError))
                 {
-                    LastError = "stream resolver returned no room data";
+                    lastError = SetLastError(url, normalizedUrl, "stream resolver returned no room data");
                 }
 
-                AppSessionLogger.Event("warn", "business", "stream_resolver_no_room_data", LastError, new
+                AppSessionLogger.Event("warn", "business", "stream_resolver_no_room_data", lastError, new
                 {
                     normalizedUrl,
                     platform = GetPlatform(result.Platform, normalizedUrl),
@@ -246,7 +266,7 @@ internal static class ExternalStreamResolver
                 return null;
             }
 
-            LastError = string.IsNullOrWhiteSpace(result.Error) ? string.Empty : result.Error;
+            lastError = SetLastError(url, normalizedUrl, string.IsNullOrWhiteSpace(result.Error) ? string.Empty : result.Error);
             AppSessionLogger.Event("info", "business", "stream_resolver_succeeded", "stream resolver returned room data", new
             {
                 normalizedUrl,
@@ -263,7 +283,7 @@ internal static class ExternalStreamResolver
         }
         catch (Exception e)
         {
-            LastError = e.Message;
+            SetLastError(url, normalizedUrl, e.Message);
             Debug.WriteLine(e);
             AppSessionLogger.WriteException(e);
             return null;
@@ -289,8 +309,39 @@ internal static class ExternalStreamResolver
         }
     }
 
-    private static ResolverJsonResult? DeserializeResult(string json)
+    private static string SetLastError(string? originalUrl, string? normalizedUrl, string error)
     {
+        LastError = error;
+
+        foreach (string key in GetErrorKeys(originalUrl).Concat(GetErrorKeys(normalizedUrl)))
+        {
+            LastErrorsByUrl[key] = error;
+        }
+
+        return error;
+    }
+
+    private static IEnumerable<string> GetErrorKeys(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            yield break;
+        }
+
+        string key = url.Trim();
+        yield return key;
+
+        string? normalizedUrl = NormalizeUrl(key);
+        if (!string.IsNullOrWhiteSpace(normalizedUrl) && !normalizedUrl.Equals(key, StringComparison.OrdinalIgnoreCase))
+        {
+            yield return normalizedUrl;
+        }
+    }
+
+    private static ResolverJsonResult? DeserializeResult(string json, out string error)
+    {
+        error = string.Empty;
+
         try
         {
             return JsonSerializer.Deserialize<ResolverJsonResult>(json, new JsonSerializerOptions()
@@ -300,7 +351,7 @@ internal static class ExternalStreamResolver
         }
         catch (JsonException e)
         {
-            LastError = e.Message;
+            error = e.Message;
             Debug.WriteLine(e);
             return null;
         }
