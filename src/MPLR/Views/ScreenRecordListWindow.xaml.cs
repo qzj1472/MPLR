@@ -182,14 +182,37 @@ public partial class ScreenRecordListWindow : FluentWindow, INotifyPropertyChang
 
     private static IEnumerable<string> GetMetadataCandidates(FileInfo file)
     {
-        string directory = file.DirectoryName ?? string.Empty;
-        yield return Path.Combine(directory, $"{Path.GetFileNameWithoutExtension(file.Name)}.mplr.json");
+        yield return GetDirectMetadataPath(file);
 
+        if (TryGetSegmentBaseStem(file, out string baseStem))
+        {
+            yield return GetSharedSegmentMetadataPath(file, baseStem);
+        }
+    }
+
+    private static string GetDirectMetadataPath(FileInfo file)
+    {
+        string directory = file.DirectoryName ?? string.Empty;
+        return Path.Combine(directory, $"{Path.GetFileNameWithoutExtension(file.Name)}.mplr.json");
+    }
+
+    private static string GetSharedSegmentMetadataPath(FileInfo file, string baseStem)
+    {
+        string directory = file.DirectoryName ?? string.Empty;
+        return Path.Combine(directory, $"{baseStem}.mplr.json");
+    }
+
+    private static bool TryGetSegmentBaseStem(FileInfo file, out string baseStem)
+    {
         string stem = Path.GetFileNameWithoutExtension(file.Name);
         if (stem.Length > 4 && stem[^4] == '_' && int.TryParse(stem[^3..], NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
         {
-            yield return Path.Combine(directory, $"{stem[..^4]}.mplr.json");
+            baseStem = stem[..^4];
+            return true;
         }
+
+        baseStem = string.Empty;
+        return false;
     }
 
     private static string GuessNickName(FileInfo file, string root)
@@ -362,27 +385,57 @@ public partial class ScreenRecordListWindow : FluentWindow, INotifyPropertyChang
 
     private static void CopyMetadataForTarget(FileInfo source, string targetVideoPath, bool move)
     {
-        foreach (string metadataPath in GetMetadataCandidates(source))
+        string directMetadataPath = GetDirectMetadataPath(source);
+        if (File.Exists(directMetadataPath))
         {
-            if (!File.Exists(metadataPath))
-            {
-                continue;
-            }
-
-            string targetMetadataPath = Path.Combine(Path.GetDirectoryName(targetVideoPath) ?? string.Empty, $"{Path.GetFileNameWithoutExtension(targetVideoPath)}.mplr.json");
-            targetMetadataPath = GetUniquePath(targetMetadataPath);
-
-            if (move)
-            {
-                File.Move(metadataPath, targetMetadataPath);
-            }
-            else
-            {
-                File.Copy(metadataPath, targetMetadataPath);
-            }
-
+            CopyMetadataFileForTarget(directMetadataPath, targetVideoPath, move);
             return;
         }
+
+        if (TryGetSegmentBaseStem(source, out string baseStem))
+        {
+            string sharedMetadataPath = GetSharedSegmentMetadataPath(source, baseStem);
+            if (File.Exists(sharedMetadataPath))
+            {
+                CopyMetadataFileForTarget(sharedMetadataPath, targetVideoPath, false);
+            }
+        }
+    }
+
+    private static void CopyMetadataFileForTarget(string metadataPath, string targetVideoPath, bool move)
+    {
+        string targetMetadataPath = Path.Combine(Path.GetDirectoryName(targetVideoPath) ?? string.Empty, $"{Path.GetFileNameWithoutExtension(targetVideoPath)}.mplr.json");
+        targetMetadataPath = GetUniquePath(targetMetadataPath);
+
+        if (move)
+        {
+            File.Move(metadataPath, targetMetadataPath);
+            return;
+        }
+
+        File.Copy(metadataPath, targetMetadataPath);
+    }
+
+    private static bool IsSameOrAncestorDirectory(string parent, string child)
+    {
+        string normalizedParent = Path.GetFullPath(parent).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        string normalizedChild = Path.GetFullPath(child).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        return normalizedChild.Equals(normalizedParent, StringComparison.OrdinalIgnoreCase) ||
+            normalizedChild.StartsWith(normalizedParent + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+            normalizedChild.StartsWith(normalizedParent + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ShouldDeleteSharedSegmentMetadata(FileInfo file, ISet<string> selectedPaths)
+    {
+        if (!TryGetSegmentBaseStem(file, out string baseStem) || string.IsNullOrWhiteSpace(file.DirectoryName))
+        {
+            return false;
+        }
+
+        return Directory.EnumerateFiles(file.DirectoryName, $"{baseStem}_*.*", SearchOption.TopDirectoryOnly)
+            .Where(IsVideoFile)
+            .All(path => selectedPaths.Contains(Path.GetFullPath(path)));
     }
 
     private static IReadOnlyList<RecordedVideoItem> SnapshotSelected(IEnumerable<RecordedVideoItem> source)
@@ -528,6 +581,12 @@ public partial class ScreenRecordListWindow : FluentWindow, INotifyPropertyChang
         }
 
         string root = SaveFolderHelper.GetSaveFolder(Configurations.SaveFolder.Get());
+        if (IsSameOrAncestorDirectory(sourceFolder, root) || IsSameOrAncestorDirectory(root, sourceFolder))
+        {
+            Toast.Error("不能从当前保存目录、其上级目录或子目录导入视频");
+            return;
+        }
+
         int count = 0;
 
         foreach (string path in Directory.EnumerateFiles(sourceFolder, "*.*", SearchOption.AllDirectories).Where(IsVideoFile))
@@ -594,14 +653,28 @@ public partial class ScreenRecordListWindow : FluentWindow, INotifyPropertyChang
         }
 
         int deleted = 0;
+        HashSet<string> selectedPaths = selected
+            .Select(static item => Path.GetFullPath(item.FilePath))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         foreach (RecordedVideoItem item in selected)
         {
             try
             {
                 FileInfo file = new(item.FilePath);
-                foreach (string metadataPath in GetMetadataCandidates(file).Where(File.Exists))
+                string directMetadataPath = GetDirectMetadataPath(file);
+                if (File.Exists(directMetadataPath))
                 {
-                    File.Delete(metadataPath);
+                    File.Delete(directMetadataPath);
+                }
+
+                if (ShouldDeleteSharedSegmentMetadata(file, selectedPaths))
+                {
+                    string sharedMetadataPath = GetSharedSegmentMetadataPath(file, Path.GetFileNameWithoutExtension(file.Name)[..^4]);
+                    if (File.Exists(sharedMetadataPath))
+                    {
+                        File.Delete(sharedMetadataPath);
+                    }
                 }
 
                 File.Delete(item.FilePath);
