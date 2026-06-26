@@ -364,9 +364,10 @@ internal static class ExternalStreamResolver
             return null;
         }
 
-        foreach (string line in output.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries).Reverse())
+        string[] lines = output.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+        for (int i = lines.Length - 1; i >= 0; i--)
         {
-            string value = line.Trim();
+            string value = lines[i].Trim();
             if (!value.StartsWith('{') || !value.EndsWith('}'))
             {
                 continue;
