@@ -278,7 +278,7 @@ public sealed class Player
                 return null;
             }
 
-            foreach (string line in output.Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            foreach (string line in output.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
                 string[] parts = line.Split('x', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 if (parts.Length >= 2 &&
@@ -508,7 +508,7 @@ public sealed class Player
     private static string TrimError(string value)
     {
         string[] lines = value
-            .Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(line => !string.IsNullOrWhiteSpace(line))
             .TakeLast(6)
             .ToArray();
@@ -763,7 +763,7 @@ public sealed class Player
 
     private static string ExtractHeaderValue(string headers, string name)
     {
-        foreach (string header in headers.Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (string header in headers.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             int separator = header.IndexOf(':');
             if (separator <= 0)

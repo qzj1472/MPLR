@@ -19,7 +19,7 @@ internal static class PlatformCookieStore
     {
         Dictionary<string, string> cookies = new(StringComparer.OrdinalIgnoreCase);
 
-        foreach (string rawLine in value.Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (string rawLine in value.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             string line = rawLine.Trim();
             if (line.Length == 0 || line.StartsWith('#'))

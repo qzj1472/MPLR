@@ -364,7 +364,7 @@ internal static class ExternalStreamResolver
             return null;
         }
 
-        foreach (string line in output.Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries).Reverse())
+        foreach (string line in output.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries).Reverse())
         {
             string value = line.Trim();
             if (!value.StartsWith('{') || !value.EndsWith('}'))
@@ -388,7 +388,7 @@ internal static class ExternalStreamResolver
     private static string TrimError(string value)
     {
         string[] lines = value
-            .Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(line => !string.IsNullOrWhiteSpace(line))
             .TakeLast(8)
             .ToArray();
@@ -467,7 +467,7 @@ internal static class ExternalStreamResolver
     {
         Dictionary<string, string> cookies = new(StringComparer.OrdinalIgnoreCase);
 
-        foreach (string rawLine in value.Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (string rawLine in value.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             string line = rawLine.Trim();
             if (line.Length == 0 || line.StartsWith('#'))

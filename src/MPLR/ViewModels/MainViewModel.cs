@@ -1070,7 +1070,7 @@ public partial class MainViewModel : ReactiveObject
             return false;
         }
 
-        string[] parts = value.Split(['x', 'X', '*'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        string[] parts = value.Split(new[] { 'x', 'X', '*' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         return parts.Length == 2 &&
                int.TryParse(parts[0], out int width) &&
                int.TryParse(parts[1], out int height) &&

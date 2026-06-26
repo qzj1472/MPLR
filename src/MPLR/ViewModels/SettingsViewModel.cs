@@ -1107,7 +1107,7 @@ public partial class SettingsViewModel : ReactiveObject
     {
         Dictionary<string, string> cookies = new(StringComparer.OrdinalIgnoreCase);
 
-        foreach (string line in (value ?? string.Empty).Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (string line in (value ?? string.Empty).Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             int separator = line.IndexOf('=');
             if (separator <= 0)
