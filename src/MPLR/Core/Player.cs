@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using MPLR.Threading;
 
 namespace MPLR.Core;
 
@@ -91,6 +92,7 @@ public sealed class Player
 
             if (process != null)
             {
+                ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
                 AppSessionLogger.Event("info", "player", "preview_started", "ffplay preview process started", new
                 {
                     roomUrl,
@@ -258,6 +260,7 @@ public sealed class Player
             };
 
             process.Start();
+            ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
             string output = await process.StandardOutput.ReadToEndAsync(cancellationTokenSource.Token);
             string error = await process.StandardError.ReadToEndAsync(cancellationTokenSource.Token);
             await process.WaitForExitAsync(cancellationTokenSource.Token);

@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using MPLR.Core;
 using MPLR.Extensions;
+using MPLR.Threading;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -252,6 +253,7 @@ public partial class ScreenRecordListWindow : FluentWindow, INotifyPropertyChang
 
             using Process process = new() { StartInfo = startInfo };
             process.Start();
+            ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
 
             Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
             Task<string> errorTask = process.StandardError.ReadToEndAsync();

@@ -145,7 +145,7 @@ public partial class MainViewModel : ReactiveObject
         {
             GlobalMonitor.Start();
         }
-        ChildProcessTracerPeriodicTimer.Default.WhiteList = ["ffmpeg", "ffprobe", "ffplay", "python", "python3"];
+        ChildProcessTracerPeriodicTimer.Default.WhiteList = ["ffmpeg", "ffprobe", "ffplay", "python", "python3", "node"];
         ChildProcessTracerPeriodicTimer.Default.Start();
         DispatcherTimer.Start();
         _ = RefreshRoomCardsAsync(showToast: false);
@@ -382,16 +382,29 @@ public partial class MainViewModel : ReactiveObject
         }
 
         string value = message.ToLowerInvariant();
+        bool isDouyinWebDataRisk = value.Contains("douyin", StringComparison.Ordinal) &&
+            (value.Contains("web data fetch error", StringComparison.Ordinal) ||
+             value.Contains("expecting value", StringComparison.Ordinal) ||
+             value.Contains("jsondecodeerror", StringComparison.Ordinal));
+
+        if (isDouyinWebDataRisk)
+        {
+            return true;
+        }
+
         string[] keywords =
         [
             "cookie",
             "login",
             "captcha",
+            "risk",
             "forbidden",
             "blocked",
             "ip banned",
             "403",
             "401",
+            "returned no json",
+            "returned invalid json",
             "登录",
             "登陆",
             "验证码",
@@ -524,6 +537,7 @@ public partial class MainViewModel : ReactiveObject
 
         if (isToRecord && Configurations.IsMonitorRunning.Get())
         {
+            GlobalMonitor.ClearTemporaryRecordOverrides();
             GlobalMonitor.Start();
             _ = Task.Run(() => GlobalMonitor.RunOnceAsync());
         }
@@ -535,6 +549,8 @@ public partial class MainViewModel : ReactiveObject
                 {
                     roomStatus.Recorder.Stop();
                 }
+
+                roomStatus.RecordStatus = RecordStatus.Disabled;
             }
         }
 
@@ -1149,7 +1165,11 @@ public partial class MainViewModel : ReactiveObject
 
                 if (result == ContentDialogResult.Primary)
                 {
+                    GlobalMonitor.SetTemporaryRoomRecord(SelectedItem.RoomUrl, false);
                     roomStatus.Recorder.Stop();
+                    roomStatus.RecordStatus = RecordStatus.Disabled;
+                    SelectedItem.RecordStatus = RecordStatus.Disabled;
+                    SelectedItem.RefreshStatus();
                     Toast.Success("SuccOp".Tr());
                 }
             }
@@ -1272,6 +1292,8 @@ public partial class MainViewModel : ReactiveObject
 
         if (SelectedItem.IsToRecord && SelectedItem.EffectiveIsToMonitor)
         {
+            GlobalMonitor.ClearTemporaryRoomRecord(SelectedItem.RoomUrl);
+
             if (!Configurations.IsMonitorRunning.Get())
             {
                 Configurations.IsMonitorRunning.Set(true);
@@ -1304,7 +1326,11 @@ public partial class MainViewModel : ReactiveObject
         if (GlobalMonitor.RoomStatus.TryGetValue(SelectedItem.RoomUrl, out RoomStatus? roomStatus) &&
             roomStatus.RecordStatus == RecordStatus.Recording)
         {
+            GlobalMonitor.SetTemporaryRoomRecord(SelectedItem.RoomUrl, false);
             roomStatus.Recorder.Stop();
+            roomStatus.RecordStatus = RecordStatus.Disabled;
+            SelectedItem.RecordStatus = RecordStatus.Disabled;
+            SelectedItem.RefreshStatus();
         }
     }
 

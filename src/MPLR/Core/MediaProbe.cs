@@ -2,6 +2,7 @@
 using System.Globalization;
 using System.Text.Json;
 using MPLR.Extensions;
+using MPLR.Threading;
 
 namespace MPLR.Core;
 
@@ -28,6 +29,7 @@ internal static class MediaProbe
 
             using Process process = new() { StartInfo = startInfo };
             process.Start();
+            ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
 
             Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
             Task<string> errorTask = process.StandardError.ReadToEndAsync();
@@ -189,6 +191,7 @@ internal static class MediaProbe
 
             using Process process = new() { StartInfo = startInfo };
             process.Start();
+            ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
 
             Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
             Task<string> errorTask = process.StandardError.ReadToEndAsync();

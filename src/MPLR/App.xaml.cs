@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Threading;
 using MPLR.Core;
 using MPLR.Extensions;
+using MPLR.Threading;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Violeta.Appearance;
 using Wpf.Ui.Violeta.Controls;
@@ -98,6 +99,9 @@ public partial class App : Application
     /// </summary>
     protected override void OnExit(ExitEventArgs e)
     {
+        GlobalMonitor.Stop();
+        GlobalMonitor.StopAllRecorders();
+        ChildProcessTracerPeriodicTimer.Default.Stop(killChildren: true);
         ConfigChangeLogger.Stop();
         AppSessionLogger.Stop();
         base.OnExit(e);

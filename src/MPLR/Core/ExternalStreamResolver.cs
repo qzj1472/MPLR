@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using MPLR.Threading;
 
 namespace MPLR.Core;
 
@@ -125,6 +126,7 @@ internal static class ExternalStreamResolver
             };
 
             process.Start();
+            ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
 
             Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
             Task<string> errorTask = process.StandardError.ReadToEndAsync();
@@ -510,6 +512,7 @@ internal static class ExternalStreamResolver
 
             process.StartInfo.ArgumentList.Add("--version");
             process.Start();
+            ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
 
             if (!process.WaitForExit(3000))
             {

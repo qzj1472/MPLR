@@ -1,11 +1,11 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
-using Flucli;
-using Flucli.Utils.Extensions;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using MPLR.Extensions;
 using MPLR.Models;
+using MPLR.Threading;
 
 namespace MPLR.Core;
 
@@ -14,6 +14,14 @@ public sealed class Recorder
     public RecordStatus RecordStatus { get; internal set; } = RecordStatus.Initialized;
 
     public CancellationTokenSource? TokenSource { get; private set; } = null;
+
+    private readonly object stateLock = new();
+
+    private readonly object processLock = new();
+
+    private Process? currentProcess = null;
+
+    private Task? recordingTask = null;
 
     public string? Url { get; set; } = null;
 
@@ -29,201 +37,499 @@ public sealed class Recorder
 
     public Task Start(RecorderStartInfo startInfo, CancellationTokenSource? tokenSource = null)
     {
-        if (RecordStatus == RecordStatus.Recording)
+        lock (stateLock)
         {
-            // Already recording
-            return Task.CompletedTask;
-        }
-
-        RecordStatus = RecordStatus.Recording;
-
-        // Start a recording task that does not use the default ThreadPool.
-        return Task.Factory.StartNew(async () =>
-        {
-            try
+            if (RecordStatus == RecordStatus.Recording || recordingTask is { IsCompleted: false })
             {
-                string? recorderPath = SearchFileHelper.SearchFiles(".", "ffmpeg[\\.exe]").FirstOrDefault();
+                return recordingTask ?? Task.CompletedTask;
+            }
 
-                if (recorderPath == null)
-                {
-                    // Recorder not found so you should reinstall the program.
-                    RecordStatus = RecordStatus.NotRecording;
-                    return;
-                }
+            RecordStatus = RecordStatus.Recording;
+            TokenSource = tokenSource ?? new CancellationTokenSource();
+            recordingTask = Task.Factory.StartNew(
+                () => RunAsync(startInfo, TokenSource.Token),
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default
+            ).Unwrap();
+            return recordingTask;
+        }
+    }
 
-                string saveFolder = SaveFolderHelper.GetRecordFolder(Configurations.SaveFolder.Get(), startInfo, DateTime.Now);
-                if (!Directory.Exists(saveFolder))
-                {
-                    Directory.CreateDirectory(saveFolder);
-                }
+    private async Task RunAsync(RecorderStartInfo startInfo, CancellationToken token)
+    {
+        try
+        {
+            string? recorderPath = SearchFileHelper.SearchFiles(".", "ffmpeg[\\.exe]").FirstOrDefault();
 
-                string userAgent = Configurations.UserAgent.Get();
-                string httpProxy = Configurations.ProxyUrl.Get();
-                bool isUseProxy = Configurations.IsUseProxy.Get() && !string.IsNullOrWhiteSpace(httpProxy);
-                int segmentTime = Configurations.SegmentTime.Get();
-                bool isToSegment = Configurations.IsToSegment.Get() && segmentTime > 0;
+            if (recorderPath == null)
+            {
+                RecordStatus = RecordStatus.NotRecording;
+                return;
+            }
 
-                IsToSegment = isToSegment;
-                Url = SelectInputUrl(startInfo);
+            string saveFolder = SaveFolderHelper.GetRecordFolder(Configurations.SaveFolder.Get(), startInfo, DateTime.Now);
+            if (!Directory.Exists(saveFolder))
+            {
+                Directory.CreateDirectory(saveFolder);
+            }
 
-                if (string.IsNullOrWhiteSpace(Url))
-                {
-                    RecordStatus = RecordStatus.NotRecording;
-                    return;
-                }
+            string userAgent = Configurations.UserAgent.Get();
+            string httpProxy = Configurations.ProxyUrl.Get();
+            bool isUseProxy = Configurations.IsUseProxy.Get() && !string.IsNullOrWhiteSpace(httpProxy);
+            int segmentTime = Configurations.SegmentTime.Get();
+            bool isToSegment = Configurations.IsToSegment.Get() && segmentTime > 0;
+            string? targetFormat = GetTargetFormat(Configurations.RecordFormat.Get());
+            bool isDirectSegmentTarget = isToSegment && string.Equals(targetFormat, ".mkv", StringComparison.OrdinalIgnoreCase);
 
-                DateTime now = DateTime.Now;
-                string outputExtension = IsHlsUrl(Url, startInfo) || isToSegment ? "ts" : "flv";
-                string fileName = BuildRecordFileName(startInfo, now);
-                string fileNamePattern = isToSegment
-                    ? $"{fileName}_%03d.{outputExtension}"
-                    : $"{fileName}.{outputExtension}";
+            IsToSegment = isToSegment;
+            Url = SelectInputUrl(startInfo);
 
-                FileName = Path.Combine(saveFolder, fileNamePattern);
-                WriteMetadata(saveFolder, fileName, outputExtension, startInfo, now);
+            if (string.IsNullOrWhiteSpace(Url))
+            {
+                RecordStatus = RecordStatus.NotRecording;
+                return;
+            }
 
-                bool isOversea = IsOverseaUrl(startInfo.RoomUrl) || IsOverseaUrl(Url);
-                string rwTimeout = isOversea ? "50000000" : "15000000";
-                string analyzeduration = isOversea ? "40000000" : "20000000";
-                string probesize = isOversea ? "20000000" : "10000000";
-                string bufsize = isOversea ? "15000k" : "8000k";
-                string maxMuxingQueueSize = isOversea ? "2048" : "1024";
+            DateTime now = DateTime.Now;
+            string outputExtension = isDirectSegmentTarget ? "mkv" : IsHlsUrl(Url, startInfo) || isToSegment ? "ts" : "flv";
+            string segmentFormat = isDirectSegmentTarget ? "matroska" : "mpegts";
+            string fileName = BuildRecordFileName(startInfo, now);
+            string fileNamePattern = isToSegment
+                ? $"{fileName}_%03d.{outputExtension}"
+                : $"{fileName}.{outputExtension}";
 
-                string headers = (startInfo.Headers ?? string.Empty).Trim();
-                if (!string.IsNullOrWhiteSpace(headers) && !headers.EndsWith('\n'))
-                {
-                    headers += "\r\n";
-                }
+            FileName = Path.Combine(saveFolder, fileNamePattern);
+            WriteMetadata(saveFolder, fileName, outputExtension, startInfo, now);
 
-                if (string.IsNullOrWhiteSpace(userAgent))
-                {
-                    userAgent = "Mozilla/5.0 (Linux; Android 11; SAMSUNG SM-G973U) AppleWebKit/537.36 ("
-                              + "KHTML, like Gecko) SamsungBrowser/14.2 Chrome/87.0.4280.141 Mobile "
-                              + "Safari/537.36";
-                }
+            bool isOversea = IsOverseaUrl(startInfo.RoomUrl) || IsOverseaUrl(Url);
+            string rwTimeout = isOversea ? "50000000" : "15000000";
+            string analyzeduration = isOversea ? "40000000" : "20000000";
+            string probesize = isOversea ? "20000000" : "10000000";
+            string bufsize = isOversea ? "15000k" : "8000k";
+            string maxMuxingQueueSize = isOversea ? "2048" : "1024";
 
-                Parameters = new List<string>() {
-                    "-y",                             // Overwrite output files.
-                    "-v", "verbose",                  // Set logging level to `verbose`.
-                    "-rw_timeout", rwTimeout,         // Set maximum time to wait for (network) read/write operations to complete, in microseconds to `15 seconds`.
-                    "-loglevel", "error",             // Set logging level to `error`.
-                    "-hide_banner",                   // Suppress printing banner.
-                    "-user_agent", userAgent,         // Override the User-Agent header. If not specified the protocol will use a string describing the libavformat build. ("Lavf/<version>")
-                    "-protocol_whitelist", "rtmp,crypto,file,http,https,tcp,tls,udp,rtp,httpproxy",
-                                                      // Set a ","-separated list of allowed protocols.
-                                                      // "ALL" matches all protocols.
-                                                      // Protocols prefixed by "-" are disabled.
-                                                      // All protocols are allowed by default but protocols used by an another protocol (nested protocols) are restricted to a per protocol subset.
-                    "-thread_queue_size", "1024",     // For input, this option sets the maximum number of queued packets when reading from the file or device.
-                                                      // With low latency / high rate live streams, packets may be discarded if they are not read in a timely manner; setting this value can force ffmpeg to use a separate input thread and read packets as soon as they arrive.
-                                                      // By default ffmpeg only does this if multiple inputs are specified.
-                                                      // For output, this option specified the maximum number of packets that may be queued to each muxing thread.
-                    "-analyzeduration", analyzeduration, // Specify how many microseconds are analyzed to probe the input.
-                                                      // A higher value will enable detecting more accurate information, but will increase latency.
-                                                      // It defaults to 5,000,000 microseconds = 5 seconds.
-                                                      // Set to 20,000,000 microseconds = 20 seconds.
-                    "-probesize", probesize,          // Set probing size in bytes, i.e. the size of the data to analyze to get stream information.
-                                                      // A higher value will enable detecting more information in case it is dispersed into the stream, but will increase latency.
-                                                      // Must be an integer not lesser than 32. It is 5000000 by default.
-                    "-fflags", "+discardcorrupt",     // Set format flags. Some are implemented for a limited number of formats.
-                                                      // Set to +discardcorrupt: Discard corrupted packets.
-                }
+            string headers = (startInfo.Headers ?? string.Empty).Trim();
+            if (!string.IsNullOrWhiteSpace(headers) && !headers.EndsWith('\n'))
+            {
+                headers += "\r\n";
+            }
+
+            if (string.IsNullOrWhiteSpace(userAgent))
+            {
+                userAgent = "Mozilla/5.0 (Linux; Android 11; SAMSUNG SM-G973U) AppleWebKit/537.36 ("
+                          + "KHTML, like Gecko) SamsungBrowser/14.2 Chrome/87.0.4280.141 Mobile "
+                          + "Safari/537.36";
+            }
+
+            List<string> arguments =
+            [
+                "-y",
+                "-v", "verbose",
+                "-rw_timeout", rwTimeout,
+                "-loglevel", "error",
+                "-hide_banner",
+                "-user_agent", userAgent,
+                "-protocol_whitelist", "rtmp,crypto,file,http,https,tcp,tls,udp,rtp,httpproxy",
+                "-thread_queue_size", "1024",
+                "-analyzeduration", analyzeduration,
+                "-probesize", probesize,
+                "-fflags", "+discardcorrupt",
+            ];
+
+            arguments
                 .AddIf(isUseProxy, "-http_proxy", httpProxy)
                 .AddIf(!string.IsNullOrWhiteSpace(headers), "-headers", headers)
                 .AddIf(true,
-                    "-i", Url,                        // Input infile.
-                    "-bufsize", bufsize,              // Specifies the decoder buffer size, which determines the variability of the output bitrate.
-                    "-sn",                            // Disable subtitle.
-                    "-dn",                            // Disable data.
-                    "-reconnect_delay_max", "60",     // Set the maximum delay in seconds after which to give up reconnecting.
-                    "-reconnect_streamed",            // If set then even streamed/non seekable streams will be reconnected on errors.
-                    "-reconnect_at_eof",              // If set then eof is treated like an error and causes reconnection, this is useful for live / endless streams.
-                    "-max_muxing_queue_size", maxMuxingQueueSize, // When transcoding audio and/or video streams, ffmpeg will not begin writing into the output until it has one packet for each such stream.
-                                                      // While waiting for that to happen, packets for other streams are buffered.
-                                                      // This option sets the size of this buffer, in packets, for the matching output stream.
-                                                      // The default value of this option should be high enough for most uses, so only touch this option if you are sure that you need it.
-                    "-correct_ts_overflow", "1",      // Correct single timestamp overflows if set to 1. Default is 1.
+                    "-i", Url,
+                    "-bufsize", bufsize,
+                    "-sn",
+                    "-dn",
+                    "-reconnect_delay_max", "60",
+                    "-reconnect_streamed",
+                    "-reconnect_at_eof",
+                    "-max_muxing_queue_size", maxMuxingQueueSize,
+                    "-correct_ts_overflow", "1",
                     "-avoid_negative_ts", "1",
-                    "-c:v", "copy",                   // Video codec name.
-                    "-c:a", "copy",                   // Audio codec name.
-                    "-map", "0"                       // Set input stream mapping.
+                    "-c:v", "copy",
+                    "-c:a", "copy",
+                    "-map", "0"
                 )
                 .AddIf(isToSegment,
                     "-f", "segment",
-                    "-segment_time", segmentTime.ToString(), // in secs
-                    "-segment_format", "mpegts",
+                    "-segment_time", segmentTime.ToString(),
+                    "-segment_time_delta", "0.05",
+                    "-segment_format", segmentFormat
+                )
+                .AddIf(isToSegment && isDirectSegmentTarget,
+                    "-break_non_keyframes", "1"
+                )
+                .AddIf(isToSegment,
                     "-reset_timestamps", "1"
                 )
-                .AddIf(true, FileName) // _%03d
-                .ToArguments();
-                TokenSource = tokenSource ?? new CancellationTokenSource();
+                .AddIf(true, FileName);
 
-                EndTime = DateTime.MinValue;
-                StartTime = DateTime.Now;
+            Parameters = FormatArguments(arguments);
+            EndTime = DateTime.MinValue;
+            StartTime = DateTime.Now;
 
-                CliResult result = await recorderPath
-                    .WithArguments(Parameters)
-                    .WithEnvironmentVariable(
-                    [
-                        (isUseProxy ? "http_proxy" : "__TIKTOKLIVEREC_IGNORE_HTTP_PROXY__", "http://" + httpProxy),
-                        (isUseProxy ? "https_proxy" : "__TIKTOKLIVEREC_IGNORE_HTTPS_PROXY__", "http://" + httpProxy),
-                    ])
-                    .WithStandardErrorPipe(PipeTarget.ToDelegate(OnStandardErrorReceived, Encoding.UTF8))
-                    .WithStandardOutputPipe(PipeTarget.ToDelegate(OnStandardOutputReceived, Encoding.UTF8))
-                    .ExecuteAsync(cancellationToken: TokenSource.Token);
-            }
-            catch (Exception e)
+            await ExecuteRecorderAsync(recorderPath, arguments, isUseProxy, httpProxy, token);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception e)
+        {
+            Debug.WriteLine(e);
+        }
+        finally
+        {
+            await ConvertRecordedFileAsync();
+            EndTime = DateTime.Now;
+            lock (stateLock)
             {
-                Debug.WriteLine(e);
-            }
-
-            try
-            {
-                // Converter to target format if recorded.
-                if (File.Exists(FileName))
+                if (RecordStatus == RecordStatus.Recording)
                 {
-                    string formatArrow = Configurations.RecordFormat.Get();
-
-                    if (!string.IsNullOrEmpty(formatArrow) && formatArrow.Contains("->"))
-                    {
-                        formatArrow = "." + formatArrow.Split('>')[1].Trim().ToLower();
-
-                        // Execute the converter asynchronously.
-                        // So don't use await here.
-                        _ = new Converter().ExecuteAsync(FileName, formatArrow)
-                            .ContinueWith(task =>
-                            {
-                                // Remove only the conversion is successful.
-                                if (task.Result && Configurations.IsRemoveTs.Get())
-                                {
-                                    try
-                                    {
-                                        File.Delete(FileName);
-                                        FileName = Path.ChangeExtension(FileName, formatArrow);
-                                    }
-                                    catch (Exception e)
-                                    {
-                                        Debug.WriteLine(e);
-                                    }
-                                }
-                            })
-                            .ConfigureAwait(false);
-                    }
+                    RecordStatus = RecordStatus.NotRecording;
                 }
             }
-            catch (Exception e)
-            {
-                Debug.WriteLine(e);
-            }
-
-            EndTime = DateTime.Now;
-            RecordStatus = RecordStatus.NotRecording;
-        }, TaskCreationOptions.LongRunning);
+        }
     }
 
     public void Stop()
     {
-        TokenSource?.Cancel();
+        RequestCurrentProcessExit();
+        lock (stateLock)
+        {
+            TokenSource?.Cancel();
+            if (RecordStatus == RecordStatus.Recording)
+            {
+                EndTime = DateTime.Now;
+                RecordStatus = RecordStatus.NotRecording;
+            }
+        }
+    }
+
+    private async Task ExecuteRecorderAsync(string recorderPath, List<string> arguments, bool isUseProxy, string httpProxy, CancellationToken token)
+    {
+        ProcessStartInfo startInfo = new()
+        {
+            FileName = recorderPath,
+            UseShellExecute = false,
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+            RedirectStandardInput = true,
+            CreateNoWindow = true,
+            StandardErrorEncoding = Encoding.UTF8,
+            StandardOutputEncoding = Encoding.UTF8,
+        };
+
+        foreach (string argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        if (isUseProxy)
+        {
+            startInfo.Environment["http_proxy"] = "http://" + httpProxy;
+            startInfo.Environment["https_proxy"] = "http://" + httpProxy;
+        }
+
+        using Process process = new() { StartInfo = startInfo };
+        process.Start();
+        ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
+
+        lock (processLock)
+        {
+            currentProcess = process;
+        }
+
+        Task errorTask = ReadPipeAsync(process.StandardError, OnStandardErrorReceived, CancellationToken.None);
+        Task outputTask = ReadPipeAsync(process.StandardOutput, OnStandardOutputReceived, CancellationToken.None);
+        bool wasCanceled = false;
+
+        try
+        {
+            Task exitTask = process.WaitForExitAsync(CancellationToken.None);
+            Task cancellationTask = WaitForCancellationAsync(token);
+            Task completedTask = await Task.WhenAny(exitTask, cancellationTask);
+
+            if (completedTask == cancellationTask && token.IsCancellationRequested)
+            {
+                wasCanceled = true;
+                await StopProcessGracefullyAsync(process);
+            }
+            else
+            {
+                await exitTask;
+            }
+        }
+        finally
+        {
+            lock (processLock)
+            {
+                if (ReferenceEquals(currentProcess, process))
+                {
+                    currentProcess = null;
+                }
+            }
+        }
+
+        await Task.WhenAll(errorTask, outputTask);
+
+        if (wasCanceled)
+        {
+            throw new OperationCanceledException(token);
+        }
+    }
+
+    private static async Task WaitForCancellationAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, token);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private static async Task ReadPipeAsync(StreamReader reader, Func<string, CancellationToken, Task> handler, CancellationToken token)
+    {
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                string? line = await reader.ReadLineAsync(token);
+                if (line == null)
+                {
+                    break;
+                }
+
+                await handler(line, token);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private async Task ConvertRecordedFileAsync()
+    {
+        try
+        {
+            CleanEmptySegmentFiles();
+            string? targetFormat = GetTargetFormat(Configurations.RecordFormat.Get());
+
+            if (string.IsNullOrWhiteSpace(targetFormat))
+            {
+                return;
+            }
+
+            string[] sourceFiles = GetRecordedSourceFiles()
+                .Where(IsConvertibleSourceFile)
+                .ToArray();
+
+            foreach (string sourceFile in sourceFiles)
+            {
+                if (await new Converter().ExecuteAsync(sourceFile, targetFormat) && Configurations.IsRemoveTs.Get())
+                {
+                    TryDelete(sourceFile);
+
+                    if (string.Equals(FileName, sourceFile, StringComparison.OrdinalIgnoreCase))
+                    {
+                        FileName = Path.ChangeExtension(sourceFile, targetFormat);
+                    }
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.WriteLine(e);
+        }
+    }
+
+    private string[] GetRecordedSourceFiles()
+    {
+        if (string.IsNullOrWhiteSpace(FileName))
+        {
+            return [];
+        }
+
+        if (!FileName.Contains("%03d", StringComparison.Ordinal))
+        {
+            return File.Exists(FileName) ? [FileName] : [];
+        }
+
+        string? directory = Path.GetDirectoryName(FileName);
+        string pattern = Path.GetFileName(FileName);
+
+        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory) || string.IsNullOrWhiteSpace(pattern))
+        {
+            return [];
+        }
+
+        string regexPattern = "^" + Regex.Escape(pattern).Replace("%03d", @"\d{3}") + "$";
+        Regex regex = new(regexPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        return Directory.EnumerateFiles(directory)
+            .Where(file => regex.IsMatch(Path.GetFileName(file)))
+            .OrderBy(file => file, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private void CleanEmptySegmentFiles()
+    {
+        foreach (string file in GetRecordedSourceFiles())
+        {
+            try
+            {
+                FileInfo info = new(file);
+                if (info.Exists && info.Length == 0)
+                {
+                    info.Delete();
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine(e);
+            }
+        }
+    }
+
+    private static bool IsConvertibleSourceFile(string file)
+    {
+        try
+        {
+            FileInfo info = new(file);
+            if (!info.Exists || info.Length == 0)
+            {
+                return false;
+            }
+
+            return info.Extension.Equals(".ts", StringComparison.OrdinalIgnoreCase) ||
+                   info.Extension.Equals(".flv", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string? GetTargetFormat(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || !value.Contains("->", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        string target = value.Split("->", StringSplitOptions.TrimEntries).LastOrDefault() ?? string.Empty;
+        return string.IsNullOrWhiteSpace(target) ? null : "." + target.TrimStart('.').ToLowerInvariant();
+    }
+
+    private static void TryDelete(string file)
+    {
+        try
+        {
+            if (File.Exists(file))
+            {
+                File.Delete(file);
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.WriteLine(e);
+        }
+    }
+
+    private void RequestCurrentProcessExit()
+    {
+        Process? process;
+        lock (processLock)
+        {
+            process = currentProcess;
+        }
+
+        if (process != null)
+        {
+            RequestProcessExit(process);
+        }
+    }
+
+    private static async Task StopProcessGracefullyAsync(Process process)
+    {
+        RequestProcessExit(process);
+
+        if (await WaitForExitAsync(process, TimeSpan.FromSeconds(15)))
+        {
+            return;
+        }
+
+        KillProcessTree(process);
+        await process.WaitForExitAsync(CancellationToken.None);
+    }
+
+    private static void RequestProcessExit(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.StandardInput.WriteLine("q");
+                process.StandardInput.Flush();
+            }
+        }
+        catch (Exception e) when (e is InvalidOperationException or IOException or ObjectDisposedException)
+        {
+        }
+    }
+
+    private static async Task<bool> WaitForExitAsync(Process process, TimeSpan timeout)
+    {
+        try
+        {
+            Task exitTask = process.WaitForExitAsync(CancellationToken.None);
+            Task timeoutTask = Task.Delay(timeout);
+            return await Task.WhenAny(exitTask, timeoutTask) == exitTask;
+        }
+        catch (InvalidOperationException)
+        {
+            return true;
+        }
+    }
+
+    private static void KillProcessTree(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+            }
+        }
+        catch (Exception e) when (e is InvalidOperationException or ArgumentException)
+        {
+        }
+    }
+
+    private static string FormatArguments(IEnumerable<string> arguments)
+    {
+        return string.Join(" ", arguments.Select(FormatArgument));
+    }
+
+    private static string FormatArgument(string argument)
+    {
+        if (argument.Length == 0)
+        {
+            return "\"\"";
+        }
+
+        return argument.Any(char.IsWhiteSpace) || argument.Contains('"')
+            ? "\"" + argument.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\""
+            : argument;
     }
 
     private static string SelectInputUrl(RecorderStartInfo startInfo)
@@ -345,7 +651,6 @@ public sealed class Recorder
 
     private Task OnStandardErrorReceived(string data, CancellationToken token)
     {
-        // TODO
         Debug.WriteLine(data);
         _ = WeakReferenceMessenger.Default.Send(new RecorderMessage()
         {
@@ -357,7 +662,6 @@ public sealed class Recorder
 
     private Task OnStandardOutputReceived(string data, CancellationToken token)
     {
-        // TODO
         Debug.WriteLine(data);
         _ = WeakReferenceMessenger.Default.Send(new RecorderMessage()
         {

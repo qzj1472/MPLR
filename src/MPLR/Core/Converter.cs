@@ -1,10 +1,9 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
-using Flucli;
-using Flucli.Utils.Extensions;
 using System.Diagnostics;
 using System.Text;
 using MPLR.Extensions;
 using MPLR.Models;
+using MPLR.Threading;
 
 namespace MPLR.Core;
 
@@ -19,7 +18,6 @@ public sealed class Converter
 
         if (recorderPath == null)
         {
-            // Error on Converter not found
             return false;
         }
 
@@ -36,43 +34,115 @@ public sealed class Converter
         }
 
         string targetFileName = Path.ChangeExtension(sourceFileName, targetFormat);
-        string parameters = string.Empty;
+        List<string> arguments = [];
 
-        // From TS to other format
         if (sourceFileInfo.Extension.Equals(".ts", StringComparison.CurrentCultureIgnoreCase))
         {
-            parameters = new List<string>()
-            {
+            arguments =
+            [
                 "-y",
                 "-fflags", "+genpts",
                 "-i", sourceFileName,
                 "-c", "copy", targetFileName,
-            }.ToArguments();
+            ];
         }
         else if (sourceFileInfo.Extension.Equals(".flv", StringComparison.CurrentCultureIgnoreCase))
         {
-            parameters = new List<string>()
-            {
+            arguments =
+            [
                 "-y",
                 "-i", sourceFileName,
                 "-c", "copy", targetFileName,
-            }.ToArguments();
+            ];
+        }
+        else
+        {
+            return false;
         }
 
-        CliResult result = await recorderPath
-            .WithArguments(parameters)
-            .WithStandardErrorPipe(PipeTarget.ToDelegate(OnStandardErrorReceived, Encoding.UTF8))
-            .WithStandardOutputPipe(PipeTarget.ToDelegate(OnStandardOutputReceived, Encoding.UTF8))
-            .ExecuteAsync(cancellationToken: tokenSource?.Token ?? default);
+        using Process process = new()
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = recorderPath,
+                UseShellExecute = false,
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                CreateNoWindow = true,
+                StandardErrorEncoding = Encoding.UTF8,
+                StandardOutputEncoding = Encoding.UTF8,
+            },
+        };
 
-        Debug.WriteLine($"[Converter] exit code is {result.ExitCode}.");
+        foreach (string argument in arguments)
+        {
+            process.StartInfo.ArgumentList.Add(argument);
+        }
 
-        return result.IsSuccess;
+        CancellationToken token = tokenSource?.Token ?? default;
+        process.Start();
+        ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
+
+        Task errorTask = ReadPipeAsync(process.StandardError, OnStandardErrorReceived, token);
+        Task outputTask = ReadPipeAsync(process.StandardOutput, OnStandardOutputReceived, token);
+
+        try
+        {
+            await process.WaitForExitAsync(token);
+        }
+        catch (OperationCanceledException)
+        {
+            KillProcessTree(process);
+            await process.WaitForExitAsync(CancellationToken.None);
+            throw;
+        }
+
+        await Task.WhenAll(errorTask, outputTask);
+
+        Debug.WriteLine($"[Converter] exit code is {process.ExitCode}.");
+
+        return process.ExitCode == 0 && File.Exists(targetFileName);
+    }
+
+    private static async Task ReadPipeAsync(StreamReader reader, Func<string, CancellationToken, Task> handler, CancellationToken token)
+    {
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                string? line = await reader.ReadLineAsync(token);
+                if (line == null)
+                {
+                    break;
+                }
+
+                await handler(line, token);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private static void KillProcessTree(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+            }
+        }
+        catch (Exception e) when (e is InvalidOperationException or ArgumentException)
+        {
+        }
     }
 
     private Task OnStandardErrorReceived(string data, CancellationToken token)
     {
-        // TODO
         Debug.WriteLine(data);
         _ = WeakReferenceMessenger.Default.Send(new RecorderMessage()
         {
@@ -84,7 +154,6 @@ public sealed class Converter
 
     private Task OnStandardOutputReceived(string data, CancellationToken token)
     {
-        // TODO
         Debug.WriteLine(data);
         _ = WeakReferenceMessenger.Default.Send(new RecorderMessage()
         {
