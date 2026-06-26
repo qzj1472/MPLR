@@ -1,27 +1,209 @@
 name: build
 
 on:
-  release:
-    types: [created]
   push:
     branches:
-      - master
+      - main
+    tags:
+      - v*
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Publish a GitHub release
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: Release tag, defaults to v{VersionPrefix}
+        required: false
+        default: ""
+        type: string
+      changelog_ref:
+        description: Optional branch or ref to read extra handwritten release notes from
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      PROJECT_PATH: src/MPLR/MPLR.csproj
+      PUBLISH_DIR: artifacts/publish/win-x64
+      PACKAGE_DIR: artifacts/package
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
 
-      - name: Install dependencies
-        run: cd src\TiktokLiveRec.WPF && dotnet restore TiktokLiveRec.WPF.csproj
+      - name: Read version
+        id: version
+        shell: pwsh
+        run: |
+          $props = [xml](Get-Content "Directory.Build.props")
+          $version = $props.Project.PropertyGroup.VersionPrefix
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw "VersionPrefix is empty"
+          }
+          $inputTag = "${{ inputs.release_tag }}"
+          if ($env:GITHUB_REF -like "refs/tags/*") {
+            $tag = $env:GITHUB_REF_NAME
+          } elseif ([string]::IsNullOrWhiteSpace($inputTag)) {
+            $tag = "v$version"
+          } else {
+            $tag = $inputTag.Trim()
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "asset_name=MPLR_v$version`_win-x64.zip" >> $env:GITHUB_OUTPUT
+
+      - name: Restore
+        run: dotnet restore $env:PROJECT_PATH
 
       - name: Build
-        run: cd src\TiktokLiveRec.WPF && dotnet build TiktokLiveRec.WPF.csproj --configuration Release --no-restore
+        run: dotnet build $env:PROJECT_PATH -c Release -p:Platform=x64 --no-restore
 
+      - name: Test
+        run: dotnet test MPLR.sln -c Release -p:Platform=x64 --no-build
+
+      - name: Publish
+        shell: pwsh
+        run: |
+          dotnet publish $env:PROJECT_PATH -c Release -p:Platform=x64 -p:PublishProfile=FolderProfile -o $env:PUBLISH_DIR
+          Remove-Item -LiteralPath (Join-Path $env:PUBLISH_DIR "downloads") -Recurse -Force -ErrorAction SilentlyContinue
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:PACKAGE_DIR | Out-Null
+          $assetPath = Join-Path $env:PACKAGE_DIR "${{ steps.version.outputs.asset_name }}"
+          if (Test-Path -LiteralPath $assetPath) {
+            Remove-Item -LiteralPath $assetPath -Force
+          }
+          Compress-Archive -Path (Join-Path $env:PUBLISH_DIR "*") -DestinationPath $assetPath -Force
+
+      - name: Generate release notes
+        id: notes
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $tag = "${{ steps.version.outputs.tag }}"
+          $notesPath = Join-Path $env:PACKAGE_DIR "release-notes.md"
+          $releaseDocPath = "docs/releases/v$version.md"
+          $lines = [System.Collections.Generic.List[string]]::new()
+          $lines.Add("# MPLR v$version")
+          $lines.Add("")
+          $lines.Add("## Release Info")
+          $lines.Add("")
+          $lines.Add("- Version: $version")
+          $lines.Add("- Tag: $tag")
+          $lines.Add("- Target: win-x64")
+          $lines.Add("- Artifact: ${{ steps.version.outputs.asset_name }}")
+          $lines.Add("- Commit: $env:GITHUB_SHA")
+          $lines.Add("")
+          if (Test-Path -LiteralPath $releaseDocPath) {
+            $lines.Add("## Release Notes")
+            $lines.Add("")
+            $lines.AddRange([string[]](Get-Content -LiteralPath $releaseDocPath))
+            $lines.Add("")
+          }
+          $changelogRef = "${{ inputs.changelog_ref }}".Trim()
+          if (-not [string]::IsNullOrWhiteSpace($changelogRef)) {
+            $fetchRef = $changelogRef
+            if ($fetchRef -match "^origin/(.+)$") {
+              $fetchRef = $Matches[1]
+            }
+            git fetch origin $fetchRef --depth=1
+            if ($LASTEXITCODE -eq 0) {
+              $resolvedRef = "FETCH_HEAD"
+            } else {
+              $resolvedRef = $changelogRef
+            }
+            $extraNotes = git show "$resolvedRef`:$releaseDocPath" 2>$null
+            if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($extraNotes -join "`n"))) {
+              $extraNotes = git show "$resolvedRef`:CHANGELOG.md" 2>$null
+            }
+            if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace(($extraNotes -join "`n"))) {
+              $lines.Add("## Additional Notes From $changelogRef")
+              $lines.Add("")
+              $lines.AddRange([string[]]$extraNotes)
+              $lines.Add("")
+            }
+          }
+          git rev-parse $tag 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            $previousTag = git describe --tags --abbrev=0 "$tag^" 2>$null
+          } else {
+            $previousTag = git describe --tags --abbrev=0 HEAD 2>$null
+          }
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($previousTag)) {
+            $previousTag = git rev-list --max-parents=0 HEAD
+          }
+          $commitRows = git log --pretty=format:"%s%x1f%h%x1f%an" "$previousTag..HEAD"
+          $contributors = git log --pretty=format:"%an" "$previousTag..HEAD" | Sort-Object -Unique
+          $lines.Add("## Commits")
+          $lines.Add("")
+          if ([string]::IsNullOrWhiteSpace(($commitRows -join "`n"))) {
+            $lines.Add("- No commits found in range.")
+          } else {
+            foreach ($row in $commitRows) {
+              $parts = $row -split [char]0x1f
+              if ($parts.Count -ge 3) {
+                $lines.Add("- $($parts[0]) ($($parts[1])) by $($parts[2])")
+              }
+            }
+          }
+          if (-not [string]::IsNullOrWhiteSpace(($contributors -join "`n"))) {
+            $lines.Add("")
+            $lines.Add("## Contributors")
+            $lines.Add("")
+            foreach ($contributor in $contributors) {
+              $lines.Add("- $contributor")
+            }
+          }
+          $lines | Set-Content -LiteralPath $notesPath -Encoding utf8
+          "path=$notesPath" >> $env:GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MPLR_v${{ steps.version.outputs.version }}_win-x64
+          path: |
+            ${{ env.PACKAGE_DIR }}/${{ steps.version.outputs.asset_name }}
+            ${{ env.PACKAGE_DIR }}/release-notes.md
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_release == 'true')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          $assetPath = Join-Path $env:PACKAGE_DIR "${{ steps.version.outputs.asset_name }}"
+          $notesPath = "${{ steps.notes.outputs.path }}"
+          git fetch origin --tags
+          git rev-parse $tag 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            git tag $tag $env:GITHUB_SHA
+            git push origin $tag
+          }
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $assetPath --clobber
+            gh release edit $tag --title "MPLR $tag" --notes-file $notesPath
+          } else {
+            gh release create $tag $assetPath --title "MPLR $tag" --notes-file $notesPath --target $env:GITHUB_SHA
+          }
