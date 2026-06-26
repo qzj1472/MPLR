@@ -179,7 +179,6 @@ jobs:
             $previousTag = git rev-list --max-parents=0 HEAD
           }
           $commitRows = git log --pretty=format:"%s%x1f%H%x1f%h%x1f%an" "$previousTag..HEAD"
-          $contributorRows = git log --pretty=format:"%H%x1f%an" "$previousTag..HEAD"
           Add-Separator
           $lines.Add("## Commits")
           $lines.Add("")
@@ -193,21 +192,6 @@ jobs:
                 $mention = Get-GitHubMention $parts[1] $parts[3]
                 $lines.Add("- $subject$openParen$($parts[2])$closeParen $mention")
               }
-            }
-          }
-          if (-not [string]::IsNullOrWhiteSpace(($contributorRows -join "`n"))) {
-            $contributors = [System.Collections.Generic.SortedSet[string]]::new()
-            foreach ($row in $contributorRows) {
-              $parts = $row -split [char]0x1f
-              if ($parts.Count -ge 2) {
-                [void]$contributors.Add((Get-GitHubMention $parts[0] $parts[1]))
-              }
-            }
-            Add-Separator
-            $lines.Add("## Contributors")
-            $lines.Add("")
-            foreach ($contributor in $contributors) {
-              $lines.Add("- $contributor")
             }
           }
           $lines | Set-Content -LiteralPath $notesPath -Encoding utf8
