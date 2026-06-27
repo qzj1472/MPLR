@@ -22,6 +22,7 @@ namespace MPLR.Views;
 
 public partial class ScreenRecordListWindow : FluentWindow, INotifyPropertyChanged
 {
+    private static readonly Encoding Utf8NoBom = new UTF8Encoding(false);
     private readonly List<RecordedVideoItem> allVideos = [];
     private RecordedVideoItem? lastSelectedItem;
     private bool isMultiSelectMode;
@@ -1006,7 +1007,7 @@ public partial class ScreenRecordListWindow : FluentWindow, INotifyPropertyChang
 
         try
         {
-            await File.WriteAllLinesAsync(listPath, ordered.Select(static item => $"file '{EscapeConcatPath(item.FilePath)}'"), Encoding.UTF8);
+            await File.WriteAllLinesAsync(listPath, ordered.Select(static item => $"file '{EscapeConcatPath(item.FilePath)}'"), Utf8NoBom);
 
             ProcessStartInfo startInfo = new()
             {
@@ -1033,7 +1034,15 @@ public partial class ScreenRecordListWindow : FluentWindow, INotifyPropertyChang
             _ = await outputTask;
             _ = await errorTask;
 
-            return process.ExitCode == 0 && File.Exists(target);
+            bool succeeded = process.ExitCode == 0 && File.Exists(target) && new FileInfo(target).Length > 0;
+            if (succeeded)
+            {
+                CopyMetadataForTarget(first, target, false);
+                return true;
+            }
+
+            DeleteFileIfExists(target);
+            return false;
         }
         catch (Exception e)
         {
@@ -1186,6 +1195,21 @@ public partial class ScreenRecordListWindow : FluentWindow, INotifyPropertyChang
     private static string EscapeConcatPath(string path)
     {
         return path.Replace("\\", "/", StringComparison.Ordinal).Replace("'", "'\\''", StringComparison.Ordinal);
+    }
+
+    private static void DeleteFileIfExists(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.WriteLine(e);
+        }
     }
 
     private void SelectionCheckBoxClick(object sender, RoutedEventArgs e)
