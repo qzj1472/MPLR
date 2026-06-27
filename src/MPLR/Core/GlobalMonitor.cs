@@ -35,6 +35,8 @@ internal static class GlobalMonitor
 
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> RoomCheckLocks = new(StringComparer.OrdinalIgnoreCase);
 
+    private static readonly ConcurrentDictionary<string, DateTime> LastRoomCheckTimes = new(StringComparer.OrdinalIgnoreCase);
+
     private sealed class GlobalMonitorRecipient : ObservableRecipient
     {
         public static GlobalMonitorRecipient Instance { get; } = new();
@@ -184,7 +186,13 @@ internal static class GlobalMonitor
 
     private static PeriodicWait CreateRoutinePeriodicWait()
     {
-        return new PeriodicWait(TimeSpan.FromMilliseconds(int.Max(Configurations.RoutineInterval.Get(), 500)), TimeSpan.Zero);
+        int interval = Math.Max(500, Configurations.RoutineInterval.Get());
+        foreach (Room room in Configurations.Rooms.Get())
+        {
+            interval = Math.Min(interval, Math.Max(500, RoomRecordingSettings.Get(room).RoutineInterval));
+        }
+
+        return new PeriodicWait(TimeSpan.FromMilliseconds(interval), TimeSpan.Zero);
     }
 
     public static async Task RunOnceAsync(CancellationToken token = default)
@@ -203,7 +211,7 @@ internal static class GlobalMonitor
             .Where(room => string.Equals(room.RoomUrl, roomUrl, StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
-        await RunRoomsAsync(rooms, token);
+        await RunRoomsAsync(rooms, token, true);
     }
 
     public static async Task StartAsync(CancellationToken token = default)
@@ -215,22 +223,18 @@ internal static class GlobalMonitor
                 break;
             }
 
-            if (!RoutineScheduleHelper.IsActive(DateTime.Now))
-            {
-                continue;
-            }
-
             await RunOnceAsync(token);
         }
     }
 
-    private static async Task RunRoomsAsync(IEnumerable<Room> rooms, CancellationToken token = default)
+    private static async Task RunRoomsAsync(IEnumerable<Room> rooms, CancellationToken token = default, bool force = false)
     {
         try
         {
             bool isGlobalToNotify = Configurations.IsToNotify.Get();
             bool isGlobalToRecord = Configurations.IsToRecord.Get();
             bool isGlobalMonitorRunning = Configurations.IsMonitorRunning.Get();
+            DateTime now = DateTime.Now;
 
             using SemaphoreSlim semaphore = new(Math.Clamp(Environment.ProcessorCount, 4, 8));
             List<Task> tasks = [];
@@ -247,12 +251,19 @@ internal static class GlobalMonitor
                 bool shouldNotify = isGlobalToNotify && room.IsToNotify;
                 bool shouldRecord = room.IsFollowGlobalSettings ? isGlobalToRecord : room.IsToRecord;
                 bool shouldMonitor = room.IsFollowGlobalSettings ? isGlobalMonitorRunning : room.IsToMonitor;
+                RoomRecordingOptions settings = RoomRecordingSettings.Get(room);
                 shouldRecord = TemporaryRoomRecordOverrides.TryGetValue(room.RoomUrl, out bool recordOverride) ? recordOverride : shouldRecord;
                 shouldMonitor = TemporaryRoomMonitorOverrides.TryGetValue(room.RoomUrl, out bool monitorOverride) ? monitorOverride : shouldMonitor;
 
                 if (shouldMonitor)
                 {
-                    tasks.Add(RunRoomCheckWithSemaphoreAsync(semaphore, room, roomStatus, shouldNotify, shouldRecord, token));
+                    if (!force && (!RoutineScheduleHelper.IsActive(now, settings) || !CanRunRoomCheck(room.RoomUrl, settings.RoutineInterval, now)))
+                    {
+                        continue;
+                    }
+
+                    LastRoomCheckTimes[room.RoomUrl] = now;
+                    tasks.Add(RunRoomCheckWithSemaphoreAsync(semaphore, room, roomStatus, shouldNotify, shouldRecord, settings, token));
                 }
                 else
                 {
@@ -275,7 +286,13 @@ internal static class GlobalMonitor
         }
     }
 
-    private static async Task RunRoomCheckWithSemaphoreAsync(SemaphoreSlim semaphore, Room room, RoomStatus roomStatus, bool shouldNotify, bool shouldRecord, CancellationToken token)
+    private static bool CanRunRoomCheck(string roomUrl, int interval, DateTime now)
+    {
+        return !LastRoomCheckTimes.TryGetValue(roomUrl, out DateTime lastCheckTime) ||
+               (now - lastCheckTime).TotalMilliseconds >= Math.Max(500, interval);
+    }
+
+    private static async Task RunRoomCheckWithSemaphoreAsync(SemaphoreSlim semaphore, Room room, RoomStatus roomStatus, bool shouldNotify, bool shouldRecord, RoomRecordingOptions settings, CancellationToken token)
     {
         await semaphore.WaitAsync(token);
         SemaphoreSlim roomLock = RoomCheckLocks.GetOrAdd(room.RoomUrl, _ => new SemaphoreSlim(1, 1));
@@ -285,7 +302,7 @@ internal static class GlobalMonitor
         {
             await roomLock.WaitAsync(token);
             roomLockTaken = true;
-            await RunRoomCheckAsync(room, roomStatus, shouldNotify, shouldRecord, token);
+            await RunRoomCheckAsync(room, roomStatus, shouldNotify, shouldRecord, settings, token);
         }
         catch (OperationCanceledException)
         {
@@ -305,9 +322,9 @@ internal static class GlobalMonitor
         }
     }
 
-    private static async Task RunRoomCheckAsync(Room room, RoomStatus roomStatus, bool shouldNotify, bool shouldRecord, CancellationToken token)
+    private static async Task RunRoomCheckAsync(Room room, RoomStatus roomStatus, bool shouldNotify, bool shouldRecord, RoomRecordingOptions settings, CancellationToken token)
     {
-        ISpiderResult? spiderResult = await Task.Run(() => Spider.GetResult(room.RoomUrl), token);
+        ISpiderResult? spiderResult = await Task.Run(() => Spider.GetResult(room.RoomUrl, settings.StreamQuality), token);
         shouldRecord = GetEffectiveRoomRecord(room);
 
         if (!GetEffectiveRoomMonitor(room))
@@ -486,6 +503,14 @@ internal static class GlobalMonitor
                         Title = roomStatus.Title,
                         Bitrate = roomStatus.Bitrate,
                         CoverPath = roomStatus.AvatarLocalPath,
+                        RecordFormat = settings.RecordFormat,
+                        IsRemoveTs = settings.IsRemoveTs,
+                        IsToSegment = settings.IsToSegment,
+                        SegmentTime = settings.SegmentTime,
+                        SaveFolder = settings.SaveFolder,
+                        SaveFolderPathLevel = settings.SaveFolderPathLevel,
+                        SaveFileNameRule = settings.SaveFileNameRule,
+                        SaveFileNameCustomRule = settings.SaveFileNameCustomRule,
                     });
                 }
             }

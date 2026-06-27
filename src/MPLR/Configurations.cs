@@ -78,6 +78,23 @@ public sealed class Room
     public bool IsToMonitor { get; set; } = true;
     public bool IsFollowGlobalSettings { get; set; } = true;
     public DateTime AddedAt { get; set; } = DateTime.MinValue;
+    public string? RecordFormat { get; set; }
+    public string? StreamQuality { get; set; }
+    public bool? IsRemoveTs { get; set; }
+    public bool? IsToSegment { get; set; }
+    public int? SegmentTime { get; set; }
+    public int? SegmentTimeUnit { get; set; }
+    public int? RoutineInterval { get; set; }
+    public int? RoutineScheduleMode { get; set; }
+    public string? RoutineScheduleDays { get; set; }
+    public int? RoutineScheduleStartHour { get; set; }
+    public int? RoutineScheduleStartMinute { get; set; }
+    public int? RoutineScheduleEndHour { get; set; }
+    public int? RoutineScheduleEndMinute { get; set; }
+    public string? SaveFolder { get; set; }
+    public int? SaveFolderPathLevel { get; set; }
+    public int? SaveFileNameRule { get; set; }
+    public string? SaveFileNameCustomRule { get; set; }
 
     public override string ToString() => $"{RoomUrl},{NickName}";
 }

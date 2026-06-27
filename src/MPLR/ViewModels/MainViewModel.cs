@@ -273,7 +273,7 @@ public partial class MainViewModel : ReactiveObject
         }
     }
 
-    public async Task<bool> TryAddRoomFromFlyoutAsync(string? url, bool isForcedAdd, bool isToNotify, bool isFollowGlobalSettings, bool isToMonitor, bool isToRecord)
+    public async Task<bool> TryAddRoomFromFlyoutAsync(string? url, bool isForcedAdd, bool isToNotify, bool isFollowGlobalSettings, bool isToMonitor, bool isToRecord, RoomRecordingOptions? localSettings)
     {
         if (string.IsNullOrWhiteSpace(url))
         {
@@ -297,7 +297,7 @@ public partial class MainViewModel : ReactiveObject
                 return false;
             }
 
-            await AddRoomToListAsync(url, roomUrl, roomUrl, null, isToNotify, isFollowGlobalSettings, isToMonitor, isToRecord);
+            await AddRoomToListAsync(url, roomUrl, roomUrl, null, isToNotify, isFollowGlobalSettings, isToMonitor, isToRecord, localSettings);
             Toast.Success("AddRoomSucc".Tr(roomUrl));
             return true;
         }
@@ -306,7 +306,7 @@ public partial class MainViewModel : ReactiveObject
         {
             try
             {
-                ISpiderResult? spider = await Task.Run(() => Spider.GetResult(url));
+                ISpiderResult? spider = await Task.Run(() => Spider.GetResult(url, localSettings?.StreamQuality));
 
                 if (string.IsNullOrWhiteSpace(spider?.Nickname) || string.IsNullOrWhiteSpace(spider.RoomUrl))
                 {
@@ -320,7 +320,7 @@ public partial class MainViewModel : ReactiveObject
                     return false;
                 }
 
-                await AddRoomToListAsync(url, spider.RoomUrl, spider.Nickname, spider, isToNotify, isFollowGlobalSettings, isToMonitor, isToRecord);
+                await AddRoomToListAsync(url, spider.RoomUrl, spider.Nickname, spider, isToNotify, isFollowGlobalSettings, isToMonitor, isToRecord, localSettings);
                 Toast.Success("AddRoomSucc".Tr(spider.Nickname));
                 return true;
             }
@@ -332,7 +332,7 @@ public partial class MainViewModel : ReactiveObject
         }
     }
 
-    private async Task AddRoomToListAsync(string? originalUrl, string roomUrl, string nickName, ISpiderResult? spiderResult, bool isToNotify, bool isFollowGlobalSettings, bool isToMonitor, bool isToRecord)
+    private async Task AddRoomToListAsync(string? originalUrl, string roomUrl, string nickName, ISpiderResult? spiderResult, bool isToNotify, bool isFollowGlobalSettings, bool isToMonitor, bool isToRecord, RoomRecordingOptions? localSettings = null)
     {
         List<Room> rooms = [.. Configurations.Rooms.Get()];
 
@@ -347,6 +347,10 @@ public partial class MainViewModel : ReactiveObject
             IsToMonitor = isToMonitor,
             IsToRecord = isToRecord,
         };
+        if (!isFollowGlobalSettings)
+        {
+            RoomRecordingSettings.Apply(newRoom, localSettings ?? RoomRecordingSettings.GetGlobal());
+        }
         rooms.RemoveAll(room => room.RoomUrl == originalUrl || room.RoomUrl == roomUrl);
         rooms.Add(newRoom);
         Configurations.Rooms.Set([.. rooms]);
@@ -378,6 +382,35 @@ public partial class MainViewModel : ReactiveObject
 
         RoomStatuses.Add(roomStatusReactive);
         SelectedItem = roomStatusReactive;
+    }
+
+    public bool SaveSelectedRoomLocalSettings(bool isToMonitor, bool isToRecord, RoomRecordingOptions settings)
+    {
+        if (SelectedItem == null || string.IsNullOrWhiteSpace(SelectedItem.RoomUrl))
+        {
+            return false;
+        }
+
+        Room[] rooms = Configurations.Rooms.Get();
+        Room? room = rooms.FirstOrDefault(room => string.Equals(room.RoomUrl, SelectedItem.RoomUrl, StringComparison.OrdinalIgnoreCase));
+        if (room == null)
+        {
+            return false;
+        }
+
+        room.IsFollowGlobalSettings = false;
+        room.IsToMonitor = isToMonitor;
+        room.IsToRecord = isToRecord;
+        RoomRecordingSettings.Apply(room, settings);
+        Configurations.Rooms.Set(rooms);
+        ConfigurationManager.Save();
+        GlobalMonitor.ClearTemporaryRoomOverrides(room.RoomUrl);
+
+        SelectedItem.IsFollowGlobalSettings = false;
+        SelectedItem.IsToMonitor = isToMonitor;
+        SelectedItem.IsToRecord = isToRecord;
+        SelectedItem.RefreshStatus();
+        return true;
     }
 
     private static string GetRoomInfoErrorMessage(string? roomUrl, string? fallback = null)

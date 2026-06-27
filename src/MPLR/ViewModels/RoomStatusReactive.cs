@@ -144,7 +144,7 @@ public partial class RoomStatusReactive : ReactiveObject
 
     public bool CanEditRoomSettings => !IsFollowGlobalSettings;
 
-    public string RecordFormatText => Configurations.RecordFormat.Get();
+    public string RecordFormatText => RoomRecordingSettings.Get(RoomUrl).RecordFormat;
 
     public string LiveStreamUrl => SelectLiveStreamUrl(RecordUrl, HlsUrl, FlvUrl);
 

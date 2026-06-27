@@ -70,7 +70,7 @@ public sealed class Recorder
                 return;
             }
 
-            string saveFolder = SaveFolderHelper.GetRecordFolder(Configurations.SaveFolder.Get(), startInfo, DateTime.Now);
+            string saveFolder = SaveFolderHelper.GetRecordFolder(startInfo.SaveFolder, startInfo, DateTime.Now, startInfo.SaveFolderPathLevel);
             if (!Directory.Exists(saveFolder))
             {
                 Directory.CreateDirectory(saveFolder);
@@ -79,9 +79,9 @@ public sealed class Recorder
             string userAgent = Configurations.UserAgent.Get();
             string httpProxy = Configurations.ProxyUrl.Get();
             bool isUseProxy = Configurations.IsUseProxy.Get() && !string.IsNullOrWhiteSpace(httpProxy);
-            int segmentTime = Configurations.SegmentTime.Get();
-            bool isToSegment = Configurations.IsToSegment.Get() && segmentTime > 0;
-            string? targetFormat = GetTargetFormat(Configurations.RecordFormat.Get());
+            int segmentTime = startInfo.SegmentTime;
+            bool isToSegment = startInfo.IsToSegment && segmentTime > 0;
+            string? targetFormat = GetTargetFormat(startInfo.RecordFormat);
             bool isDirectSegmentTarget = isToSegment && string.Equals(targetFormat, ".mkv", StringComparison.OrdinalIgnoreCase);
 
             IsToSegment = isToSegment;
@@ -186,7 +186,7 @@ public sealed class Recorder
         }
         finally
         {
-            await ConvertRecordedFileAsync();
+            await ConvertRecordedFileAsync(startInfo);
             CleanOrphanMetadata();
             EndTime = DateTime.Now;
             lock (stateLock)
@@ -320,12 +320,12 @@ public sealed class Recorder
         }
     }
 
-    private async Task ConvertRecordedFileAsync()
+    private async Task ConvertRecordedFileAsync(RecorderStartInfo startInfo)
     {
         try
         {
             CleanEmptySegmentFiles();
-            string? targetFormat = GetTargetFormat(Configurations.RecordFormat.Get());
+            string? targetFormat = GetTargetFormat(startInfo.RecordFormat);
 
             if (string.IsNullOrWhiteSpace(targetFormat))
             {
@@ -338,7 +338,7 @@ public sealed class Recorder
 
             foreach (string sourceFile in sourceFiles)
             {
-                if (await new Converter().ExecuteAsync(sourceFile, targetFormat) && Configurations.IsRemoveTs.Get())
+                if (await new Converter().ExecuteAsync(sourceFile, targetFormat) && startInfo.IsRemoveTs)
                 {
                     TryDelete(sourceFile);
 
@@ -558,12 +558,12 @@ public sealed class Recorder
 
     private static string BuildRecordFileName(RecorderStartInfo startInfo, DateTime now)
     {
-        string rule = Configurations.SaveFileNameRule.Get() switch
+        string rule = Math.Clamp(startInfo.SaveFileNameRule, 0, 4) switch
         {
             1 => "{主播名}_{录制时间}_{分辨率}",
             2 => "{平台}_{主播名}_{录制时间}",
             3 => "{平台}_{主播名}_{录制时间}_{分辨率}",
-            4 => Configurations.SaveFileNameCustomRule.Get(),
+            4 => startInfo.SaveFileNameCustomRule,
             _ => "{主播名}_{录制时间}",
         };
 
@@ -779,6 +779,22 @@ public record RecorderStartInfo
     public string Bitrate { get; set; } = string.Empty;
 
     public string CoverPath { get; set; } = string.Empty;
+
+    public string RecordFormat { get; set; } = "TS/FLV";
+
+    public bool IsRemoveTs { get; set; }
+
+    public bool IsToSegment { get; set; }
+
+    public int SegmentTime { get; set; } = 1800;
+
+    public string SaveFolder { get; set; } = string.Empty;
+
+    public int SaveFolderPathLevel { get; set; }
+
+    public int SaveFileNameRule { get; set; }
+
+    public string SaveFileNameCustomRule { get; set; } = "{主播名}_{录制时间}";
 }
 
 public sealed class VideoRecordingMetadata

@@ -16,6 +16,7 @@ using System.Windows.Media.Media3D;
 using System.Windows.Threading;
 using MPLR.Core;
 using MPLR.Extensions;
+using MPLR.Threading;
 using MPLR.ViewModels;
 using Vanara.PInvoke;
 using Windows.Storage;
@@ -1083,7 +1084,7 @@ public partial class MainWindow : FluentWindow
         AddRoomForceCheckBox.IsChecked = false;
         AddRoomFollowGlobalSettingsCheckBox.IsChecked = true;
         AddRoomNotifyCheckBox.IsChecked = true;
-        LoadLocalSettingsFlyoutValues();
+        LoadLocalSettingsFlyoutValues(null);
         ApplyAddRoomFlyoutMode();
         OpenCenteredFlyout(AddRoomFlyout);
         Dispatcher.BeginInvoke(() => AddRoomUrlInput.Focus(), DispatcherPriority.Input);
@@ -1122,19 +1123,20 @@ public partial class MainWindow : FluentWindow
             return;
         }
 
-        LoadLocalSettingsFlyoutValues();
+        LoadLocalSettingsFlyoutValues(GetSelectedRoom());
         OpenCenteredFlyout(LocalSettingsFlyout);
     }
 
-    private void LoadLocalSettingsFlyoutValues()
+    private void LoadLocalSettingsFlyoutValues(Room? room)
     {
-        LocalRecordFormatIndex = Configurations.RecordFormat.Get() switch
+        RoomRecordingOptions settings = room == null ? RoomRecordingSettings.GetGlobal() : RoomRecordingSettings.Get(room);
+        LocalRecordFormatIndex = settings.RecordFormat switch
         {
             "TS/FLV -> MP4" => 1,
             "TS/FLV -> MKV" => 2,
             _ => 0,
         };
-        LocalStreamQualityIndex = Configurations.StreamQuality.Get().ToUpperInvariant() switch
+        LocalStreamQualityIndex = settings.StreamQuality.ToUpperInvariant() switch
         {
             "BD" => 1,
             "UHD" => 2,
@@ -1143,16 +1145,16 @@ public partial class MainWindow : FluentWindow
             "LD" => 5,
             _ => 0,
         };
-        LocalIsToMonitor = true;
-        LocalIsToRecord = Configurations.IsToRecord.Get();
-        LocalIsRemoveTs = Configurations.IsRemoveTs.Get();
-        LocalIsToSegment = Configurations.IsToSegment.Get();
-        LocalSegmentTimeUnitIndex = SegmentTimeUnitHelper.GetPreferredUnitIndex(Configurations.SegmentTime.Get());
-        LocalSegmentTimeValue = SegmentTimeUnitHelper.ToDisplayValue(Configurations.SegmentTime.Get(), LocalSegmentTimeUnitIndex);
-        LocalRoutineIntervalUnitIndex = RoutineIntervalUnitHelper.GetPreferredUnitIndex(Configurations.RoutineInterval.Get());
-        LocalRoutineIntervalValue = RoutineIntervalUnitHelper.ToDisplayValue(Configurations.RoutineInterval.Get(), LocalRoutineIntervalUnitIndex);
-        LocalRoutineScheduleModeIndex = Math.Clamp(Configurations.RoutineScheduleMode.Get(), 0, 1);
-        HashSet<int> routineScheduleDays = ParseRoutineScheduleDays(Configurations.RoutineScheduleDays.Get());
+        LocalIsToMonitor = room == null ? true : GlobalMonitor.GetEffectiveRoomMonitor(room);
+        LocalIsToRecord = room == null ? Configurations.IsToRecord.Get() : GlobalMonitor.GetEffectiveRoomRecord(room);
+        LocalIsRemoveTs = settings.IsRemoveTs;
+        LocalIsToSegment = settings.IsToSegment;
+        LocalSegmentTimeUnitIndex = SegmentTimeUnitHelper.GetPreferredUnitIndex(settings.SegmentTime);
+        LocalSegmentTimeValue = SegmentTimeUnitHelper.ToDisplayValue(settings.SegmentTime, LocalSegmentTimeUnitIndex);
+        LocalRoutineIntervalUnitIndex = RoutineIntervalUnitHelper.GetPreferredUnitIndex(settings.RoutineInterval);
+        LocalRoutineIntervalValue = RoutineIntervalUnitHelper.ToDisplayValue(settings.RoutineInterval, LocalRoutineIntervalUnitIndex);
+        LocalRoutineScheduleModeIndex = Math.Clamp(settings.RoutineScheduleMode, 0, 1);
+        HashSet<int> routineScheduleDays = ParseRoutineScheduleDays(settings.RoutineScheduleDays);
         LocalRoutineScheduleMonday = routineScheduleDays.Contains((int)DayOfWeek.Monday);
         LocalRoutineScheduleTuesday = routineScheduleDays.Contains((int)DayOfWeek.Tuesday);
         LocalRoutineScheduleWednesday = routineScheduleDays.Contains((int)DayOfWeek.Wednesday);
@@ -1160,16 +1162,16 @@ public partial class MainWindow : FluentWindow
         LocalRoutineScheduleFriday = routineScheduleDays.Contains((int)DayOfWeek.Friday);
         LocalRoutineScheduleSaturday = routineScheduleDays.Contains((int)DayOfWeek.Saturday);
         LocalRoutineScheduleSunday = routineScheduleDays.Contains((int)DayOfWeek.Sunday);
-        LocalRoutineScheduleStartHour = Math.Clamp(Configurations.RoutineScheduleStartHour.Get(), 0, 23);
-        LocalRoutineScheduleStartMinute = Math.Clamp(Configurations.RoutineScheduleStartMinute.Get(), 0, 59);
-        LocalRoutineScheduleEndHour = Math.Clamp(Configurations.RoutineScheduleEndHour.Get(), 0, 23);
-        LocalRoutineScheduleEndMinute = Math.Clamp(Configurations.RoutineScheduleEndMinute.Get(), 0, 59);
-        LocalSaveFolder = Configurations.SaveFolder.Get();
-        LocalSaveFolderPathLevelIndex = Math.Clamp(Configurations.SaveFolderPathLevel.Get(), 0, 1);
-        LocalSaveFileNameRuleIndex = Math.Clamp(Configurations.SaveFileNameRule.Get(), 0, 4);
-        LocalSaveFileNameCustomRule = string.IsNullOrWhiteSpace(Configurations.SaveFileNameCustomRule.Get())
+        LocalRoutineScheduleStartHour = Math.Clamp(settings.RoutineScheduleStartHour, 0, 23);
+        LocalRoutineScheduleStartMinute = Math.Clamp(settings.RoutineScheduleStartMinute, 0, 59);
+        LocalRoutineScheduleEndHour = Math.Clamp(settings.RoutineScheduleEndHour, 0, 23);
+        LocalRoutineScheduleEndMinute = Math.Clamp(settings.RoutineScheduleEndMinute, 0, 59);
+        LocalSaveFolder = settings.SaveFolder;
+        LocalSaveFolderPathLevelIndex = Math.Clamp(settings.SaveFolderPathLevel, 0, 1);
+        LocalSaveFileNameRuleIndex = Math.Clamp(settings.SaveFileNameRule, 0, 4);
+        LocalSaveFileNameCustomRule = string.IsNullOrWhiteSpace(settings.SaveFileNameCustomRule)
             ? "{主播名}_{录制时间}"
-            : Configurations.SaveFileNameCustomRule.Get();
+            : settings.SaveFileNameCustomRule;
     }
 
     private static HashSet<int> ParseRoutineScheduleDays(string? value)
@@ -1253,47 +1255,69 @@ public partial class MainWindow : FluentWindow
 
     private void SaveLocalSettingsClick(object sender, RoutedEventArgs e)
     {
-        SaveLocalSettingsValues();
-        ViewModel.ReloadConfigStatus();
-        ViewModel.SelectedItem.RefreshStatus();
-        CloseFloatingPanels();
-        Toast.Success("SuccOp".Tr());
+        if (ViewModel.SaveSelectedRoomLocalSettings(LocalIsToMonitor, LocalIsToRecord, BuildLocalRecordingOptions()))
+        {
+            ViewModel.ReloadConfigStatus();
+            GlobalMonitor.RoutinePeriodicWait = new PeriodicWait(TimeSpan.FromMilliseconds(GetMinimumRoutineInterval()), TimeSpan.Zero);
+            CloseFloatingPanels();
+            Toast.Success("SuccOp".Tr());
+        }
     }
 
-    private void SaveLocalSettingsValues()
+    private RoomRecordingOptions BuildLocalRecordingOptions()
     {
-        Configurations.RecordFormat.Set(LocalRecordFormatIndex switch
+        return new RoomRecordingOptions
         {
-            1 => "TS/FLV -> MP4",
-            2 => "TS/FLV -> MKV",
-            _ => "TS/FLV",
-        });
-        Configurations.StreamQuality.Set(LocalStreamQualityIndex switch
+            RecordFormat = LocalRecordFormatIndex switch
+            {
+                1 => "TS/FLV -> MP4",
+                2 => "TS/FLV -> MKV",
+                _ => "TS/FLV",
+            },
+            StreamQuality = LocalStreamQualityIndex switch
+            {
+                1 => "BD",
+                2 => "UHD",
+                3 => "HD",
+                4 => "SD",
+                5 => "LD",
+                _ => "OD",
+            },
+            IsRemoveTs = LocalIsRemoveTs,
+            IsToSegment = LocalIsToSegment,
+            SegmentTime = SegmentTimeUnitHelper.ToSeconds(LocalSegmentTimeValue, LocalSegmentTimeUnitIndex),
+            SegmentTimeUnit = LocalSegmentTimeUnitIndex,
+            RoutineInterval = RoutineIntervalUnitHelper.ToMilliseconds(LocalRoutineIntervalValue, LocalRoutineIntervalUnitIndex),
+            RoutineScheduleMode = Math.Clamp(LocalRoutineScheduleModeIndex, 0, 1),
+            RoutineScheduleDays = BuildLocalRoutineScheduleDays(),
+            RoutineScheduleStartHour = LocalRoutineScheduleStartHour,
+            RoutineScheduleStartMinute = LocalRoutineScheduleStartMinute,
+            RoutineScheduleEndHour = LocalRoutineScheduleEndHour,
+            RoutineScheduleEndMinute = LocalRoutineScheduleEndMinute,
+            SaveFolder = LocalSaveFolder,
+            SaveFolderPathLevel = Math.Clamp(LocalSaveFolderPathLevelIndex, 0, 1),
+            SaveFileNameRule = Math.Clamp(LocalSaveFileNameRuleIndex, 0, 4),
+            SaveFileNameCustomRule = LocalSaveFileNameCustomRule,
+        };
+    }
+
+    private static int GetMinimumRoutineInterval()
+    {
+        int interval = Math.Max(500, Configurations.RoutineInterval.Get());
+        foreach (Room room in Configurations.Rooms.Get())
         {
-            1 => "BD",
-            2 => "UHD",
-            3 => "HD",
-            4 => "SD",
-            5 => "LD",
-            _ => "OD",
-        });
-        Configurations.IsToRecord.Set(LocalIsToRecord);
-        Configurations.IsRemoveTs.Set(LocalIsRemoveTs);
-        Configurations.IsToSegment.Set(LocalIsToSegment);
-        Configurations.SegmentTime.Set(SegmentTimeUnitHelper.ToSeconds(LocalSegmentTimeValue, LocalSegmentTimeUnitIndex));
-        Configurations.SegmentTimeUnit.Set(LocalSegmentTimeUnitIndex);
-        Configurations.RoutineInterval.Set(RoutineIntervalUnitHelper.ToMilliseconds(LocalRoutineIntervalValue, LocalRoutineIntervalUnitIndex));
-        Configurations.RoutineScheduleMode.Set(Math.Clamp(LocalRoutineScheduleModeIndex, 0, 1));
-        Configurations.RoutineScheduleDays.Set(BuildLocalRoutineScheduleDays());
-        Configurations.RoutineScheduleStartHour.Set(LocalRoutineScheduleStartHour);
-        Configurations.RoutineScheduleStartMinute.Set(LocalRoutineScheduleStartMinute);
-        Configurations.RoutineScheduleEndHour.Set(LocalRoutineScheduleEndHour);
-        Configurations.RoutineScheduleEndMinute.Set(LocalRoutineScheduleEndMinute);
-        Configurations.SaveFolder.Set(LocalSaveFolder);
-        Configurations.SaveFolderPathLevel.Set(Math.Clamp(LocalSaveFolderPathLevelIndex, 0, 1));
-        Configurations.SaveFileNameRule.Set(Math.Clamp(LocalSaveFileNameRuleIndex, 0, 4));
-        Configurations.SaveFileNameCustomRule.Set(LocalSaveFileNameCustomRule);
-        ConfigurationManager.Save();
+            interval = Math.Min(interval, Math.Max(500, RoomRecordingSettings.Get(room).RoutineInterval));
+        }
+
+        return interval;
+    }
+
+    private Room? GetSelectedRoom()
+    {
+        string? roomUrl = ViewModel.SelectedItem?.RoomUrl;
+        return string.IsNullOrWhiteSpace(roomUrl)
+            ? null
+            : Configurations.Rooms.Get().FirstOrDefault(room => string.Equals(room.RoomUrl, roomUrl, StringComparison.OrdinalIgnoreCase));
     }
 
     private string BuildLocalRoutineScheduleDays()
@@ -1346,7 +1370,8 @@ public partial class MainWindow : FluentWindow
             AddRoomNotifyCheckBox.IsChecked == true,
             AddRoomFollowGlobalSettingsCheckBox.IsChecked == true,
             LocalIsToMonitor,
-            LocalIsToRecord);
+            LocalIsToRecord,
+            AddRoomFollowGlobalSettingsCheckBox.IsChecked == true ? null : BuildLocalRecordingOptions());
         if (added)
         {
             AddRoomFlyout.Visibility = Visibility.Collapsed;

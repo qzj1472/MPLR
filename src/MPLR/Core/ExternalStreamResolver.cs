@@ -92,13 +92,14 @@ internal static class ExternalStreamResolver
         return value;
     }
 
-    public static ISpiderResult? GetResult(string url)
+    public static ISpiderResult? GetResult(string url, string? streamQuality = null)
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
         string? normalizedUrl = NormalizeUrl(url);
         string lastError = SetLastError(url, normalizedUrl, string.Empty);
         string? scriptPath = FindResolverScript();
         string? pythonPath = FindPython();
+        string quality = string.IsNullOrWhiteSpace(streamQuality) ? Configurations.StreamQuality.Get() : streamQuality;
 
         AppSessionLogger.Event("info", "business", "stream_resolver_started", "external stream resolver started", new
         {
@@ -108,7 +109,7 @@ internal static class ExternalStreamResolver
             pythonFound = !string.IsNullOrWhiteSpace(pythonPath),
             pythonPath,
             isProxyEnabled = Configurations.IsUseProxy.Get(),
-            quality = Configurations.StreamQuality.Get(),
+            quality,
         });
 
         if (string.IsNullOrWhiteSpace(normalizedUrl))
@@ -150,7 +151,7 @@ internal static class ExternalStreamResolver
         try
         {
             using ResolverConcurrencyLease lease = EnterResolverConcurrency();
-            ProcessStartInfo startInfo = CreateStartInfo(pythonPath, scriptPath, normalizedUrl, out resolverConfigPath);
+            ProcessStartInfo startInfo = CreateStartInfo(pythonPath, scriptPath, normalizedUrl, quality, out resolverConfigPath);
             using Process process = new()
             {
                 StartInfo = startInfo,
@@ -415,7 +416,7 @@ internal static class ExternalStreamResolver
         return lines.Length == 0 ? value.Trim() : string.Join(Environment.NewLine, lines);
     }
 
-    private static ProcessStartInfo CreateStartInfo(string pythonPath, string scriptPath, string url, out string? configPath)
+    private static ProcessStartInfo CreateStartInfo(string pythonPath, string scriptPath, string url, string quality, out string? configPath)
     {
         ProcessStartInfo startInfo = new()
         {
@@ -431,7 +432,7 @@ internal static class ExternalStreamResolver
         startInfo.ArgumentList.Add("--url");
         startInfo.ArgumentList.Add(url);
         startInfo.ArgumentList.Add("--quality");
-        startInfo.ArgumentList.Add(Configurations.StreamQuality.Get());
+        startInfo.ArgumentList.Add(quality);
 
         string proxy = Configurations.ProxyUrl.Get();
         if (Configurations.IsUseProxy.Get() && !string.IsNullOrWhiteSpace(proxy))

@@ -4,12 +4,17 @@ internal static class RoutineScheduleHelper
 {
     public static bool IsActive(DateTime now)
     {
-        if (Configurations.RoutineScheduleMode.Get() != 1)
+        return IsActive(now, RoomRecordingSettings.GetGlobal());
+    }
+
+    public static bool IsActive(DateTime now, RoomRecordingOptions settings)
+    {
+        if (settings.RoutineScheduleMode != 1)
         {
             return true;
         }
 
-        HashSet<int> days = ParseDays(Configurations.RoutineScheduleDays.Get());
+        HashSet<int> days = ParseDays(settings.RoutineScheduleDays);
 
         if (!days.Contains((int)now.DayOfWeek))
         {
@@ -18,12 +23,12 @@ internal static class RoutineScheduleHelper
 
         TimeSpan current = now.TimeOfDay;
         TimeSpan start = new(
-            Math.Clamp(Configurations.RoutineScheduleStartHour.Get(), 0, 23),
-            Math.Clamp(Configurations.RoutineScheduleStartMinute.Get(), 0, 59),
+            Math.Clamp(settings.RoutineScheduleStartHour, 0, 23),
+            Math.Clamp(settings.RoutineScheduleStartMinute, 0, 59),
             0);
         TimeSpan end = new(
-            Math.Clamp(Configurations.RoutineScheduleEndHour.Get(), 0, 23),
-            Math.Clamp(Configurations.RoutineScheduleEndMinute.Get(), 0, 59),
+            Math.Clamp(settings.RoutineScheduleEndHour, 0, 23),
+            Math.Clamp(settings.RoutineScheduleEndMinute, 0, 59),
             59);
 
         return start <= end

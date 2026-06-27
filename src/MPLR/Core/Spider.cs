@@ -23,11 +23,11 @@ internal static class Spider
         return null;
     }
 
-    public static ISpiderResult? GetResult(string url)
+    public static ISpiderResult? GetResult(string url, string? streamQuality = null)
     {
         string? normalizedUrl = ParseUrl(url);
         string localPlatform = PlatformDetector.DetectFromUrl(normalizedUrl ?? url);
-        ISpiderResult? externalResult = ExternalStreamResolver.GetResult(url);
+        ISpiderResult? externalResult = ExternalStreamResolver.GetResult(url, streamQuality);
 
         if (externalResult != null)
         {
