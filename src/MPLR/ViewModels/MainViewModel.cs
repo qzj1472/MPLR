@@ -760,7 +760,7 @@ public partial class MainViewModel : ReactiveObject
 
         if (showToast)
         {
-            if (results.Any(item => item.Result != null))
+            if (results.Any(item => item.Result != null || HasProbeData(item.Probe)))
             {
                 Toast.Success("RoomCardsRefreshed".Tr());
             }
@@ -779,7 +779,8 @@ public partial class MainViewModel : ReactiveObject
             await semaphore.WaitAsync();
             try
             {
-                ISpiderResult? result = string.IsNullOrWhiteSpace(room.RoomUrl) ? null : await Task.Run(() => Spider.GetResult(room.RoomUrl));
+                string streamQuality = GetRoomStreamQuality(room);
+                ISpiderResult? result = string.IsNullOrWhiteSpace(room.RoomUrl) ? null : await Task.Run(() => Spider.GetResult(room.RoomUrl, streamQuality));
                 string avatarLocalPath = result == null || string.IsNullOrWhiteSpace(result.AvatarThumbUrl)
                     ? AvatarCache.GetCachedAvatarSource(room.RoomUrl)
                     : await AvatarCache.UpdateAsync(room.RoomUrl, result.AvatarThumbUrl);
@@ -971,7 +972,8 @@ public partial class MainViewModel : ReactiveObject
         IsRefreshingSelectedRoomInfo = true;
         try
         {
-            ISpiderResult? result = await Task.Run(() => Spider.GetResult(SelectedItem.RoomUrl));
+            string streamQuality = GetRoomStreamQuality(SelectedItem);
+            ISpiderResult? result = await Task.Run(() => Spider.GetResult(SelectedItem.RoomUrl, streamQuality));
             string avatarLocalPath = result == null || string.IsNullOrWhiteSpace(result.AvatarThumbUrl)
                 ? AvatarCache.GetCachedAvatarSource(SelectedItem.RoomUrl)
                 : await AvatarCache.UpdateAsync(SelectedItem.RoomUrl, result.AvatarThumbUrl);
@@ -982,7 +984,14 @@ public partial class MainViewModel : ReactiveObject
 
             ApplyRoomCardRefresh(SelectedItem, result, avatarLocalPath, probe);
             SaveRoomOrder();
-            Toast.Success("RoomInfoRefreshed".Tr());
+            if (result != null || HasProbeData(probe))
+            {
+                Toast.Success("RoomInfoRefreshed".Tr());
+            }
+            else
+            {
+                Toast.Error("GetRoomInfoFailed".Tr());
+            }
         }
         finally
         {
@@ -1000,7 +1009,6 @@ public partial class MainViewModel : ReactiveObject
         if (spiderResult == null)
         {
             room.Platform = PlatformDetector.DetectFromUrl(room.RoomUrl);
-            room.StreamStatus = StreamStatus.NotStreaming;
 
             AppSessionLogger.Event("warn", "business", "room_card_refresh_no_result", "room refresh returned no result", new
             {
@@ -1115,9 +1123,23 @@ public partial class MainViewModel : ReactiveObject
 
     private static string SelectProbeUrl(ISpiderResult? result, RoomStatusReactive room)
     {
-        return result == null
+        string freshUrl = result == null
             ? string.Empty
             : SelectFirstNonWhite(result.RecordUrl, result.HlsUrl, result.FlvUrl);
+
+        return string.IsNullOrWhiteSpace(freshUrl) ? room.LiveStreamUrl : freshUrl;
+    }
+
+    private static string GetRoomStreamQuality(RoomStatusReactive room)
+    {
+        return string.IsNullOrWhiteSpace(room.RoomUrl)
+            ? RoomRecordingSettings.GetGlobal().StreamQuality
+            : RoomRecordingSettings.Get(room.RoomUrl).StreamQuality;
+    }
+
+    private static bool HasProbeData(MediaProbeResult probe)
+    {
+        return IsUsableResolutionText(probe.Resolution) || !string.IsNullOrWhiteSpace(probe.Bitrate);
     }
 
     private static string SelectFirstNonWhite(params string?[] values)
