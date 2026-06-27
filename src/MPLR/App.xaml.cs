@@ -94,6 +94,7 @@ public partial class App : Application
         AppSessionLogger.Start();
         ConfigChangeLogger.Start();
         TrayIconManager.Start();
+        _ = ExternalStreamResolver.WarmUpAsync();
     }
 
     /// <summary>

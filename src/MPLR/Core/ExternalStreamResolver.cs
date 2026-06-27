@@ -10,10 +10,21 @@ namespace MPLR.Core;
 internal static class ExternalStreamResolver
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(75);
-    private static readonly SemaphoreSlim ResolverSemaphore = new(3);
+    private static readonly SemaphoreSlim ResolverSemaphore = new(Math.Clamp(Environment.ProcessorCount, 4, 6));
     private static readonly ConcurrentDictionary<string, string> LastErrorsByUrl = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Lazy<string?> ResolverScriptPath = new(FindResolverScriptCore, LazyThreadSafetyMode.ExecutionAndPublication);
+    private static readonly Lazy<string?> PythonPath = new(FindPythonCore, LazyThreadSafetyMode.ExecutionAndPublication);
 
     public static string LastError { get; private set; } = string.Empty;
+
+    public static Task WarmUpAsync()
+    {
+        return Task.Run(() =>
+        {
+            _ = ResolverScriptPath.Value;
+            _ = PythonPath.Value;
+        });
+    }
 
     public static string GetLastError(string? url)
     {
@@ -547,6 +558,11 @@ internal static class ExternalStreamResolver
 
     private static string? FindResolverScript()
     {
+        return ResolverScriptPath.Value;
+    }
+
+    private static string? FindResolverScriptCore()
+    {
         foreach (string candidate in EnumerateResolverScriptCandidates())
         {
             if (File.Exists(candidate))
@@ -575,6 +591,11 @@ internal static class ExternalStreamResolver
     }
 
     private static string? FindPython()
+    {
+        return PythonPath.Value;
+    }
+
+    private static string? FindPythonCore()
     {
         string? configured = Environment.GetEnvironmentVariable("STREAM_RESOLVER_PYTHON");
         if (!string.IsNullOrWhiteSpace(configured) && IsUsablePython(configured))

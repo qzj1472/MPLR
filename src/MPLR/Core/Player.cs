@@ -14,6 +14,8 @@ public sealed class Player
     private const double PreviewScreenRatio = 0.85d;
     private const int PreviewWindowCenteringSeconds = 8;
     private const int PreviewWindowCenteringIntervalMilliseconds = 120;
+    private static readonly Lazy<string?> FfplayPath = new(FindFfplayCore, LazyThreadSafetyMode.ExecutionAndPublication);
+    private static readonly Lazy<string?> FfprobePath = new(FindFfprobeCore, LazyThreadSafetyMode.ExecutionAndPublication);
 
     public static Task PlayAsync(string mediaPath, bool isSeekable = false)
     {
@@ -34,7 +36,7 @@ public sealed class Player
         string previewTitle = SelectPreviewTitle(title, nickName);
         string previewHeaders = headers;
 
-        if (ShouldResolveFreshStream(roomUrl))
+        if (cachedPreviewUrls.Count == 0 && ShouldResolveFreshStream(roomUrl))
         {
             ISpiderResult? spiderResult = await Task.Run(() => Spider.GetResult(roomUrl));
 
@@ -138,9 +140,9 @@ public sealed class Player
         startInfo.ArgumentList.Add("-protocol_whitelist");
         startInfo.ArgumentList.Add("file,http,https,tcp,tls,crypto,data,udp,rtp,rtmp,rtmps");
         startInfo.ArgumentList.Add("-analyzeduration");
-        startInfo.ArgumentList.Add("10000000");
+        startInfo.ArgumentList.Add("1000000");
         startInfo.ArgumentList.Add("-probesize");
-        startInfo.ArgumentList.Add("10000000");
+        startInfo.ArgumentList.Add("1000000");
         if (previewSize.HasValue)
         {
             startInfo.ArgumentList.Add("-x");
@@ -167,9 +169,43 @@ public sealed class Player
 
     private static async Task<PreviewSource> SelectPreviewSourceAsync(IReadOnlyList<string> previewUrls, string headers)
     {
-        foreach (string previewUrl in previewUrls)
+        if (previewUrls.Count == 1)
         {
-            VideoSize? size = await ProbeVideoSizeAsync(previewUrl, headers);
+            return new PreviewSource(previewUrls[0], null);
+        }
+
+        using CancellationTokenSource cancellationTokenSource = new(TimeSpan.FromSeconds(2));
+        Task<PreviewSource?>[] probeTasks = previewUrls
+            .Select(url => TryCreatePreviewSourceAsync(url, headers, cancellationTokenSource.Token))
+            .ToArray();
+
+        while (probeTasks.Length > 0)
+        {
+            Task<PreviewSource?> completedTask = await Task.WhenAny(probeTasks);
+            PreviewSource? source = await completedTask;
+
+            if (source.HasValue)
+            {
+                cancellationTokenSource.Cancel();
+                return source.Value;
+            }
+
+            probeTasks = probeTasks.Where(task => task != completedTask).ToArray();
+        }
+
+        AppSessionLogger.Event("warn", "player", "preview_probe_fallback", "preview probe failed for all streams", new
+        {
+            count = previewUrls.Count,
+            firstPreviewUrl = RedactUrl(previewUrls[0]),
+        });
+        return new PreviewSource(previewUrls[0], null);
+    }
+
+    private static async Task<PreviewSource?> TryCreatePreviewSourceAsync(string previewUrl, string headers, CancellationToken token)
+    {
+        try
+        {
+            VideoSize? size = await ProbeVideoSizeAsync(previewUrl, headers, token);
             if (size != null)
             {
                 AppSessionLogger.Event("info", "player", "preview_probe_succeeded", "preview probe succeeded", new
@@ -181,16 +217,14 @@ public sealed class Player
                 return new PreviewSource(previewUrl, size.Value);
             }
         }
-
-        AppSessionLogger.Event("warn", "player", "preview_probe_fallback", "preview probe failed for all streams", new
+        catch (OperationCanceledException)
         {
-            count = previewUrls.Count,
-            firstPreviewUrl = RedactUrl(previewUrls[0]),
-        });
-        return new PreviewSource(previewUrls[0], null);
+        }
+
+        return null;
     }
 
-    private static async Task<VideoSize?> ProbeVideoSizeAsync(string previewUrl, string headers)
+    private static async Task<VideoSize?> ProbeVideoSizeAsync(string previewUrl, string headers, CancellationToken token)
     {
         string? ffprobePath = FindFfprobe();
         if (string.IsNullOrWhiteSpace(ffprobePath))
@@ -200,7 +234,6 @@ public sealed class Player
 
         try
         {
-            using CancellationTokenSource cancellationTokenSource = new(TimeSpan.FromSeconds(8));
             ProcessStartInfo startInfo = new()
             {
                 FileName = ffprobePath,
@@ -210,6 +243,8 @@ public sealed class Player
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
             };
+
+            token.ThrowIfCancellationRequested();
 
             startInfo.ArgumentList.Add("-v");
             startInfo.ArgumentList.Add("error");
@@ -228,13 +263,13 @@ public sealed class Player
             startInfo.ArgumentList.Add("-reconnect_on_http_error");
             startInfo.ArgumentList.Add("4xx,5xx");
             startInfo.ArgumentList.Add("-rw_timeout");
-            startInfo.ArgumentList.Add("15000000");
+            startInfo.ArgumentList.Add("3000000");
             startInfo.ArgumentList.Add("-timeout");
-            startInfo.ArgumentList.Add("15000000");
+            startInfo.ArgumentList.Add("3000000");
             startInfo.ArgumentList.Add("-analyzeduration");
-            startInfo.ArgumentList.Add("10000000");
+            startInfo.ArgumentList.Add("1000000");
             startInfo.ArgumentList.Add("-probesize");
-            startInfo.ArgumentList.Add("10000000");
+            startInfo.ArgumentList.Add("1000000");
             startInfo.ArgumentList.Add("-live_start_index");
             startInfo.ArgumentList.Add("-3");
             startInfo.ArgumentList.Add("-multiple_requests");
@@ -260,36 +295,59 @@ public sealed class Player
                 StartInfo = startInfo,
             };
 
-            process.Start();
-            ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
-            string output = await process.StandardOutput.ReadToEndAsync(cancellationTokenSource.Token);
-            string error = await process.StandardError.ReadToEndAsync(cancellationTokenSource.Token);
-            await process.WaitForExitAsync(cancellationTokenSource.Token);
-
-            if (process.ExitCode != 0)
+            try
             {
-                AppSessionLogger.Event("warn", "player", "preview_probe_failed", TrimError(error), new
-                {
-                    previewUrl = RedactUrl(previewUrl),
-                    exitCode = process.ExitCode,
-                    stdoutLength = output.Length,
-                    stderrLength = error.Length,
-                });
-                return null;
-            }
+                process.Start();
+                ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
+                string output = await process.StandardOutput.ReadToEndAsync(token);
+                string error = await process.StandardError.ReadToEndAsync(token);
+                await process.WaitForExitAsync(token);
 
-            foreach (string line in output.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                string[] parts = line.Split('x', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                if (parts.Length >= 2 &&
-                    int.TryParse(parts[0], out int width) &&
-                    int.TryParse(parts[1], out int height) &&
-                    width > 0 &&
-                    height > 0)
+                if (process.ExitCode != 0)
                 {
-                    return new VideoSize(width, height);
+                    AppSessionLogger.Event("warn", "player", "preview_probe_failed", TrimError(error), new
+                    {
+                        previewUrl = RedactUrl(previewUrl),
+                        exitCode = process.ExitCode,
+                        stdoutLength = output.Length,
+                        stderrLength = error.Length,
+                    });
+                    return null;
+                }
+
+                foreach (string line in output.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    string[] parts = line.Split('x', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    if (parts.Length >= 2 &&
+                        int.TryParse(parts[0], out int width) &&
+                        int.TryParse(parts[1], out int height) &&
+                        width > 0 &&
+                        height > 0)
+                    {
+                        return new VideoSize(width, height);
+                    }
                 }
             }
+            catch (OperationCanceledException)
+            {
+                if (!process.HasExited)
+                {
+                    try
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.WriteLine(e);
+                    }
+                }
+
+                throw;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception e)
         {
@@ -384,6 +442,11 @@ public sealed class Player
 
     private static string? FindFfplay()
     {
+        return FfplayPath.Value;
+    }
+
+    private static string? FindFfplayCore()
+    {
         string baseDirectory = AppContext.BaseDirectory;
         string[] candidates =
         [
@@ -403,6 +466,11 @@ public sealed class Player
     }
 
     private static string? FindFfprobe()
+    {
+        return FfprobePath.Value;
+    }
+
+    private static string? FindFfprobeCore()
     {
         string baseDirectory = AppContext.BaseDirectory;
         string[] candidates =
