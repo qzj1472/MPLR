@@ -425,10 +425,15 @@
                     </ui:Grid>
                     <ui:StackPanel Grid.Row="2"
                                    HorizontalAlignment="Right"
-                                   Orientation="Horizontal">
+                                   Orientation="Horizontal"
+                                   Spacing="16">
                         <Button MinWidth="78"
                                 Content="取消"
                                 Click="CloseVideoListModalClick" />
+                        <Button MinWidth="78"
+                                Style="{StaticResource VideoListAccentButtonStyle}"
+                                Content="确定"
+                                Click="ConfirmSplitSelectedClick" />
                     </ui:StackPanel>
                 </ui:Grid>
             </Border>

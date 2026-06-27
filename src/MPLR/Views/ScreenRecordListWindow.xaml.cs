@@ -164,7 +164,21 @@ public partial class ScreenRecordListWindow : FluentWindow, INotifyPropertyChang
 
         ApplySort();
         UpdateSelectedState();
-        await Task.WhenAll(allVideos.Select(EnrichItemAsync));
+        using SemaphoreSlim enrichmentSemaphore = new(Math.Clamp(Environment.ProcessorCount / 2, 2, 4));
+        await Task.WhenAll(allVideos.Select(item => EnrichItemWithSemaphoreAsync(item, enrichmentSemaphore)));
+    }
+
+    private static async Task EnrichItemWithSemaphoreAsync(RecordedVideoItem item, SemaphoreSlim semaphore)
+    {
+        await semaphore.WaitAsync();
+        try
+        {
+            await EnrichItemAsync(item);
+        }
+        finally
+        {
+            semaphore.Release();
+        }
     }
 
     private static RecordedVideoItem CreateItem(FileInfo file, string root)
@@ -766,6 +780,34 @@ public partial class ScreenRecordListWindow : FluentWindow, INotifyPropertyChang
         OpenCenteredFlyout(SplitVideoFlyout);
     }
 
+    private async void ConfirmSplitSelectedClick(object sender, RoutedEventArgs e)
+    {
+        IReadOnlyList<RecordedVideoItem> selected = SnapshotSelected(allVideos);
+        if (selected.Count == 0)
+        {
+            Toast.Warning("请先选择要分割的视频");
+            return;
+        }
+
+        if (!TryGetSplitDurationSeconds(out int seconds))
+        {
+            Toast.Warning("请输入有效的分割时长");
+            return;
+        }
+
+        int done = await SplitSelectedVideosAsync(selected, seconds);
+        if (done > 0)
+        {
+            CloseVideoListModals();
+            Toast.Success($"已分割 {done} 个视频");
+            await ReloadVideosAsync();
+        }
+        else
+        {
+            Toast.Error("分割失败");
+        }
+    }
+
     private void OpenMergeSelectedClick(object sender, RoutedEventArgs e)
     {
         MergeWarningText = BuildMergeWarningText(SnapshotSelected(allVideos));
@@ -888,6 +930,11 @@ public partial class ScreenRecordListWindow : FluentWindow, INotifyPropertyChang
             reasons.Add("包含非分割操作产生的原生独立视频");
         }
 
+        if (selected.Select(static item => Path.GetExtension(item.FilePath)).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1)
+        {
+            reasons.Add("视频格式不一致");
+        }
+
         if (!IsContinuousSegmentSelection(selected))
         {
             reasons.Add("不属于同一连续时间段");
@@ -1007,6 +1054,125 @@ public partial class ScreenRecordListWindow : FluentWindow, INotifyPropertyChang
                 Debug.WriteLine(e);
             }
         }
+    }
+
+    private bool TryGetSplitDurationSeconds(out int seconds)
+    {
+        seconds = 0;
+        if (!double.TryParse(SplitDurationValue, NumberStyles.Float, CultureInfo.InvariantCulture, out double value) || value <= 0)
+        {
+            return false;
+        }
+
+        double totalSeconds = Math.Clamp(SplitDurationUnitIndex, 0, 2) switch
+        {
+            1 => value * 60d,
+            2 => value * 3600d,
+            _ => value,
+        };
+
+        if (totalSeconds < 1 || double.IsNaN(totalSeconds) || double.IsInfinity(totalSeconds))
+        {
+            return false;
+        }
+
+        seconds = Math.Max(1, (int)Math.Round(totalSeconds));
+        return true;
+    }
+
+    private static async Task<int> SplitSelectedVideosAsync(IReadOnlyList<RecordedVideoItem> selected, int seconds)
+    {
+        string? ffmpegPath = SearchFileHelper.SearchFiles(".", "ffmpeg[\\.exe]").FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(ffmpegPath) || !File.Exists(ffmpegPath))
+        {
+            return 0;
+        }
+
+        int done = 0;
+        foreach (RecordedVideoItem item in selected)
+        {
+            if (await SplitVideoAsync(ffmpegPath, item, seconds))
+            {
+                done++;
+            }
+        }
+
+        return done;
+    }
+
+    private static async Task<bool> SplitVideoAsync(string ffmpegPath, RecordedVideoItem item, int seconds)
+    {
+        if (!File.Exists(item.FilePath))
+        {
+            return false;
+        }
+
+        FileInfo file = new(item.FilePath);
+        string directory = file.DirectoryName ?? string.Empty;
+        string outputBase = GetUniqueSegmentBase(directory, $"{Path.GetFileNameWithoutExtension(file.Name)}_split");
+        string outputPattern = Path.Combine(directory, $"{outputBase}_%03d{file.Extension}");
+
+        try
+        {
+            ProcessStartInfo startInfo = new()
+            {
+                FileName = ffmpegPath,
+                UseShellExecute = false,
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                CreateNoWindow = true,
+                StandardErrorEncoding = Encoding.UTF8,
+                StandardOutputEncoding = Encoding.UTF8,
+            };
+
+            foreach (string argument in new[] { "-y", "-i", item.FilePath, "-c", "copy", "-f", "segment", "-segment_time", seconds.ToString(CultureInfo.InvariantCulture), "-reset_timestamps", "1", outputPattern })
+            {
+                startInfo.ArgumentList.Add(argument);
+            }
+
+            using Process process = new() { StartInfo = startInfo };
+            process.Start();
+            ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
+            Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
+            Task<string> errorTask = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+            _ = await outputTask;
+            _ = await errorTask;
+
+            if (process.ExitCode != 0)
+            {
+                return false;
+            }
+
+            string[] outputs = Directory.EnumerateFiles(directory, $"{outputBase}_*{file.Extension}", SearchOption.TopDirectoryOnly)
+                .Where(path => new FileInfo(path).Length > 0)
+                .ToArray();
+            foreach (string output in outputs)
+            {
+                CopyMetadataForTarget(file, output, false);
+            }
+
+            return outputs.Length > 0;
+        }
+        catch (Exception e)
+        {
+            Debug.WriteLine(e);
+            return false;
+        }
+    }
+
+    private static string GetUniqueSegmentBase(string directory, string stem)
+    {
+        for (int i = 0; i < 10000; i++)
+        {
+            string candidate = i == 0 ? stem : $"{stem}_{i:000}";
+            if (!Directory.EnumerateFiles(directory, $"{candidate}_*.*", SearchOption.TopDirectoryOnly).Any())
+            {
+                return candidate;
+            }
+        }
+
+        return $"{stem}_{Guid.NewGuid():N}";
     }
 
     private static int GetSegmentIndex(string path)
