@@ -891,6 +891,7 @@ public sealed class Player
     {
         DateTime deadline = DateTime.Now.AddSeconds(PreviewWindowCenteringSeconds);
         bool grouped = false;
+        NativeRect? lastArrangedRect = null;
 
         while (DateTime.Now < deadline)
         {
@@ -917,7 +918,17 @@ public sealed class Player
                     grouped = TryGroupPreviewWindows(process);
                 }
 
-                _ = FitWindowIntoWorkingArea(handle);
+                if (lastArrangedRect.HasValue &&
+                    GetWindowRect(handle, out NativeRect currentRect) &&
+                    HasPreviewWindowPositionChanged(currentRect, lastArrangedRect.Value))
+                {
+                    return;
+                }
+
+                if (FitWindowIntoWorkingArea(handle, out NativeRect arrangedRect))
+                {
+                    lastArrangedRect = arrangedRect;
+                }
             }
             catch (Exception e)
             {
@@ -944,8 +955,10 @@ public sealed class Player
         return grouped;
     }
 
-    private static bool FitWindowIntoWorkingArea(IntPtr handle)
+    private static bool FitWindowIntoWorkingArea(IntPtr handle, out NativeRect arrangedRect)
     {
+        arrangedRect = default;
+
         if (!GetWindowRect(handle, out NativeRect rect))
         {
             return false;
@@ -979,7 +992,31 @@ public sealed class Player
         top = Math.Clamp(top, workingArea.Top, Math.Max(workingArea.Top, workingArea.Bottom - height));
 
         _ = SetWindowPos(handle, IntPtr.Zero, left, top, width, height, SetWindowPosFlags.NoZOrder | SetWindowPosFlags.NoActivate);
+        arrangedRect = new NativeRect
+        {
+            Left = left,
+            Top = top,
+            Right = left + width,
+            Bottom = top + height,
+        };
         return true;
+    }
+
+    private static bool HasPreviewWindowPositionChanged(NativeRect currentRect, NativeRect arrangedRect)
+    {
+        const int tolerance = 16;
+        int currentWidth = currentRect.Right - currentRect.Left;
+        int currentHeight = currentRect.Bottom - currentRect.Top;
+        int arrangedWidth = arrangedRect.Right - arrangedRect.Left;
+        int arrangedHeight = arrangedRect.Bottom - arrangedRect.Top;
+        if (Math.Abs(currentWidth - arrangedWidth) > tolerance ||
+            Math.Abs(currentHeight - arrangedHeight) > tolerance)
+        {
+            return false;
+        }
+
+        return Math.Abs(currentRect.Left - arrangedRect.Left) > tolerance ||
+               Math.Abs(currentRect.Top - arrangedRect.Top) > tolerance;
     }
 
     private static NativeRect GetWindowWorkingArea(IntPtr handle)
