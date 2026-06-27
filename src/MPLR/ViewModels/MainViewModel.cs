@@ -596,8 +596,16 @@ public partial class MainViewModel : ReactiveObject
         }
         else if (!isToRecord)
         {
+            Room[] rooms = Configurations.Rooms.Get();
             foreach (RoomStatus roomStatus in GlobalMonitor.RoomStatus.Values)
             {
+                Room? room = rooms.FirstOrDefault(room => string.Equals(room.RoomUrl, roomStatus.RoomUrl, StringComparison.OrdinalIgnoreCase));
+                bool shouldKeepRecording = room is { IsFollowGlobalSettings: false } && GlobalMonitor.GetEffectiveRoomRecord(room);
+                if (shouldKeepRecording)
+                {
+                    continue;
+                }
+
                 if (roomStatus.RecordStatus == RecordStatus.Recording)
                 {
                     roomStatus.Recorder.Stop();
@@ -606,6 +614,8 @@ public partial class MainViewModel : ReactiveObject
                 roomStatus.RecordStatus = RecordStatus.Disabled;
             }
         }
+
+        RefreshRoomStatusFlags();
 
         if (isToRecord)
         {
@@ -624,6 +634,7 @@ public partial class MainViewModel : ReactiveObject
         Configurations.IsToNotify.Set(value);
         ConfigurationManager.Save();
         StatusOfIsToNotify = value;
+        RefreshRoomStatusFlags();
     }
 
     [RelayCommand]
@@ -633,6 +644,14 @@ public partial class MainViewModel : ReactiveObject
         Configurations.IsUseProxy.Set(value);
         ConfigurationManager.Save();
         StatusOfIsUseProxy = value;
+    }
+
+    private void RefreshRoomStatusFlags()
+    {
+        foreach (RoomStatusReactive roomStatusReactive in RoomStatuses)
+        {
+            roomStatusReactive.RefreshStatus();
+        }
     }
 
     [RelayCommand]
