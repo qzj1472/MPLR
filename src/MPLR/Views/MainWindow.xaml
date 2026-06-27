@@ -433,6 +433,10 @@
             <Setter Property="Foreground" Value="#14532D" />
         </Style>
         <Style x:Key="ToolbarStateButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Button}">
@@ -481,6 +485,13 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="True">
+                    <Setter Property="Background" Value="#DDF6E6" />
+                    <Setter Property="BorderBrush" Value="#65B984" />
+                    <Setter Property="Foreground" Value="#14532D" />
+                </DataTrigger>
+            </Style.Triggers>
         </Style>
         <Style x:Key="MainNumberInputTextBoxStyle" TargetType="{x:Type ui:TextBox}" BasedOn="{StaticResource {x:Type ui:TextBox}}">
             <Setter Property="Height" Value="36" />
