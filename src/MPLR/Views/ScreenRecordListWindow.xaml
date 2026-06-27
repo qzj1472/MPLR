@@ -149,6 +149,14 @@
                             <TextBlock Text="导入" />
                         </ui:StackPanel>
                     </Button>
+                    <Button Click="OpenSplitVideoFlyoutClick"
+                            Style="{StaticResource VideoListToolbarButtonStyle}">
+                        <ui:StackPanel Orientation="Horizontal" Spacing="7">
+                            <ui:FontIcon FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                         Glyph="{x:Static ui:FontSymbols.Cut}" />
+                            <TextBlock Text="分割" />
+                        </ui:StackPanel>
+                    </Button>
                 </ui:StackPanel>
 
                 <ui:StackPanel Grid.Column="2"
@@ -172,6 +180,15 @@
                         <TextBlock VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                    Text="{Binding SelectedVideoSummary}" />
+                        <Button Click="OpenMergeSelectedClick"
+                                IsEnabled="{Binding HasSelectedVideos}"
+                                Style="{StaticResource VideoListAccentToolbarButtonStyle}">
+                            <ui:StackPanel Orientation="Horizontal" Spacing="7">
+                                <ui:FontIcon FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                             Glyph="{x:Static ui:FontSymbols.Link}" />
+                                <TextBlock Text="合并" />
+                            </ui:StackPanel>
+                        </Button>
                         <Button Click="DeleteSelectedClick"
                                 IsEnabled="{Binding HasSelectedVideos}"
                                 Style="{StaticResource VideoListAccentIconButtonStyle}"
@@ -364,5 +381,112 @@
                 </ui:TitleBar.Icon>
             </ui:TitleBar>
         </Grid>
+        <Grid x:Name="VideoListModalOverlay"
+              Background="#66000000"
+              MouseDown="VideoListModalOverlayMouseDown"
+              Panel.ZIndex="40"
+              Visibility="Collapsed" />
+        <Canvas x:Name="VideoListFlyoutLayer"
+                ClipToBounds="True"
+                Panel.ZIndex="50">
+            <Border x:Name="SplitVideoFlyout"
+                    Width="420"
+                    Padding="18"
+                    Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
+                    BorderBrush="{DynamicResource SurfaceStrokeColorFlyoutBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Visibility="Collapsed">
+                <ui:Grid RowDefinitions="Auto,Auto,Auto">
+                    <ui:Grid Grid.Row="0" ColumnDefinitions="Auto,*">
+                        <ui:FontIcon Grid.Column="0"
+                                     Margin="0,0,12,0"
+                                     VerticalAlignment="Center"
+                                     FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                     FontSize="20"
+                                     Glyph="{x:Static ui:FontSymbols.Cut}" />
+                        <TextBlock Grid.Column="1"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Text="分割视频" />
+                    </ui:Grid>
+                    <ui:Grid Grid.Row="1"
+                             Margin="0,18,0,18"
+                             ColumnDefinitions="*,12,112">
+                        <ui:TextBox Grid.Column="0"
+                                    PlaceholderText="30"
+                                    Text="{Binding SplitDurationValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        <ComboBox Grid.Column="2"
+                                  SelectedIndex="{Binding SplitDurationUnitIndex, Mode=TwoWay}">
+                            <ComboBoxItem Content="秒" />
+                            <ComboBoxItem Content="分钟" />
+                            <ComboBoxItem Content="小时" />
+                        </ComboBox>
+                    </ui:Grid>
+                    <ui:StackPanel Grid.Row="2"
+                                   HorizontalAlignment="Right"
+                                   Orientation="Horizontal">
+                        <Button MinWidth="78"
+                                Content="取消"
+                                Click="CloseVideoListModalClick" />
+                    </ui:StackPanel>
+                </ui:Grid>
+            </Border>
+            <Border x:Name="MergeVideoFlyout"
+                    Width="520"
+                    Padding="18"
+                    Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
+                    BorderBrush="{DynamicResource SurfaceStrokeColorFlyoutBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Visibility="Collapsed">
+                <ui:Grid RowDefinitions="Auto,Auto,Auto">
+                    <ui:Grid Grid.Row="0" ColumnDefinitions="Auto,*">
+                        <ui:FontIcon Grid.Column="0"
+                                     Margin="0,0,12,0"
+                                     VerticalAlignment="Center"
+                                     FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                     FontSize="20"
+                                     Glyph="{x:Static ui:FontSymbols.Link}" />
+                        <TextBlock Grid.Column="1"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Text="合并视频" />
+                    </ui:Grid>
+                    <ui:StackPanel Grid.Row="1"
+                                   Margin="0,18,0,20"
+                                   Spacing="10">
+                        <TextBlock Text="是否确认将选中的视频合并为一个视频？"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Foreground="#B91C1C"
+                                   Text="{Binding MergeWarningText}"
+                                   TextWrapping="Wrap">
+                            <TextBlock.Style>
+                                <Style TargetType="{x:Type TextBlock}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasMergeWarnings}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </ui:StackPanel>
+                    <ui:StackPanel Grid.Row="2"
+                                   HorizontalAlignment="Right"
+                                   Orientation="Horizontal"
+                                   Spacing="16">
+                        <Button MinWidth="78"
+                                Content="取消"
+                                Click="CloseVideoListModalClick" />
+                        <Button MinWidth="78"
+                                Style="{StaticResource VideoListAccentButtonStyle}"
+                                Content="确定"
+                                Click="ConfirmMergeSelectedClick" />
+                    </ui:StackPanel>
+                </ui:Grid>
+            </Border>
+        </Canvas>
     </Grid>
 </ui:FluentWindow>

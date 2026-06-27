@@ -11,9 +11,11 @@ using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 using Wpf.Ui.Controls;
 using WindowsAPICodePack.Dialogs;
 using Button = System.Windows.Controls.Button;
+using Canvas = System.Windows.Controls.Canvas;
 using CheckBox = System.Windows.Controls.CheckBox;
 
 namespace MPLR.Views;
@@ -24,6 +26,9 @@ public partial class ScreenRecordListWindow : FluentWindow, INotifyPropertyChang
     private RecordedVideoItem? lastSelectedItem;
     private bool isMultiSelectMode;
     private bool isSortDescending;
+    private string splitDurationValue = "30";
+    private int splitDurationUnitIndex;
+    private string mergeWarningText = string.Empty;
 
     public ObservableCollection<RecordedVideoItem> Videos { get; } = [];
 
@@ -72,6 +77,54 @@ public partial class ScreenRecordListWindow : FluentWindow, INotifyPropertyChang
 
     public string SelectedVideoSummary => $"已选 {SelectedVideoCount} 个";
 
+    public string SplitDurationValue
+    {
+        get => splitDurationValue;
+        set
+        {
+            if (splitDurationValue == value)
+            {
+                return;
+            }
+
+            splitDurationValue = value;
+            OnPropertyChanged(nameof(SplitDurationValue));
+        }
+    }
+
+    public int SplitDurationUnitIndex
+    {
+        get => splitDurationUnitIndex;
+        set
+        {
+            if (splitDurationUnitIndex == value)
+            {
+                return;
+            }
+
+            splitDurationUnitIndex = Math.Clamp(value, 0, 2);
+            OnPropertyChanged(nameof(SplitDurationUnitIndex));
+        }
+    }
+
+    public string MergeWarningText
+    {
+        get => mergeWarningText;
+        set
+        {
+            if (mergeWarningText == value)
+            {
+                return;
+            }
+
+            mergeWarningText = value;
+            OnPropertyChanged(nameof(MergeWarningText));
+            OnPropertyChanged(nameof(HasMergeWarnings));
+        }
+    }
+
+    public bool HasMergeWarnings => !string.IsNullOrWhiteSpace(MergeWarningText);
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ScreenRecordListWindow()
@@ -79,6 +132,7 @@ public partial class ScreenRecordListWindow : FluentWindow, INotifyPropertyChang
         DataContext = this;
         WindowSizing.UseRelativeMainWindowSize(this, 1226d, 855d);
         InitializeComponent();
+        SizeChanged += ScreenRecordListWindowSizeChanged;
         Loaded += async (_, _) => await ReloadVideosAsync();
     }
 
@@ -703,6 +757,269 @@ public partial class ScreenRecordListWindow : FluentWindow, INotifyPropertyChang
     private async void ImportFolderClick(object sender, RoutedEventArgs e)
     {
         await ImportFolderAsync();
+    }
+
+    private void OpenSplitVideoFlyoutClick(object sender, RoutedEventArgs e)
+    {
+        SplitDurationValue = "30";
+        SplitDurationUnitIndex = 0;
+        OpenCenteredFlyout(SplitVideoFlyout);
+    }
+
+    private void OpenMergeSelectedClick(object sender, RoutedEventArgs e)
+    {
+        MergeWarningText = BuildMergeWarningText(SnapshotSelected(allVideos));
+        OpenCenteredFlyout(MergeVideoFlyout);
+    }
+
+    private async void ConfirmMergeSelectedClick(object sender, RoutedEventArgs e)
+    {
+        IReadOnlyList<RecordedVideoItem> selected = SnapshotSelected(allVideos);
+        MergeWarningText = BuildMergeWarningText(selected);
+
+        if (!string.IsNullOrWhiteSpace(MergeWarningText))
+        {
+            Toast.Warning("选中的视频不符合合并条件");
+            return;
+        }
+
+        bool ok = await MergeSelectedVideosAsync(selected);
+        if (ok)
+        {
+            CloseVideoListModals();
+            Toast.Success("合并完成");
+            await ReloadVideosAsync();
+        }
+        else
+        {
+            Toast.Error("合并失败");
+        }
+    }
+
+    private void CloseVideoListModalClick(object sender, RoutedEventArgs e)
+    {
+        CloseVideoListModals();
+    }
+
+    private void VideoListModalOverlayMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        CloseVideoListModals();
+        e.Handled = true;
+    }
+
+    private void OpenCenteredFlyout(FrameworkElement flyout)
+    {
+        CloseVideoListModals(flyout);
+        flyout.Visibility = Visibility.Visible;
+        UpdateVideoListModalOverlay();
+        Dispatcher.BeginInvoke(() => CenterVisibleFlyout(flyout), DispatcherPriority.Loaded);
+    }
+
+    private void CenterVisibleFlyout(FrameworkElement flyout)
+    {
+        if (flyout.Visibility != Visibility.Visible)
+        {
+            return;
+        }
+
+        flyout.UpdateLayout();
+        VideoListFlyoutLayer.UpdateLayout();
+
+        double flyoutWidth = Math.Max(flyout.ActualWidth, flyout.DesiredSize.Width);
+        double flyoutHeight = Math.Max(flyout.ActualHeight, flyout.DesiredSize.Height);
+        double layerWidth = VideoListFlyoutLayer.ActualWidth > 1 ? VideoListFlyoutLayer.ActualWidth : Math.Max(ActualWidth, 1);
+        double layerHeight = VideoListFlyoutLayer.ActualHeight > 1 ? VideoListFlyoutLayer.ActualHeight : Math.Max(ActualHeight, 1);
+        double left = Math.Clamp((layerWidth - flyoutWidth) / 2d, 0, Math.Max(0, layerWidth - flyoutWidth));
+        double top = Math.Clamp((layerHeight - flyoutHeight) / 2d, 0, Math.Max(0, layerHeight - flyoutHeight));
+
+        Canvas.SetLeft(flyout, left);
+        Canvas.SetTop(flyout, top);
+    }
+
+    private void CloseVideoListModals(FrameworkElement? except = null)
+    {
+        foreach (FrameworkElement flyout in new[] { SplitVideoFlyout, MergeVideoFlyout })
+        {
+            if (!ReferenceEquals(flyout, except))
+            {
+                flyout.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        UpdateVideoListModalOverlay();
+    }
+
+    private void UpdateVideoListModalOverlay()
+    {
+        bool visible = SplitVideoFlyout.Visibility == Visibility.Visible || MergeVideoFlyout.Visibility == Visibility.Visible;
+        VideoListModalOverlay.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void ScreenRecordListWindowSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        Dispatcher.BeginInvoke(() =>
+        {
+            foreach (FrameworkElement flyout in new[] { SplitVideoFlyout, MergeVideoFlyout })
+            {
+                if (flyout.Visibility == Visibility.Visible)
+                {
+                    CenterVisibleFlyout(flyout);
+                }
+            }
+        }, DispatcherPriority.Loaded);
+    }
+
+    private static string BuildMergeWarningText(IReadOnlyList<RecordedVideoItem> selected)
+    {
+        List<string> reasons = [];
+
+        if (selected.Count < 2)
+        {
+            reasons.Add("至少需要选择两个视频");
+        }
+
+        if (selected.Select(static item => item.NickName).Distinct(StringComparer.CurrentCultureIgnoreCase).Count() > 1)
+        {
+            reasons.Add("不属于同一个直播间");
+        }
+
+        if (selected.Any(static item => !TryGetSegmentBaseStem(new FileInfo(item.FilePath), out _)))
+        {
+            reasons.Add("包含非分割操作产生的原生独立视频");
+        }
+
+        if (!IsContinuousSegmentSelection(selected))
+        {
+            reasons.Add("不属于同一连续时间段");
+        }
+
+        return reasons.Count == 0 ? string.Empty : "PS：" + string.Join("；", reasons.Distinct());
+    }
+
+    private static bool IsContinuousSegmentSelection(IReadOnlyList<RecordedVideoItem> selected)
+    {
+        if (selected.Count < 2)
+        {
+            return false;
+        }
+
+        List<(string BaseStem, int Index)> segments = [];
+
+        foreach (RecordedVideoItem item in selected)
+        {
+            FileInfo file = new(item.FilePath);
+            string stem = Path.GetFileNameWithoutExtension(file.Name);
+            if (!TryGetSegmentBaseStem(file, out string baseStem) ||
+                !int.TryParse(stem[^3..], NumberStyles.Integer, CultureInfo.InvariantCulture, out int index))
+            {
+                return false;
+            }
+
+            segments.Add((baseStem, index));
+        }
+
+        if (segments.Select(static item => item.BaseStem).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1)
+        {
+            return false;
+        }
+
+        int[] indexes = segments.Select(static item => item.Index).Order().ToArray();
+        for (int i = 1; i < indexes.Length; i++)
+        {
+            if (indexes[i] != indexes[i - 1] + 1)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static async Task<bool> MergeSelectedVideosAsync(IReadOnlyList<RecordedVideoItem> selected)
+    {
+        string? ffmpegPath = SearchFileHelper.SearchFiles(".", "ffmpeg[\\.exe]").FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(ffmpegPath) || !File.Exists(ffmpegPath))
+        {
+            return false;
+        }
+
+        RecordedVideoItem[] ordered = selected
+            .OrderBy(static item => GetSegmentIndex(item.FilePath))
+            .ToArray();
+
+        FileInfo first = new(ordered[0].FilePath);
+        if (!TryGetSegmentBaseStem(first, out string baseStem) || string.IsNullOrWhiteSpace(first.DirectoryName))
+        {
+            return false;
+        }
+
+        string extension = first.Extension;
+        string target = GetUniquePath(Path.Combine(first.DirectoryName, $"{baseStem}_merged{extension}"));
+        string listPath = Path.Combine(Path.GetTempPath(), $"mplr_merge_{Guid.NewGuid():N}.txt");
+
+        try
+        {
+            await File.WriteAllLinesAsync(listPath, ordered.Select(static item => $"file '{EscapeConcatPath(item.FilePath)}'"), Encoding.UTF8);
+
+            ProcessStartInfo startInfo = new()
+            {
+                FileName = ffmpegPath,
+                UseShellExecute = false,
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                CreateNoWindow = true,
+                StandardErrorEncoding = Encoding.UTF8,
+                StandardOutputEncoding = Encoding.UTF8,
+            };
+
+            foreach (string argument in new[] { "-y", "-f", "concat", "-safe", "0", "-i", listPath, "-c", "copy", target })
+            {
+                startInfo.ArgumentList.Add(argument);
+            }
+
+            using Process process = new() { StartInfo = startInfo };
+            process.Start();
+            ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
+            Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
+            Task<string> errorTask = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+            _ = await outputTask;
+            _ = await errorTask;
+
+            return process.ExitCode == 0 && File.Exists(target);
+        }
+        catch (Exception e)
+        {
+            Debug.WriteLine(e);
+            return false;
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(listPath))
+                {
+                    File.Delete(listPath);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine(e);
+            }
+        }
+    }
+
+    private static int GetSegmentIndex(string path)
+    {
+        string stem = Path.GetFileNameWithoutExtension(path);
+        return stem.Length > 3 && int.TryParse(stem[^3..], NumberStyles.Integer, CultureInfo.InvariantCulture, out int index)
+            ? index
+            : 0;
+    }
+
+    private static string EscapeConcatPath(string path)
+    {
+        return path.Replace("\\", "/", StringComparison.Ordinal).Replace("'", "'\\''", StringComparison.Ordinal);
     }
 
     private void SelectionCheckBoxClick(object sender, RoutedEventArgs e)

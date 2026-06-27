@@ -1,5 +1,6 @@
 ﻿using Microsoft.Toolkit.Uwp.Notifications;
 using CommunityToolkit.Mvvm.Messaging;
+using Fischless.Configuration;
 using System.ComponentModel;
 using System.Globalization;
 using System.Windows;
@@ -14,8 +15,12 @@ using System.Windows.Media.Imaging;
 using System.Windows.Media.Media3D;
 using System.Windows.Threading;
 using MPLR.Core;
+using MPLR.Extensions;
 using MPLR.ViewModels;
 using Vanara.PInvoke;
+using Windows.Storage;
+using Windows.System;
+using WindowsAPICodePack.Dialogs;
 using Wpf.Ui.Controls;
 using Brush = System.Windows.Media.Brush;
 using MouseEventArgs = System.Windows.Input.MouseEventArgs;
@@ -77,6 +82,70 @@ public partial class MainWindow : FluentWindow
     public static readonly DependencyProperty RoutineIntervalSecondsTextProperty = DependencyProperty.Register(nameof(RoutineIntervalSecondsText), typeof(string), typeof(MainWindow), new PropertyMetadata(string.Empty));
 
     public static readonly DependencyProperty RoutineIntervalMinutesTextProperty = DependencyProperty.Register(nameof(RoutineIntervalMinutesText), typeof(string), typeof(MainWindow), new PropertyMetadata(string.Empty));
+
+    public static readonly DependencyProperty SegmentTimeSecondsTextProperty = DependencyProperty.Register(nameof(SegmentTimeSecondsText), typeof(string), typeof(MainWindow), new PropertyMetadata(string.Empty));
+
+    public static readonly DependencyProperty SegmentTimeMinutesTextProperty = DependencyProperty.Register(nameof(SegmentTimeMinutesText), typeof(string), typeof(MainWindow), new PropertyMetadata(string.Empty));
+
+    public static readonly DependencyProperty SegmentTimeHoursTextProperty = DependencyProperty.Register(nameof(SegmentTimeHoursText), typeof(string), typeof(MainWindow), new PropertyMetadata(string.Empty));
+
+    public static readonly DependencyProperty LocalRecordFormatIndexProperty = DependencyProperty.Register(nameof(LocalRecordFormatIndex), typeof(int), typeof(MainWindow), new PropertyMetadata(0));
+
+    public static readonly DependencyProperty LocalStreamQualityIndexProperty = DependencyProperty.Register(nameof(LocalStreamQualityIndex), typeof(int), typeof(MainWindow), new PropertyMetadata(0));
+
+    public static readonly DependencyProperty LocalIsToRecordProperty = DependencyProperty.Register(nameof(LocalIsToRecord), typeof(bool), typeof(MainWindow), new PropertyMetadata(false));
+
+    public static readonly DependencyProperty LocalIsToMonitorProperty = DependencyProperty.Register(nameof(LocalIsToMonitor), typeof(bool), typeof(MainWindow), new PropertyMetadata(false));
+
+    public static readonly DependencyProperty LocalIsRemoveTsProperty = DependencyProperty.Register(nameof(LocalIsRemoveTs), typeof(bool), typeof(MainWindow), new PropertyMetadata(false));
+
+    public static readonly DependencyProperty LocalIsToSegmentProperty = DependencyProperty.Register(nameof(LocalIsToSegment), typeof(bool), typeof(MainWindow), new PropertyMetadata(false));
+
+    public static readonly DependencyProperty LocalSegmentTimeValueProperty = DependencyProperty.Register(nameof(LocalSegmentTimeValue), typeof(double), typeof(MainWindow), new PropertyMetadata(30d));
+
+    public static readonly DependencyProperty LocalSegmentTimeUnitIndexProperty = DependencyProperty.Register(nameof(LocalSegmentTimeUnitIndex), typeof(int), typeof(MainWindow), new PropertyMetadata(0));
+
+    public static readonly DependencyProperty LocalRoutineIntervalValueProperty = DependencyProperty.Register(nameof(LocalRoutineIntervalValue), typeof(double), typeof(MainWindow), new PropertyMetadata(3d));
+
+    public static readonly DependencyProperty LocalRoutineIntervalUnitIndexProperty = DependencyProperty.Register(nameof(LocalRoutineIntervalUnitIndex), typeof(int), typeof(MainWindow), new PropertyMetadata(0));
+
+    public static readonly DependencyProperty LocalRoutineScheduleModeIndexProperty = DependencyProperty.Register(nameof(LocalRoutineScheduleModeIndex), typeof(int), typeof(MainWindow), new PropertyMetadata(0, OnLocalRoutineScheduleModeIndexChanged));
+
+    public static readonly DependencyProperty IsLocalRoutineScheduleCustomProperty = DependencyProperty.Register(nameof(IsLocalRoutineScheduleCustom), typeof(bool), typeof(MainWindow), new PropertyMetadata(false));
+
+    public static readonly DependencyProperty IsLocalRoutineScheduleAlwaysProperty = DependencyProperty.Register(nameof(IsLocalRoutineScheduleAlways), typeof(bool), typeof(MainWindow), new PropertyMetadata(true));
+
+    public static readonly DependencyProperty LocalRoutineScheduleMondayProperty = DependencyProperty.Register(nameof(LocalRoutineScheduleMonday), typeof(bool), typeof(MainWindow), new PropertyMetadata(true));
+
+    public static readonly DependencyProperty LocalRoutineScheduleTuesdayProperty = DependencyProperty.Register(nameof(LocalRoutineScheduleTuesday), typeof(bool), typeof(MainWindow), new PropertyMetadata(true));
+
+    public static readonly DependencyProperty LocalRoutineScheduleWednesdayProperty = DependencyProperty.Register(nameof(LocalRoutineScheduleWednesday), typeof(bool), typeof(MainWindow), new PropertyMetadata(true));
+
+    public static readonly DependencyProperty LocalRoutineScheduleThursdayProperty = DependencyProperty.Register(nameof(LocalRoutineScheduleThursday), typeof(bool), typeof(MainWindow), new PropertyMetadata(true));
+
+    public static readonly DependencyProperty LocalRoutineScheduleFridayProperty = DependencyProperty.Register(nameof(LocalRoutineScheduleFriday), typeof(bool), typeof(MainWindow), new PropertyMetadata(true));
+
+    public static readonly DependencyProperty LocalRoutineScheduleSaturdayProperty = DependencyProperty.Register(nameof(LocalRoutineScheduleSaturday), typeof(bool), typeof(MainWindow), new PropertyMetadata(true));
+
+    public static readonly DependencyProperty LocalRoutineScheduleSundayProperty = DependencyProperty.Register(nameof(LocalRoutineScheduleSunday), typeof(bool), typeof(MainWindow), new PropertyMetadata(true));
+
+    public static readonly DependencyProperty LocalRoutineScheduleStartHourProperty = DependencyProperty.Register(nameof(LocalRoutineScheduleStartHour), typeof(int), typeof(MainWindow), new PropertyMetadata(0));
+
+    public static readonly DependencyProperty LocalRoutineScheduleStartMinuteProperty = DependencyProperty.Register(nameof(LocalRoutineScheduleStartMinute), typeof(int), typeof(MainWindow), new PropertyMetadata(0));
+
+    public static readonly DependencyProperty LocalRoutineScheduleEndHourProperty = DependencyProperty.Register(nameof(LocalRoutineScheduleEndHour), typeof(int), typeof(MainWindow), new PropertyMetadata(23));
+
+    public static readonly DependencyProperty LocalRoutineScheduleEndMinuteProperty = DependencyProperty.Register(nameof(LocalRoutineScheduleEndMinute), typeof(int), typeof(MainWindow), new PropertyMetadata(59));
+
+    public static readonly DependencyProperty LocalSaveFolderProperty = DependencyProperty.Register(nameof(LocalSaveFolder), typeof(string), typeof(MainWindow), new PropertyMetadata(string.Empty));
+
+    public static readonly DependencyProperty LocalSaveFolderPathLevelIndexProperty = DependencyProperty.Register(nameof(LocalSaveFolderPathLevelIndex), typeof(int), typeof(MainWindow), new PropertyMetadata(0));
+
+    public static readonly DependencyProperty LocalSaveFileNameRuleIndexProperty = DependencyProperty.Register(nameof(LocalSaveFileNameRuleIndex), typeof(int), typeof(MainWindow), new PropertyMetadata(0, OnLocalSaveFileNameRuleIndexChanged));
+
+    public static readonly DependencyProperty LocalSaveFileNameCustomRuleProperty = DependencyProperty.Register(nameof(LocalSaveFileNameCustomRule), typeof(string), typeof(MainWindow), new PropertyMetadata("{主播名}_{录制时间}"));
+
+    public static readonly DependencyProperty IsLocalSaveFileNameRuleCustomProperty = DependencyProperty.Register(nameof(IsLocalSaveFileNameRuleCustom), typeof(bool), typeof(MainWindow), new PropertyMetadata(false));
 
     public double RoomCardItemWidth
     {
@@ -222,6 +291,216 @@ public partial class MainWindow : FluentWindow
         set => SetValue(RoutineIntervalMinutesTextProperty, value);
     }
 
+    public string SegmentTimeSecondsText
+    {
+        get => (string)GetValue(SegmentTimeSecondsTextProperty);
+        set => SetValue(SegmentTimeSecondsTextProperty, value);
+    }
+
+    public string SegmentTimeMinutesText
+    {
+        get => (string)GetValue(SegmentTimeMinutesTextProperty);
+        set => SetValue(SegmentTimeMinutesTextProperty, value);
+    }
+
+    public string SegmentTimeHoursText
+    {
+        get => (string)GetValue(SegmentTimeHoursTextProperty);
+        set => SetValue(SegmentTimeHoursTextProperty, value);
+    }
+
+    public int LocalRecordFormatIndex
+    {
+        get => (int)GetValue(LocalRecordFormatIndexProperty);
+        set => SetValue(LocalRecordFormatIndexProperty, value);
+    }
+
+    public int LocalStreamQualityIndex
+    {
+        get => (int)GetValue(LocalStreamQualityIndexProperty);
+        set => SetValue(LocalStreamQualityIndexProperty, value);
+    }
+
+    public bool LocalIsToRecord
+    {
+        get => (bool)GetValue(LocalIsToRecordProperty);
+        set => SetValue(LocalIsToRecordProperty, value);
+    }
+
+    public bool LocalIsToMonitor
+    {
+        get => (bool)GetValue(LocalIsToMonitorProperty);
+        set => SetValue(LocalIsToMonitorProperty, value);
+    }
+
+    public bool LocalIsRemoveTs
+    {
+        get => (bool)GetValue(LocalIsRemoveTsProperty);
+        set => SetValue(LocalIsRemoveTsProperty, value);
+    }
+
+    public bool LocalIsToSegment
+    {
+        get => (bool)GetValue(LocalIsToSegmentProperty);
+        set => SetValue(LocalIsToSegmentProperty, value);
+    }
+
+    public double LocalSegmentTimeValue
+    {
+        get => (double)GetValue(LocalSegmentTimeValueProperty);
+        set => SetValue(LocalSegmentTimeValueProperty, value);
+    }
+
+    public int LocalSegmentTimeUnitIndex
+    {
+        get => (int)GetValue(LocalSegmentTimeUnitIndexProperty);
+        set => SetValue(LocalSegmentTimeUnitIndexProperty, value);
+    }
+
+    public double LocalRoutineIntervalValue
+    {
+        get => (double)GetValue(LocalRoutineIntervalValueProperty);
+        set => SetValue(LocalRoutineIntervalValueProperty, value);
+    }
+
+    public int LocalRoutineIntervalUnitIndex
+    {
+        get => (int)GetValue(LocalRoutineIntervalUnitIndexProperty);
+        set => SetValue(LocalRoutineIntervalUnitIndexProperty, value);
+    }
+
+    public int LocalRoutineScheduleModeIndex
+    {
+        get => (int)GetValue(LocalRoutineScheduleModeIndexProperty);
+        set => SetValue(LocalRoutineScheduleModeIndexProperty, value);
+    }
+
+    public bool IsLocalRoutineScheduleCustom
+    {
+        get => (bool)GetValue(IsLocalRoutineScheduleCustomProperty);
+        set => SetValue(IsLocalRoutineScheduleCustomProperty, value);
+    }
+
+    public bool IsLocalRoutineScheduleAlways
+    {
+        get => (bool)GetValue(IsLocalRoutineScheduleAlwaysProperty);
+        set => SetValue(IsLocalRoutineScheduleAlwaysProperty, value);
+    }
+
+    public bool LocalRoutineScheduleMonday
+    {
+        get => (bool)GetValue(LocalRoutineScheduleMondayProperty);
+        set => SetValue(LocalRoutineScheduleMondayProperty, value);
+    }
+
+    public bool LocalRoutineScheduleTuesday
+    {
+        get => (bool)GetValue(LocalRoutineScheduleTuesdayProperty);
+        set => SetValue(LocalRoutineScheduleTuesdayProperty, value);
+    }
+
+    public bool LocalRoutineScheduleWednesday
+    {
+        get => (bool)GetValue(LocalRoutineScheduleWednesdayProperty);
+        set => SetValue(LocalRoutineScheduleWednesdayProperty, value);
+    }
+
+    public bool LocalRoutineScheduleThursday
+    {
+        get => (bool)GetValue(LocalRoutineScheduleThursdayProperty);
+        set => SetValue(LocalRoutineScheduleThursdayProperty, value);
+    }
+
+    public bool LocalRoutineScheduleFriday
+    {
+        get => (bool)GetValue(LocalRoutineScheduleFridayProperty);
+        set => SetValue(LocalRoutineScheduleFridayProperty, value);
+    }
+
+    public bool LocalRoutineScheduleSaturday
+    {
+        get => (bool)GetValue(LocalRoutineScheduleSaturdayProperty);
+        set => SetValue(LocalRoutineScheduleSaturdayProperty, value);
+    }
+
+    public bool LocalRoutineScheduleSunday
+    {
+        get => (bool)GetValue(LocalRoutineScheduleSundayProperty);
+        set => SetValue(LocalRoutineScheduleSundayProperty, value);
+    }
+
+    public int LocalRoutineScheduleStartHour
+    {
+        get => (int)GetValue(LocalRoutineScheduleStartHourProperty);
+        set => SetValue(LocalRoutineScheduleStartHourProperty, Math.Clamp(value, 0, 23));
+    }
+
+    public int LocalRoutineScheduleStartMinute
+    {
+        get => (int)GetValue(LocalRoutineScheduleStartMinuteProperty);
+        set => SetValue(LocalRoutineScheduleStartMinuteProperty, Math.Clamp(value, 0, 59));
+    }
+
+    public int LocalRoutineScheduleEndHour
+    {
+        get => (int)GetValue(LocalRoutineScheduleEndHourProperty);
+        set => SetValue(LocalRoutineScheduleEndHourProperty, Math.Clamp(value, 0, 23));
+    }
+
+    public int LocalRoutineScheduleEndMinute
+    {
+        get => (int)GetValue(LocalRoutineScheduleEndMinuteProperty);
+        set => SetValue(LocalRoutineScheduleEndMinuteProperty, Math.Clamp(value, 0, 59));
+    }
+
+    public string LocalSaveFolder
+    {
+        get => (string)GetValue(LocalSaveFolderProperty);
+        set => SetValue(LocalSaveFolderProperty, value);
+    }
+
+    public int LocalSaveFolderPathLevelIndex
+    {
+        get => (int)GetValue(LocalSaveFolderPathLevelIndexProperty);
+        set => SetValue(LocalSaveFolderPathLevelIndexProperty, value);
+    }
+
+    public int LocalSaveFileNameRuleIndex
+    {
+        get => (int)GetValue(LocalSaveFileNameRuleIndexProperty);
+        set => SetValue(LocalSaveFileNameRuleIndexProperty, Math.Clamp(value, 0, 4));
+    }
+
+    public string LocalSaveFileNameCustomRule
+    {
+        get => (string)GetValue(LocalSaveFileNameCustomRuleProperty);
+        set => SetValue(LocalSaveFileNameCustomRuleProperty, string.IsNullOrWhiteSpace(value) ? "{主播名}_{录制时间}" : value);
+    }
+
+    public bool IsLocalSaveFileNameRuleCustom
+    {
+        get => (bool)GetValue(IsLocalSaveFileNameRuleCustomProperty);
+        set => SetValue(IsLocalSaveFileNameRuleCustomProperty, value);
+    }
+
+    private static void OnLocalSaveFileNameRuleIndexChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is MainWindow window)
+        {
+            window.IsLocalSaveFileNameRuleCustom = (int)e.NewValue == 4;
+        }
+    }
+
+    private static void OnLocalRoutineScheduleModeIndexChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is MainWindow window)
+        {
+            int mode = (int)e.NewValue;
+            window.IsLocalRoutineScheduleCustom = mode == 1;
+            window.IsLocalRoutineScheduleAlways = mode == 0;
+        }
+    }
+
     private const int RoomCardBaseColumns = 3;
 
     private const double RoomCardMinScale = 0.86d;
@@ -290,6 +569,7 @@ public partial class MainWindow : FluentWindow
         WindowSizing.UseRelativeScreenSize(this, 1290d, 900d);
         InitializeComponent();
         PreviewMouseDown += MainWindowPreviewMouseDown;
+        SizeChanged += MainWindowSizeChanged;
         StateChanged += MainWindowStateChanged;
         WeakReferenceMessenger.Default.Register<RoomCardsFlashMessage>(this, (_, _) =>
         {
@@ -680,6 +960,9 @@ public partial class MainWindow : FluentWindow
     {
         RoutineIntervalSecondsText = RoutineIntervalUnitHelper.GetUnitText(RoutineIntervalUnitHelper.Seconds);
         RoutineIntervalMinutesText = RoutineIntervalUnitHelper.GetUnitText(RoutineIntervalUnitHelper.Minutes);
+        SegmentTimeSecondsText = SegmentTimeUnitHelper.GetUnitText(SegmentTimeUnitHelper.Seconds);
+        SegmentTimeMinutesText = SegmentTimeUnitHelper.GetUnitText(SegmentTimeUnitHelper.Minutes);
+        SegmentTimeHoursText = SegmentTimeUnitHelper.GetUnitText(SegmentTimeUnitHelper.Hours);
     }
 
     private void RecordFormatStatusTextMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -800,6 +1083,8 @@ public partial class MainWindow : FluentWindow
         AddRoomForceCheckBox.IsChecked = false;
         AddRoomFollowGlobalSettingsCheckBox.IsChecked = true;
         AddRoomNotifyCheckBox.IsChecked = true;
+        LoadLocalSettingsFlyoutValues();
+        ApplyAddRoomFlyoutMode();
         OpenCenteredFlyout(AddRoomFlyout);
         Dispatcher.BeginInvoke(() => AddRoomUrlInput.Focus(), DispatcherPriority.Input);
     }
@@ -809,13 +1094,259 @@ public partial class MainWindow : FluentWindow
         OpenCenteredFlyout(AboutFlyout);
     }
 
+    private void AddRoomFollowGlobalSettingsChanged(object sender, RoutedEventArgs e)
+    {
+        if (AddRoomFlyout == null)
+        {
+            return;
+        }
+
+        ApplyAddRoomFlyoutMode();
+        Dispatcher.BeginInvoke(() => CenterVisibleFlyout(AddRoomFlyout), DispatcherPriority.Loaded);
+    }
+
+    private void ApplyAddRoomFlyoutMode()
+    {
+        bool showLocalSettings = AddRoomFollowGlobalSettingsCheckBox?.IsChecked == false;
+        AddRoomFlyout.Width = showLocalSettings ? 654d : 540d;
+        AddRoomFlyout.Height = showLocalSettings ? 724d : double.NaN;
+        AddRoomLocalSettingsSeparator.Visibility = showLocalSettings ? Visibility.Visible : Visibility.Collapsed;
+        AddRoomLocalSettingsPanel.Visibility = showLocalSettings ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void OpenLocalSettingsFlyoutClick(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedItem == null)
+        {
+            Toast.Warning("请先选择直播间");
+            return;
+        }
+
+        LoadLocalSettingsFlyoutValues();
+        OpenCenteredFlyout(LocalSettingsFlyout);
+    }
+
+    private void LoadLocalSettingsFlyoutValues()
+    {
+        LocalRecordFormatIndex = Configurations.RecordFormat.Get() switch
+        {
+            "TS/FLV -> MP4" => 1,
+            "TS/FLV -> MKV" => 2,
+            _ => 0,
+        };
+        LocalStreamQualityIndex = Configurations.StreamQuality.Get().ToUpperInvariant() switch
+        {
+            "BD" => 1,
+            "UHD" => 2,
+            "HD" => 3,
+            "SD" => 4,
+            "LD" => 5,
+            _ => 0,
+        };
+        LocalIsToMonitor = true;
+        LocalIsToRecord = Configurations.IsToRecord.Get();
+        LocalIsRemoveTs = Configurations.IsRemoveTs.Get();
+        LocalIsToSegment = Configurations.IsToSegment.Get();
+        LocalSegmentTimeUnitIndex = SegmentTimeUnitHelper.GetPreferredUnitIndex(Configurations.SegmentTime.Get());
+        LocalSegmentTimeValue = SegmentTimeUnitHelper.ToDisplayValue(Configurations.SegmentTime.Get(), LocalSegmentTimeUnitIndex);
+        LocalRoutineIntervalUnitIndex = RoutineIntervalUnitHelper.GetPreferredUnitIndex(Configurations.RoutineInterval.Get());
+        LocalRoutineIntervalValue = RoutineIntervalUnitHelper.ToDisplayValue(Configurations.RoutineInterval.Get(), LocalRoutineIntervalUnitIndex);
+        LocalRoutineScheduleModeIndex = Math.Clamp(Configurations.RoutineScheduleMode.Get(), 0, 1);
+        HashSet<int> routineScheduleDays = ParseRoutineScheduleDays(Configurations.RoutineScheduleDays.Get());
+        LocalRoutineScheduleMonday = routineScheduleDays.Contains((int)DayOfWeek.Monday);
+        LocalRoutineScheduleTuesday = routineScheduleDays.Contains((int)DayOfWeek.Tuesday);
+        LocalRoutineScheduleWednesday = routineScheduleDays.Contains((int)DayOfWeek.Wednesday);
+        LocalRoutineScheduleThursday = routineScheduleDays.Contains((int)DayOfWeek.Thursday);
+        LocalRoutineScheduleFriday = routineScheduleDays.Contains((int)DayOfWeek.Friday);
+        LocalRoutineScheduleSaturday = routineScheduleDays.Contains((int)DayOfWeek.Saturday);
+        LocalRoutineScheduleSunday = routineScheduleDays.Contains((int)DayOfWeek.Sunday);
+        LocalRoutineScheduleStartHour = Math.Clamp(Configurations.RoutineScheduleStartHour.Get(), 0, 23);
+        LocalRoutineScheduleStartMinute = Math.Clamp(Configurations.RoutineScheduleStartMinute.Get(), 0, 59);
+        LocalRoutineScheduleEndHour = Math.Clamp(Configurations.RoutineScheduleEndHour.Get(), 0, 23);
+        LocalRoutineScheduleEndMinute = Math.Clamp(Configurations.RoutineScheduleEndMinute.Get(), 0, 59);
+        LocalSaveFolder = Configurations.SaveFolder.Get();
+        LocalSaveFolderPathLevelIndex = Math.Clamp(Configurations.SaveFolderPathLevel.Get(), 0, 1);
+        LocalSaveFileNameRuleIndex = Math.Clamp(Configurations.SaveFileNameRule.Get(), 0, 4);
+        LocalSaveFileNameCustomRule = string.IsNullOrWhiteSpace(Configurations.SaveFileNameCustomRule.Get())
+            ? "{主播名}_{录制时间}"
+            : Configurations.SaveFileNameCustomRule.Get();
+    }
+
+    private static HashSet<int> ParseRoutineScheduleDays(string? value)
+    {
+        HashSet<int> days = [];
+
+        foreach (string item in (value ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (int.TryParse(item, out int day) && day is >= 0 and <= 6)
+            {
+                days.Add(day);
+            }
+        }
+
+        return days.Count > 0 ? days : [1, 2, 3, 4, 5, 6, 0];
+    }
+
+    private void SelectLocalSaveFolderClick(object sender, RoutedEventArgs e)
+    {
+        using CommonOpenFileDialog dialog = new()
+        {
+            IsFolderPicker = true,
+        };
+
+        if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
+        {
+            LocalSaveFolder = dialog.FileName;
+        }
+    }
+
+    private async void OpenLocalSaveFolderClick(object sender, RoutedEventArgs e)
+    {
+        string folder = SaveFolderHelper.GetSaveFolder(LocalSaveFolder);
+        if (!Directory.Exists(folder))
+        {
+            Toast.Warning("FolderNotExists".Tr());
+            return;
+        }
+
+        await Launcher.LaunchFolderAsync(await StorageFolder.GetFolderFromPathAsync(folder));
+    }
+
+    private void AppendLocalSaveFileNameTokenClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Button { Tag: string token } || string.IsNullOrWhiteSpace(token))
+        {
+            return;
+        }
+
+        LocalSaveFileNameCustomRule = string.IsNullOrWhiteSpace(LocalSaveFileNameCustomRule)
+            ? token
+            : LocalSaveFileNameCustomRule.EndsWith('_')
+                ? LocalSaveFileNameCustomRule + token
+                : LocalSaveFileNameCustomRule + "_" + token;
+    }
+
+    private void DeleteLocalSaveFileNameTokenClick(object sender, RoutedEventArgs e)
+    {
+        string[] tokens = ["{主播uid}", "{主播名}", "{录制时间}", "{分辨率}", "{平台}"];
+
+        foreach (string token in tokens.OrderByDescending(static value => value.Length))
+        {
+            if (LocalSaveFileNameCustomRule.EndsWith(token, StringComparison.Ordinal))
+            {
+                string value = LocalSaveFileNameCustomRule[..^token.Length];
+                LocalSaveFileNameCustomRule = value.EndsWith('_') ? value[..^1] : value;
+                return;
+            }
+        }
+
+        if (LocalSaveFileNameCustomRule.Length > 0)
+        {
+            LocalSaveFileNameCustomRule = LocalSaveFileNameCustomRule[..^1];
+        }
+    }
+
+    private void ResetLocalSaveFileNameRuleClick(object sender, RoutedEventArgs e)
+    {
+        LocalSaveFileNameCustomRule = "{主播名}_{录制时间}";
+    }
+
+    private void SaveLocalSettingsClick(object sender, RoutedEventArgs e)
+    {
+        SaveLocalSettingsValues();
+        ViewModel.ReloadConfigStatus();
+        ViewModel.SelectedItem.RefreshStatus();
+        CloseFloatingPanels();
+        Toast.Success("SuccOp".Tr());
+    }
+
+    private void SaveLocalSettingsValues()
+    {
+        Configurations.RecordFormat.Set(LocalRecordFormatIndex switch
+        {
+            1 => "TS/FLV -> MP4",
+            2 => "TS/FLV -> MKV",
+            _ => "TS/FLV",
+        });
+        Configurations.StreamQuality.Set(LocalStreamQualityIndex switch
+        {
+            1 => "BD",
+            2 => "UHD",
+            3 => "HD",
+            4 => "SD",
+            5 => "LD",
+            _ => "OD",
+        });
+        Configurations.IsToRecord.Set(LocalIsToRecord);
+        Configurations.IsRemoveTs.Set(LocalIsRemoveTs);
+        Configurations.IsToSegment.Set(LocalIsToSegment);
+        Configurations.SegmentTime.Set(SegmentTimeUnitHelper.ToSeconds(LocalSegmentTimeValue, LocalSegmentTimeUnitIndex));
+        Configurations.SegmentTimeUnit.Set(LocalSegmentTimeUnitIndex);
+        Configurations.RoutineInterval.Set(RoutineIntervalUnitHelper.ToMilliseconds(LocalRoutineIntervalValue, LocalRoutineIntervalUnitIndex));
+        Configurations.RoutineScheduleMode.Set(Math.Clamp(LocalRoutineScheduleModeIndex, 0, 1));
+        Configurations.RoutineScheduleDays.Set(BuildLocalRoutineScheduleDays());
+        Configurations.RoutineScheduleStartHour.Set(LocalRoutineScheduleStartHour);
+        Configurations.RoutineScheduleStartMinute.Set(LocalRoutineScheduleStartMinute);
+        Configurations.RoutineScheduleEndHour.Set(LocalRoutineScheduleEndHour);
+        Configurations.RoutineScheduleEndMinute.Set(LocalRoutineScheduleEndMinute);
+        Configurations.SaveFolder.Set(LocalSaveFolder);
+        Configurations.SaveFolderPathLevel.Set(Math.Clamp(LocalSaveFolderPathLevelIndex, 0, 1));
+        Configurations.SaveFileNameRule.Set(Math.Clamp(LocalSaveFileNameRuleIndex, 0, 4));
+        Configurations.SaveFileNameCustomRule.Set(LocalSaveFileNameCustomRule);
+        ConfigurationManager.Save();
+    }
+
+    private string BuildLocalRoutineScheduleDays()
+    {
+        List<int> days = [];
+
+        if (LocalRoutineScheduleMonday)
+        {
+            days.Add((int)DayOfWeek.Monday);
+        }
+
+        if (LocalRoutineScheduleTuesday)
+        {
+            days.Add((int)DayOfWeek.Tuesday);
+        }
+
+        if (LocalRoutineScheduleWednesday)
+        {
+            days.Add((int)DayOfWeek.Wednesday);
+        }
+
+        if (LocalRoutineScheduleThursday)
+        {
+            days.Add((int)DayOfWeek.Thursday);
+        }
+
+        if (LocalRoutineScheduleFriday)
+        {
+            days.Add((int)DayOfWeek.Friday);
+        }
+
+        if (LocalRoutineScheduleSaturday)
+        {
+            days.Add((int)DayOfWeek.Saturday);
+        }
+
+        if (LocalRoutineScheduleSunday)
+        {
+            days.Add((int)DayOfWeek.Sunday);
+        }
+
+        return days.Count > 0 ? string.Join(",", days) : "1,2,3,4,5,6,0";
+    }
+
     private async void AddRoomConfirmClick(object sender, RoutedEventArgs e)
     {
         bool added = await ViewModel.TryAddRoomFromFlyoutAsync(
             AddRoomUrlInput.Text,
             AddRoomForceCheckBox.IsChecked == true,
             AddRoomNotifyCheckBox.IsChecked == true,
-            AddRoomFollowGlobalSettingsCheckBox.IsChecked == true);
+            AddRoomFollowGlobalSettingsCheckBox.IsChecked == true,
+            LocalIsToMonitor,
+            LocalIsToRecord);
         if (added)
         {
             AddRoomFlyout.Visibility = Visibility.Collapsed;
@@ -908,15 +1439,51 @@ public partial class MainWindow : FluentWindow
         flyout.UpdateLayout();
         MainFlyoutLayer.UpdateLayout();
 
-        double flyoutWidth = Math.Max(flyout.ActualWidth, flyout.DesiredSize.Width);
-        double flyoutHeight = Math.Max(flyout.ActualHeight, flyout.DesiredSize.Height);
-        double layerWidth = MainFlyoutLayer.ActualWidth > 1 ? MainFlyoutLayer.ActualWidth : Math.Max(ActualWidth - MainFlyoutLayer.Margin.Left - MainFlyoutLayer.Margin.Right, 1);
-        double layerHeight = MainFlyoutLayer.ActualHeight > 1 ? MainFlyoutLayer.ActualHeight : Math.Max(ActualHeight - MainFlyoutLayer.Margin.Top - MainFlyoutLayer.Margin.Bottom, 1);
+        double originalWidth = GetOriginalFlyoutWidth(flyout);
+        double originalHeight = GetOriginalFlyoutHeight(flyout);
+        double layerWidth = MainFlyoutLayer.ActualWidth > 1 ? MainFlyoutLayer.ActualWidth : Math.Max(ActualWidth, 1);
+        double layerHeight = MainFlyoutLayer.ActualHeight > 1 ? MainFlyoutLayer.ActualHeight : Math.Max(ActualHeight, 1);
+        double scale = GetFlyoutScale(originalWidth, originalHeight, layerWidth, layerHeight);
+        flyout.LayoutTransform = scale < 1d ? new ScaleTransform(scale, scale) : null;
+        flyout.UpdateLayout();
+
+        double flyoutWidth = originalWidth * scale;
+        double flyoutHeight = originalHeight * scale;
         double left = Math.Clamp((layerWidth - flyoutWidth) / 2d, 0, Math.Max(0, layerWidth - flyoutWidth));
         double top = Math.Clamp((layerHeight - flyoutHeight) / 2d, 0, Math.Max(0, layerHeight - flyoutHeight));
 
         Canvas.SetLeft(flyout, left);
         Canvas.SetTop(flyout, top);
+    }
+
+    private static double GetOriginalFlyoutWidth(FrameworkElement flyout)
+    {
+        double width = flyout.Width;
+        if (double.IsNaN(width) || width <= 0)
+        {
+            width = Math.Max(flyout.ActualWidth, flyout.DesiredSize.Width);
+        }
+
+        return Math.Max(width, 1d);
+    }
+
+    private static double GetOriginalFlyoutHeight(FrameworkElement flyout)
+    {
+        double height = flyout.Height;
+        if (double.IsNaN(height) || height <= 0)
+        {
+            height = Math.Max(flyout.ActualHeight, flyout.DesiredSize.Height);
+        }
+
+        return Math.Max(height, 1d);
+    }
+
+    private static double GetFlyoutScale(double width, double height, double layerWidth, double layerHeight)
+    {
+        double availableWidth = Math.Max(1d, layerWidth - 24d);
+        double availableHeight = Math.Max(1d, layerHeight - 24d);
+        double scale = Math.Min(1d, Math.Min(availableWidth / width, availableHeight / height));
+        return double.IsNaN(scale) || double.IsInfinity(scale) || scale <= 0 ? 1d : scale;
     }
 
     private void MainWindowPreviewMouseDown(object sender, MouseButtonEventArgs e)
@@ -935,11 +1502,17 @@ public partial class MainWindow : FluentWindow
             return false;
         }
 
+        if (IsComboBoxPopupInteraction(source))
+        {
+            return false;
+        }
+
         (FrameworkElement Flyout, FrameworkElement Target)[] items =
         [
             (RoutineIntervalFlyout, RoutineIntervalStatusButton),
             (RecordFormatFlyout, RecordFormatStatusText),
             (AddRoomFlyout, AddRoomFlyout),
+            (LocalSettingsFlyout, LocalSettingsButton),
             (AboutFlyout, AboutFlyout),
         ];
 
@@ -953,6 +1526,31 @@ public partial class MainWindow : FluentWindow
         }
 
         return items.Any(item => item.Flyout.Visibility == Visibility.Visible);
+    }
+
+    private static bool IsComboBoxPopupInteraction(DependencyObject source)
+    {
+        DependencyObject? current = source;
+
+        while (current != null)
+        {
+            if (current is System.Windows.Controls.ComboBox or ComboBoxItem)
+            {
+                return true;
+            }
+
+            string typeName = current.GetType().Name;
+            if (typeName is "PopupRoot" or "Popup" or "NonLogicalAdornerDecorator")
+            {
+                return true;
+            }
+
+            current = current is Visual or Visual3D
+                ? VisualTreeHelper.GetParent(current)
+                : LogicalTreeHelper.GetParent(current);
+        }
+
+        return false;
     }
 
     private void SetRoutineIntervalFlyoutValue(int milliseconds)
@@ -974,11 +1572,12 @@ public partial class MainWindow : FluentWindow
 
     private void CloseFloatingPanels(FrameworkElement? except = null)
     {
-        foreach (FrameworkElement flyout in new[] { RoutineIntervalFlyout, RecordFormatFlyout, AddRoomFlyout, AboutFlyout })
+        foreach (FrameworkElement flyout in new[] { RoutineIntervalFlyout, RecordFormatFlyout, AddRoomFlyout, LocalSettingsFlyout, AboutFlyout })
         {
             if (!ReferenceEquals(flyout, except))
             {
                 flyout.Visibility = Visibility.Collapsed;
+                flyout.LayoutTransform = null;
             }
         }
 
@@ -988,6 +1587,7 @@ public partial class MainWindow : FluentWindow
     private void UpdateModalOverlay()
     {
         bool modalVisible = AddRoomFlyout.Visibility == Visibility.Visible ||
+            LocalSettingsFlyout.Visibility == Visibility.Visible ||
             AboutFlyout.Visibility == Visibility.Visible;
 
         ModalOverlay.Visibility = modalVisible ? Visibility.Visible : Visibility.Collapsed;
@@ -999,6 +1599,25 @@ public partial class MainWindow : FluentWindow
         if (WindowState == WindowState.Minimized)
         {
             CloseFloatingPanels();
+            return;
+        }
+
+        Dispatcher.BeginInvoke(UpdateVisibleCenteredFlyouts, DispatcherPriority.Loaded);
+    }
+
+    private void MainWindowSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        Dispatcher.BeginInvoke(UpdateVisibleCenteredFlyouts, DispatcherPriority.Loaded);
+    }
+
+    private void UpdateVisibleCenteredFlyouts()
+    {
+        foreach (FrameworkElement flyout in new[] { AddRoomFlyout, LocalSettingsFlyout, AboutFlyout })
+        {
+            if (flyout.Visibility == Visibility.Visible)
+            {
+                CenterVisibleFlyout(flyout);
+            }
         }
     }
 

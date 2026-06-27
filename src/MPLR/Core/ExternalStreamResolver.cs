@@ -134,12 +134,15 @@ internal static class ExternalStreamResolver
             return null;
         }
 
+        string? resolverConfigPath = null;
+
         try
         {
             using ResolverConcurrencyLease lease = EnterResolverConcurrency();
+            ProcessStartInfo startInfo = CreateStartInfo(pythonPath, scriptPath, normalizedUrl, out resolverConfigPath);
             using Process process = new()
             {
-                StartInfo = CreateStartInfo(pythonPath, scriptPath, normalizedUrl),
+                StartInfo = startInfo,
             };
 
             process.Start();
@@ -288,6 +291,10 @@ internal static class ExternalStreamResolver
             AppSessionLogger.WriteException(e);
             return null;
         }
+        finally
+        {
+            DeleteResolverConfig(resolverConfigPath);
+        }
     }
 
     private static string GetPlatform(string? platform, string? url)
@@ -397,7 +404,7 @@ internal static class ExternalStreamResolver
         return lines.Length == 0 ? value.Trim() : string.Join(Environment.NewLine, lines);
     }
 
-    private static ProcessStartInfo CreateStartInfo(string pythonPath, string scriptPath, string url)
+    private static ProcessStartInfo CreateStartInfo(string pythonPath, string scriptPath, string url, out string? configPath)
     {
         ProcessStartInfo startInfo = new()
         {
@@ -436,7 +443,7 @@ internal static class ExternalStreamResolver
             startInfo.ArgumentList.Add(cookieOversea);
         }
 
-        string? configPath = WriteResolverConfig();
+        configPath = WriteResolverConfig();
         if (!string.IsNullOrWhiteSpace(configPath))
         {
             startInfo.ArgumentList.Add("--config");
@@ -456,12 +463,51 @@ internal static class ExternalStreamResolver
 
         string directory = Path.Combine(Path.GetTempPath(), AppConfig.PackName, "stream_resolver");
         Directory.CreateDirectory(directory);
-        string path = Path.Combine(directory, "resolver_config.json");
+        CleanStaleResolverConfigs(directory);
+
+        string path = Path.Combine(directory, $"resolver_config_{Environment.ProcessId}_{Guid.NewGuid():N}.json");
         File.WriteAllText(path, JsonSerializer.Serialize(new Dictionary<string, object>
         {
             ["cookies"] = cookies,
         }));
         return path;
+    }
+
+    private static void DeleteResolverConfig(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Debug.WriteLine(e);
+        }
+    }
+
+    private static void CleanStaleResolverConfigs(string directory)
+    {
+        DateTime threshold = DateTime.Now.AddDays(-1);
+
+        foreach (string path in Directory.EnumerateFiles(directory, "resolver_config*.json"))
+        {
+            try
+            {
+                if (File.GetLastWriteTime(path) < threshold)
+                {
+                    File.Delete(path);
+                }
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                Debug.WriteLine(e);
+            }
+        }
     }
 
     private static Dictionary<string, string> ParsePlatformCookies(string value)

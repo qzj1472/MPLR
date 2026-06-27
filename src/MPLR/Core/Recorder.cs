@@ -27,6 +27,8 @@ public sealed class Recorder
 
     public string? FileName { get; set; } = null;
 
+    private string? MetadataPath { get; set; } = null;
+
     public string? Parameters { get; set; } = null;
 
     public DateTime StartTime { get; private set; } = DateTime.MinValue;
@@ -100,7 +102,7 @@ public sealed class Recorder
                 : $"{fileName}.{outputExtension}";
 
             FileName = Path.Combine(saveFolder, fileNamePattern);
-            WriteMetadata(saveFolder, fileName, outputExtension, startInfo, now);
+            MetadataPath = WriteMetadata(saveFolder, fileName, outputExtension, startInfo, now);
 
             bool isOversea = IsOverseaUrl(startInfo.RoomUrl) || IsOverseaUrl(Url);
             string rwTimeout = isOversea ? "50000000" : "15000000";
@@ -185,6 +187,7 @@ public sealed class Recorder
         finally
         {
             await ConvertRecordedFileAsync();
+            CleanOrphanMetadata();
             EndTime = DateTime.Now;
             lock (stateLock)
             {
@@ -581,7 +584,75 @@ public sealed class Recorder
         return string.IsNullOrWhiteSpace(fileName) ? $"{nickName.SanitizeFileName()}_{now:yyyy-MM-dd_HH-mm-ss}" : fileName;
     }
 
-    private static void WriteMetadata(string saveFolder, string fileName, string outputExtension, RecorderStartInfo startInfo, DateTime now)
+    private void CleanOrphanMetadata()
+    {
+        if (string.IsNullOrWhiteSpace(MetadataPath) || !File.Exists(MetadataPath))
+        {
+            return;
+        }
+
+        bool hasVideo = GetAssociatedVideoFiles().Any(file =>
+        {
+            try
+            {
+                FileInfo info = new(file);
+                return info.Exists && info.Length > 0;
+            }
+            catch
+            {
+                return false;
+            }
+        });
+
+        if (!hasVideo)
+        {
+            TryDelete(MetadataPath);
+        }
+    }
+
+    private IEnumerable<string> GetAssociatedVideoFiles()
+    {
+        if (string.IsNullOrWhiteSpace(MetadataPath))
+        {
+            return [];
+        }
+
+        string? directory = Path.GetDirectoryName(MetadataPath);
+        string metadataName = Path.GetFileNameWithoutExtension(MetadataPath);
+        if (metadataName.EndsWith(".mplr", StringComparison.OrdinalIgnoreCase))
+        {
+            metadataName = Path.GetFileNameWithoutExtension(metadataName);
+        }
+
+        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory) || string.IsNullOrWhiteSpace(metadataName))
+        {
+            return [];
+        }
+
+        HashSet<string> videoExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".mp4",
+            ".mkv",
+            ".flv",
+            ".ts",
+        };
+
+        return Directory.EnumerateFiles(directory)
+            .Where(file =>
+            {
+                string extension = Path.GetExtension(file);
+                if (!videoExtensions.Contains(extension))
+                {
+                    return false;
+                }
+
+                string stem = Path.GetFileNameWithoutExtension(file);
+                return stem.Equals(metadataName, StringComparison.OrdinalIgnoreCase) ||
+                       stem.StartsWith(metadataName + "_", StringComparison.OrdinalIgnoreCase);
+            });
+    }
+
+    private static string? WriteMetadata(string saveFolder, string fileName, string outputExtension, RecorderStartInfo startInfo, DateTime now)
     {
         try
         {
@@ -600,10 +671,12 @@ public sealed class Recorder
             };
 
             File.WriteAllText(metadataPath, JsonSerializer.Serialize(metadata, new JsonSerializerOptions { WriteIndented = true }));
+            return metadataPath;
         }
         catch (Exception e)
         {
             Debug.WriteLine(e);
+            return null;
         }
     }
 

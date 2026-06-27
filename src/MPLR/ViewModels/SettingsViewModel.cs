@@ -165,26 +165,8 @@ public partial class SettingsViewModel : ReactiveObject
         });
     }
 
-    [RelayCommand]
-    private async Task ExportLogsAsync()
+    public void ExportLogs(bool latest)
     {
-        ContentDialog dialog = new()
-        {
-            Title = "导出运行日志",
-            Content = "请选择要导出的日志范围。",
-            PrimaryButtonText = "导出最近",
-            SecondaryButtonText = "导出全部",
-            CloseButtonText = "取消",
-            DefaultButton = ContentDialogButton.Primary,
-        };
-
-        ContentDialogResult result = await dialog.ShowAsync();
-
-        if (result == ContentDialogResult.None)
-        {
-            return;
-        }
-
         using CommonOpenFileDialog folderDialog = new()
         {
             IsFolderPicker = true,
@@ -199,7 +181,7 @@ public partial class SettingsViewModel : ReactiveObject
 
         try
         {
-            string archivePath = result == ContentDialogResult.Primary
+            string archivePath = latest
                 ? LogExporter.ExportLatest(folderDialog.FileName)
                 : LogExporter.ExportAll(folderDialog.FileName);
 

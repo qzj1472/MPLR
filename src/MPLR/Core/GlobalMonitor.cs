@@ -326,12 +326,51 @@ internal static class GlobalMonitor
         {
             roomStatus.Platform = PlatformDetector.DetectFromUrl(room.RoomUrl);
 
-            if (roomStatus.RecordStatus != RecordStatus.Recording)
+            if (!shouldRecord)
             {
-                roomStatus.RecordStatus = shouldRecord ? RecordStatus.NotRecording : RecordStatus.Disabled;
+                if (roomStatus.RecordStatus == RecordStatus.Recording)
+                {
+                    AppSessionLogger.Event("info", "business", "record_stop_requested", "record stop requested because recording is disabled", new
+                    {
+                        room.RoomUrl,
+                        room.NickName,
+                        roomStatus.Platform,
+                        roomStatus.RecordStatus,
+                    });
+                    roomStatus.Recorder.Stop();
+                }
+
+                roomStatus.RecordStatus = RecordStatus.Disabled;
+                roomStatus.StreamStatus = StreamStatus.Disabled;
+                return;
             }
 
-            roomStatus.StreamStatus = shouldRecord ? StreamStatus.NotStreaming : StreamStatus.Disabled;
+            if (roomStatus.RecordStatus == RecordStatus.Recording)
+            {
+                AppSessionLogger.Event("warn", "business", "room_check_failed_while_recording", "room check failed while recorder is still running", new
+                {
+                    room.RoomUrl,
+                    room.NickName,
+                    roomStatus.Platform,
+                    hasRecordUrl = !string.IsNullOrWhiteSpace(roomStatus.RecordUrl),
+                    hasFlvUrl = !string.IsNullOrWhiteSpace(roomStatus.FlvUrl),
+                    hasHlsUrl = !string.IsNullOrWhiteSpace(roomStatus.HlsUrl),
+                });
+
+                if (HasRecordableStream(roomStatus))
+                {
+                    roomStatus.StreamStatus = StreamStatus.Streaming;
+                }
+
+                return;
+            }
+
+            if (roomStatus.RecordStatus != RecordStatus.Recording)
+            {
+                roomStatus.RecordStatus = RecordStatus.NotRecording;
+            }
+
+            roomStatus.StreamStatus = StreamStatus.NotStreaming;
             return;
         }
 
@@ -342,9 +381,14 @@ internal static class GlobalMonitor
             roomStatus.AvatarThumbUrl = spiderResult.AvatarThumbUrl;
             roomStatus.AvatarLocalPath = await AvatarCache.UpdateAsync(room.RoomUrl, spiderResult.AvatarThumbUrl, token);
         }
-        roomStatus.FlvUrl = spiderResult.FlvUrl ?? string.Empty;
-        roomStatus.HlsUrl = spiderResult.HlsUrl ?? string.Empty;
-        roomStatus.RecordUrl = spiderResult.RecordUrl ?? string.Empty;
+        bool hasFreshRecordableStream = HasRecordableStream(spiderResult);
+        if (hasFreshRecordableStream || roomStatus.RecordStatus != RecordStatus.Recording)
+        {
+            roomStatus.FlvUrl = spiderResult.FlvUrl ?? string.Empty;
+            roomStatus.HlsUrl = spiderResult.HlsUrl ?? string.Empty;
+            roomStatus.RecordUrl = spiderResult.RecordUrl ?? string.Empty;
+        }
+
         roomStatus.Platform = string.IsNullOrWhiteSpace(spiderResult.Platform)
             ? PlatformDetector.DetectFromUrl(room.RoomUrl)
             : spiderResult.Platform;
@@ -397,6 +441,10 @@ internal static class GlobalMonitor
             && roomStatus.RecordStatus == RecordStatus.Recording
             && (DateTime.Now - roomStatus.Recorder.StartTime).TotalSeconds < 30)
         {
+        }
+        else if (roomStatus.RecordStatus == RecordStatus.Recording && !isLiveStreaming && HasRecordableStream(roomStatus))
+        {
+            roomStatus.StreamStatus = StreamStatus.Streaming;
         }
         else
         {

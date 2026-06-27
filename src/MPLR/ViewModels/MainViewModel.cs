@@ -86,6 +86,19 @@ public partial class MainViewModel : ReactiveObject
     public string StatusOfRoutineIntervalWithUnit
         => RoutineIntervalUnitHelper.FormatDisplayValue(StatusOfRoutineInterval);
 
+    public void ReloadConfigStatus()
+    {
+        StatusOfIsMonitorRunning = Configurations.IsMonitorRunning.Get();
+        StatusOfIsToNotify = Configurations.IsToNotify.Get();
+        StatusOfIsToRecord = Configurations.IsToRecord.Get();
+        StatusOfIsUseProxy = Configurations.IsUseProxy.Get();
+        StatusOfIsUseKeepAwake = Configurations.IsUseKeepAwake.Get();
+        StatusOfIsUseAutoShutdown = Configurations.IsUseAutoShutdown.Get();
+        StatusOfAutoShutdownTime = Configurations.AutoShutdownTime.Get();
+        StatusOfRecordFormat = Configurations.RecordFormat.Get();
+        StatusOfRoutineInterval = Configurations.RoutineInterval.Get();
+    }
+
     [ObservableProperty]
     private bool isReadyToShutdown = false;
 
@@ -255,12 +268,12 @@ public partial class MainViewModel : ReactiveObject
         {
             if (!string.IsNullOrWhiteSpace(dialog.NickName))
             {
-                await AddRoomToListAsync(dialog.Url, dialog.RoomUrl!, dialog.NickName, dialog.SpiderResult, dialog.IsToNotify, dialog.IsFollowGlobalSettings);
+                await AddRoomToListAsync(dialog.Url, dialog.RoomUrl!, dialog.NickName, dialog.SpiderResult, dialog.IsToNotify, dialog.IsFollowGlobalSettings, true, Configurations.IsToRecord.Get());
             }
         }
     }
 
-    public async Task<bool> TryAddRoomFromFlyoutAsync(string? url, bool isForcedAdd, bool isToNotify, bool isFollowGlobalSettings)
+    public async Task<bool> TryAddRoomFromFlyoutAsync(string? url, bool isForcedAdd, bool isToNotify, bool isFollowGlobalSettings, bool isToMonitor, bool isToRecord)
     {
         if (string.IsNullOrWhiteSpace(url))
         {
@@ -284,7 +297,7 @@ public partial class MainViewModel : ReactiveObject
                 return false;
             }
 
-            await AddRoomToListAsync(url, roomUrl, roomUrl, null, isToNotify, isFollowGlobalSettings);
+            await AddRoomToListAsync(url, roomUrl, roomUrl, null, isToNotify, isFollowGlobalSettings, isToMonitor, isToRecord);
             Toast.Success("AddRoomSucc".Tr(roomUrl));
             return true;
         }
@@ -307,7 +320,7 @@ public partial class MainViewModel : ReactiveObject
                     return false;
                 }
 
-                await AddRoomToListAsync(url, spider.RoomUrl, spider.Nickname, spider, isToNotify, isFollowGlobalSettings);
+                await AddRoomToListAsync(url, spider.RoomUrl, spider.Nickname, spider, isToNotify, isFollowGlobalSettings, isToMonitor, isToRecord);
                 Toast.Success("AddRoomSucc".Tr(spider.Nickname));
                 return true;
             }
@@ -319,7 +332,7 @@ public partial class MainViewModel : ReactiveObject
         }
     }
 
-    private async Task AddRoomToListAsync(string? originalUrl, string roomUrl, string nickName, ISpiderResult? spiderResult, bool isToNotify, bool isFollowGlobalSettings)
+    private async Task AddRoomToListAsync(string? originalUrl, string roomUrl, string nickName, ISpiderResult? spiderResult, bool isToNotify, bool isFollowGlobalSettings, bool isToMonitor, bool isToRecord)
     {
         List<Room> rooms = [.. Configurations.Rooms.Get()];
 
@@ -331,6 +344,8 @@ public partial class MainViewModel : ReactiveObject
             AddedAt = DateTime.Now,
             IsToNotify = isToNotify,
             IsFollowGlobalSettings = isFollowGlobalSettings,
+            IsToMonitor = isToMonitor,
+            IsToRecord = isToRecord,
         };
         rooms.RemoveAll(room => room.RoomUrl == originalUrl || room.RoomUrl == roomUrl);
         rooms.Add(newRoom);
@@ -346,6 +361,8 @@ public partial class MainViewModel : ReactiveObject
             AvatarLocalPath = AvatarCache.GetCachedAvatarSource(roomUrl),
             IsToNotify = isToNotify,
             IsFollowGlobalSettings = isFollowGlobalSettings,
+            IsToMonitor = isToMonitor,
+            IsToRecord = isToRecord,
         };
 
         if (spiderResult != null)

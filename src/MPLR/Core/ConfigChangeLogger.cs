@@ -82,27 +82,40 @@ internal static partial class ConfigChangeLogger
 
     private static string? ReadSanitizedSnapshot(string path)
     {
-        try
+        for (int attempt = 0; attempt < 5; attempt++)
         {
-            if (!File.Exists(path))
+            try
             {
+                if (!File.Exists(path))
+                {
+                    return null;
+                }
+
+                using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using StreamReader reader = new(stream, Encoding.UTF8);
+                return SensitiveLineRegex().Replace(reader.ReadToEnd(), "$1: [redacted]");
+            }
+            catch (IOException) when (attempt < 4)
+            {
+                Thread.Sleep(80);
+            }
+            catch (UnauthorizedAccessException) when (attempt < 4)
+            {
+                Thread.Sleep(80);
+            }
+            catch (IOException e)
+            {
+                AppSessionLogger.WriteException(e);
                 return null;
             }
+            catch (UnauthorizedAccessException e)
+            {
+                AppSessionLogger.WriteException(e);
+                return null;
+            }
+        }
 
-            using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            using StreamReader reader = new(stream, Encoding.UTF8);
-            return SensitiveLineRegex().Replace(reader.ReadToEnd(), "$1: [redacted]");
-        }
-        catch (IOException e)
-        {
-            AppSessionLogger.WriteException(e);
-            return null;
-        }
-        catch (UnauthorizedAccessException e)
-        {
-            AppSessionLogger.WriteException(e);
-            return null;
-        }
+        return null;
     }
 
     private static string? ComputeHash(string? value)
