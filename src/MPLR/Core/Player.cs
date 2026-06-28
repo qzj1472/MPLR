@@ -96,6 +96,12 @@ public sealed class Player
             if (process != null)
             {
                 ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
+                RuntimeResourceLogger.Register(process, "ffplay", "preview", roomUrl, nickName, new
+                {
+                    previewUrl = RedactUrl(previewSource.Url),
+                    width = previewSize?.Width,
+                    height = previewSize?.Height,
+                });
                 AppSessionLogger.Event("info", "player", "preview_started", "ffplay preview process started", new
                 {
                     roomUrl,
@@ -299,6 +305,10 @@ public sealed class Player
             {
                 process.Start();
                 ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
+                RuntimeResourceLogger.Register(process, "ffprobe", "preview_probe", previewUrl, null, new
+                {
+                    previewUrl = RedactUrl(previewUrl),
+                });
                 string output = await process.StandardOutput.ReadToEndAsync(token);
                 string error = await process.StandardError.ReadToEndAsync(token);
                 await process.WaitForExitAsync(token);

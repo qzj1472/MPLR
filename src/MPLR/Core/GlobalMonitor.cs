@@ -347,11 +347,13 @@ internal static class GlobalMonitor
 
     private static async Task RunRoomCheckAsync(Room room, RoomStatus roomStatus, bool shouldNotify, bool shouldRecord, RoomRecordingOptions settings, CancellationToken token)
     {
+        SyncRecordStatus(roomStatus);
         ISpiderResult? spiderResult = await Task.Run(() => Spider.GetResult(room.RoomUrl, settings.StreamQuality), token);
         shouldRecord = GetEffectiveRoomRecord(room) && !IsRecordStartBlocked;
 
         if (!GetEffectiveRoomMonitor(room))
         {
+            SyncRecordStatus(roomStatus);
             if (roomStatus.RecordStatus == RecordStatus.Recording)
             {
                 roomStatus.Recorder.Stop();
@@ -364,10 +366,17 @@ internal static class GlobalMonitor
 
         if (spiderResult == null)
         {
-            roomStatus.Platform = PlatformDetector.DetectFromUrl(room.RoomUrl);
+            roomStatus.Platform = string.IsNullOrWhiteSpace(roomStatus.Platform)
+                ? PlatformDetector.DetectFromUrl(room.RoomUrl)
+                : roomStatus.Platform;
+            if (string.IsNullOrWhiteSpace(roomStatus.AvatarLocalPath))
+            {
+                roomStatus.AvatarLocalPath = AvatarCache.GetCachedAvatarSource(room.RoomUrl);
+            }
 
             if (!shouldRecord)
             {
+                SyncRecordStatus(roomStatus);
                 if (roomStatus.RecordStatus == RecordStatus.Recording)
                 {
                     AppSessionLogger.Event("info", "business", "record_stop_requested", "record stop requested because recording is disabled", new
@@ -389,9 +398,11 @@ internal static class GlobalMonitor
                 return;
             }
 
+            SyncRecordStatus(roomStatus);
+
             if (roomStatus.RecordStatus == RecordStatus.Recording)
             {
-                    AppSessionLogger.Event("warn", "business", "room_check_failed_while_recording", "room check failed while recorder is still running", new
+                AppSessionLogger.Event("warn", "business", "room_check_failed_while_recording", "room check failed while recorder is still running", new
                 {
                     room.RoomUrl,
                     room.NickName,
@@ -425,6 +436,10 @@ internal static class GlobalMonitor
         {
             roomStatus.AvatarThumbUrl = spiderResult.AvatarThumbUrl;
             roomStatus.AvatarLocalPath = await AvatarCache.UpdateAsync(room.RoomUrl, spiderResult.AvatarThumbUrl, token);
+        }
+        else if (string.IsNullOrWhiteSpace(roomStatus.AvatarLocalPath))
+        {
+            roomStatus.AvatarLocalPath = AvatarCache.GetCachedAvatarSource(room.RoomUrl);
         }
         bool hasFreshRecordableStream = HasRecordableStream(spiderResult);
         if (hasFreshRecordableStream || roomStatus.RecordStatus != RecordStatus.Recording)
@@ -481,15 +496,12 @@ internal static class GlobalMonitor
         }
 
         bool isLiveStreaming = IsLiveStreaming(spiderResult);
+        SyncRecordStatus(roomStatus);
 
         if (roomStatus.StreamStatus == StreamStatus.Streaming
             && roomStatus.RecordStatus == RecordStatus.Recording
             && (DateTime.Now - roomStatus.Recorder.StartTime).TotalSeconds < 30)
         {
-        }
-        else if (roomStatus.RecordStatus == RecordStatus.Recording && !isLiveStreaming && HasRecordableStream(roomStatus))
-        {
-            roomStatus.StreamStatus = StreamStatus.Streaming;
         }
         else
         {
@@ -505,8 +517,30 @@ internal static class GlobalMonitor
         {
             if (isLiveStreaming && HasRecordableStream(roomStatus))
             {
-                if (roomStatus.RecordStatus != RecordStatus.Recording)
+                if (roomStatus.Recorder.IsBusy && roomStatus.RecordStatus != RecordStatus.Recording)
                 {
+                    AppSessionLogger.Event("info", "business", "record_start_waiting_for_cleanup", "record start delayed while recorder cleanup is still running", new
+                    {
+                        room.RoomUrl,
+                        room.NickName,
+                        roomStatus.Platform,
+                    });
+                    return;
+                }
+
+                if (!IsRoomRecording(roomStatus))
+                {
+                    if (HasActiveRecorderForRoom(room.RoomUrl, roomStatus))
+                    {
+                        AppSessionLogger.Event("warn", "business", "record_start_skipped_duplicate", "record start skipped because another recorder is active for the same room", new
+                        {
+                            room.RoomUrl,
+                            room.NickName,
+                        });
+                        Toast.Warning($"已检测到 {room.NickName} 正在录制，已避免重复拉流");
+                        return;
+                    }
+
                     AppSessionLogger.Event("info", "business", "record_start_requested", "record start requested", new
                     {
                         room.RoomUrl,
@@ -547,13 +581,34 @@ internal static class GlobalMonitor
                     }
                 }
             }
-            else if (roomStatus.RecordStatus != RecordStatus.Recording)
+            else if (roomStatus.RecordStatus == RecordStatus.Recording)
+            {
+                AppSessionLogger.Event("info", "business", "record_stop_requested", "record stop requested because live ended", new
+                {
+                    room.RoomUrl,
+                    room.NickName,
+                    roomStatus.Platform,
+                    roomStatus.RecordStatus,
+                    isLiveStreaming,
+                    hasRecordUrl = !string.IsNullOrWhiteSpace(roomStatus.RecordUrl),
+                    hasFlvUrl = !string.IsNullOrWhiteSpace(roomStatus.FlvUrl),
+                    hasHlsUrl = !string.IsNullOrWhiteSpace(roomStatus.HlsUrl),
+                });
+                roomStatus.Recorder.Stop();
+                roomStatus.RecordStatus = RecordStatus.NotRecording;
+                if (shouldNotify)
+                {
+                    Notify(room, NotificationEventKind.RecordStopped);
+                }
+            }
+            else
             {
                 roomStatus.RecordStatus = RecordStatus.NotRecording;
             }
         }
         else
         {
+            SyncRecordStatus(roomStatus);
             if (roomStatus.RecordStatus == RecordStatus.Recording)
             {
                 AppSessionLogger.Event("info", "business", "record_stop_requested", "record stop requested because recording is disabled", new
@@ -586,7 +641,12 @@ internal static class GlobalMonitor
 
     private static bool IsLiveStreaming(ISpiderResult spiderResult)
     {
-        return spiderResult.IsLiveStreaming == true || HasRecordableStream(spiderResult);
+        return spiderResult.IsLiveStreaming switch
+        {
+            true => true,
+            false => false,
+            null => HasRecordableStream(spiderResult),
+        };
     }
 
     private static bool HasRecordableStream(ISpiderResult spiderResult)
@@ -601,6 +661,33 @@ internal static class GlobalMonitor
         return !string.IsNullOrWhiteSpace(roomStatus.RecordUrl) ||
                !string.IsNullOrWhiteSpace(roomStatus.HlsUrl) ||
                !string.IsNullOrWhiteSpace(roomStatus.FlvUrl);
+    }
+
+    private static bool HasActiveRecorderForRoom(string roomUrl, RoomStatus current)
+    {
+        return RoomStatus.Values.Any(item =>
+            !ReferenceEquals(item, current) &&
+            string.Equals(item.RoomUrl, roomUrl, StringComparison.OrdinalIgnoreCase) &&
+            IsRoomRecording(item));
+    }
+
+    private static bool IsRoomRecording(RoomStatus roomStatus)
+    {
+        return roomStatus.RecordStatus == RecordStatus.Recording && roomStatus.Recorder.IsBusy;
+    }
+
+    private static void SyncRecordStatus(RoomStatus roomStatus)
+    {
+        if (roomStatus.RecordStatus == RecordStatus.Recording && !roomStatus.Recorder.IsBusy)
+        {
+            roomStatus.Recorder.EndNowIfRecording();
+            AppSessionLogger.Event("info", "business", "room_record_status_synced", "room recording status synced from recorder task", new
+            {
+                roomStatus.RoomUrl,
+                roomStatus.NickName,
+                roomStatus.Platform,
+            });
+        }
     }
 
     private static bool IsUsableResolution(string? value)

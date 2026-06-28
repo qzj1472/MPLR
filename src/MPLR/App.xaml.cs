@@ -95,6 +95,7 @@ public partial class App : Application
         ConfigChangeLogger.Start();
         TrayIconManager.Start();
         NotificationCenter.Start();
+        RuntimeResourceLogger.Start();
         _ = ExternalStreamResolver.WarmUpAsync();
     }
 
@@ -107,6 +108,7 @@ public partial class App : Application
         GlobalMonitor.StopAllRecorders();
         LowBatteryProtection.Stop();
         NotificationCenter.Stop();
+        RuntimeResourceLogger.Stop();
         ChildProcessTracerPeriodicTimer.Default.Stop(killChildren: true);
         ConfigChangeLogger.Stop();
         AppSessionLogger.Stop();

@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Threading;
 
 namespace MPLR.Views;
@@ -8,6 +9,7 @@ public partial class LoadingWindow : Window, IDisposable
     public LoadingWindow()
     {
         InitializeComponent();
+        SourceInitialized += (_, _) => Interop.SetHideFromTaskBar(new WindowInteropHelper(this).Handle);
     }
 
     public void Dispose()

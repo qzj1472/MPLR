@@ -23,6 +23,12 @@ public sealed class Recorder
 
     private Task? recordingTask = null;
 
+    private bool stopRequested;
+
+    private readonly List<string> recordedFilePatterns = [];
+
+    public bool IsBusy => recordingTask is { IsCompleted: false };
+
     public string? Url { get; set; } = null;
 
     public string? FileName { get; set; } = null;
@@ -46,6 +52,7 @@ public sealed class Recorder
                 return recordingTask ?? Task.CompletedTask;
             }
 
+            stopRequested = false;
             RecordStatus = RecordStatus.Recording;
             TokenSource = tokenSource ?? new CancellationTokenSource();
             recordingTask = Task.Factory.StartNew(
@@ -93,23 +100,6 @@ public sealed class Recorder
                 return;
             }
 
-            DateTime now = DateTime.Now;
-            bool shouldRecordIntermediateTs = IsHlsUrl(Url, startInfo) ||
-                isToSegment ||
-                IsOptimizedTargetFormat(targetFormat);
-            string outputExtension = shouldRecordIntermediateTs ? "ts" : "flv";
-            string segmentFormat = "mpegts";
-            bool isOptimizedAudioEnabled = outputExtension.Equals("mkv", StringComparison.OrdinalIgnoreCase) ||
-                outputExtension.Equals("mp4", StringComparison.OrdinalIgnoreCase) ||
-                outputExtension.Equals("ts", StringComparison.OrdinalIgnoreCase);
-            string fileName = BuildRecordFileName(startInfo, now);
-            string fileNamePattern = isToSegment
-                ? $"{fileName}_%03d.{outputExtension}"
-                : $"{fileName}.{outputExtension}";
-
-            FileName = Path.Combine(saveFolder, fileNamePattern);
-            MetadataPath = WriteMetadata(saveFolder, fileName, outputExtension, startInfo, now);
-
             bool isOversea = IsOverseaUrl(startInfo.RoomUrl) || IsOverseaUrl(Url);
             string rwTimeout = isOversea ? "50000000" : "30000000";
             string analyzeduration = isOversea ? "40000000" : "20000000";
@@ -130,81 +120,58 @@ public sealed class Recorder
                           + "Safari/537.36";
             }
 
-            List<string> arguments =
-            [
-                "-y",
-                "-v", "verbose",
-                "-rw_timeout", rwTimeout,
-                "-loglevel", "error",
-                "-hide_banner",
-                "-user_agent", userAgent,
-                "-protocol_whitelist", "rtmp,crypto,file,http,https,tcp,tls,udp,rtp,httpproxy",
-                "-thread_queue_size", "1024",
-                "-analyzeduration", analyzeduration,
-                "-probesize", probesize,
-                "-fflags", "+discardcorrupt",
-            ];
-
-            arguments
-                .AddIf(isUseProxy, "-http_proxy", httpProxy)
-                .AddIf(!string.IsNullOrWhiteSpace(headers), "-headers", headers)
-                .AddIf(true,
-                    "-i", Url,
-                    "-bufsize", bufsize,
-                    "-sn",
-                    "-dn",
-                    "-reconnect_delay_max", "60",
-                    "-reconnect", "1",
-                    "-reconnect_streamed",
-                    "1",
-                    "-reconnect_at_eof",
-                    "1",
-                    "-reconnect_on_network_error",
-                    "1",
-                    "-reconnect_on_http_error",
-                    "4xx,5xx",
-                    "-max_muxing_queue_size", maxMuxingQueueSize,
-                    "-correct_ts_overflow", "1",
-                    "-avoid_negative_ts", "1"
-                )
-                .AddIf(isOptimizedAudioEnabled,
-                    "-filter_complex", "[0:a:0]agate=threshold=-45dB:ratio=9000:attack=10:release=250,volume=31.6227766,acompressor=threshold=-10dB:ratio=3:attack=20:release=250,alimiter=limit=0.3162278[aopt]",
-                    "-map", "0:v?",
-                    "-map", "0:a:0?",
-                    "-map", "[aopt]",
-                    "-c:v", "copy",
-                    "-c:a:0", "copy",
-                    "-c:a:1", "aac",
-                    "-metadata:s:a:0", "title=原声",
-                    "-metadata:s:a:1", "title=音频优化版"
-                )
-                .AddIf(!isOptimizedAudioEnabled,
-                    "-map", "0",
-                    "-c:v", "copy",
-                    "-c:a", "copy"
-                )
-                .AddIf(isToSegment && !isToSegmentBySize,
-                    "-f", "segment",
-                    "-segment_time", segmentTime.ToString(),
-                    "-segment_time_delta", "0.05",
-                    "-segment_atclocktime", "0",
-                    "-segment_format", segmentFormat
-                )
-                .AddIf(isToSegmentBySize,
-                    "-f", "segment",
-                    "-segment_size", segmentTime.ToString(),
-                    "-segment_format", segmentFormat
-                )
-                .AddIf(isToSegment,
-                    "-reset_timestamps", "1"
-                )
-                .AddIf(true, FileName);
-
-            Parameters = FormatArguments(arguments);
             EndTime = DateTime.MinValue;
             StartTime = DateTime.Now;
+            recordedFilePatterns.Clear();
 
-            await ExecuteRecorderAsync(recorderPath, arguments, isUseProxy, httpProxy, token);
+            int attempt = 0;
+            while (!token.IsCancellationRequested && !stopRequested)
+            {
+                DateTime now = DateTime.Now;
+                string baseFileName = BuildRecordFileName(startInfo, now);
+                RecordingPlan plan = CreateRecordingPlan(startInfo, saveFolder, baseFileName, targetFormat, isToSegment, isToSegmentBySize);
+                FileName = plan.FileName;
+                MetadataPath = WriteMetadata(saveFolder, baseFileName, plan.OutputExtension, startInfo, now);
+                recordedFilePatterns.Add(plan.FileName);
+
+                List<string> arguments = BuildArguments(
+                    plan,
+                    isUseProxy,
+                    httpProxy,
+                    headers,
+                    userAgent,
+                    rwTimeout,
+                    analyzeduration,
+                    probesize,
+                    bufsize,
+                    maxMuxingQueueSize,
+                    segmentTime);
+
+                Parameters = FormatArguments(arguments);
+                int exitCode = await ExecuteRecorderAsync(recorderPath, arguments, isUseProxy, httpProxy, startInfo, plan, token);
+                if (token.IsCancellationRequested || stopRequested || exitCode == 0)
+                {
+                    break;
+                }
+
+                attempt++;
+                TimeSpan delay = TimeSpan.FromSeconds(Math.Min(8, attempt switch
+                {
+                    1 => 1,
+                    2 => 3,
+                    _ => 8,
+                }));
+                Toast.Warning($"网络带宽紧张或连接不稳定，正在尝试重连：{startInfo.NickName}");
+                AppSessionLogger.Event("warn", "recorder", "record_reconnect_scheduled", "record reconnect scheduled", new
+                {
+                    startInfo.RoomUrl,
+                    startInfo.NickName,
+                    exitCode,
+                    attempt,
+                    delaySeconds = delay.TotalSeconds,
+                });
+                await Task.Delay(delay, token);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -215,8 +182,6 @@ public sealed class Recorder
         }
         finally
         {
-            await ConvertRecordedFileAsync(startInfo);
-            CleanOrphanMetadata();
             EndTime = DateTime.Now;
             lock (stateLock)
             {
@@ -225,11 +190,24 @@ public sealed class Recorder
                     RecordStatus = RecordStatus.NotRecording;
                 }
             }
+            AppSessionLogger.Event("info", "recorder", "record_finished", "recording task finished", new
+            {
+                startInfo.RoomUrl,
+                startInfo.NickName,
+                FileName,
+                stopRequested,
+                startedAt = StartTime,
+                endedAt = EndTime,
+                durationSeconds = StartTime == DateTime.MinValue ? 0 : Math.Max(0, (EndTime - StartTime).TotalSeconds),
+            });
+            await ConvertRecordedFileAsync(startInfo);
+            CleanOrphanMetadata();
         }
     }
 
     public void Stop()
     {
+        stopRequested = true;
         RequestCurrentProcessExit();
         lock (stateLock)
         {
@@ -242,9 +220,132 @@ public sealed class Recorder
         }
     }
 
-    private async Task ExecuteRecorderAsync(string recorderPath, List<string> arguments, bool isUseProxy, string httpProxy, CancellationToken token)
+    public void EndNowIfRecording()
     {
-        ProcessStartInfo startInfo = new()
+        lock (stateLock)
+        {
+            if (EndTime == DateTime.MinValue)
+            {
+                EndTime = DateTime.Now;
+            }
+
+            if (RecordStatus == RecordStatus.Recording)
+            {
+                RecordStatus = RecordStatus.NotRecording;
+            }
+        }
+    }
+
+    private RecordingPlan CreateRecordingPlan(RecorderStartInfo startInfo, string saveFolder, string baseFileName, string? targetFormat, bool isToSegment, bool isToSegmentBySize)
+    {
+        bool shouldRecordIntermediateTs = IsHlsUrl(Url ?? string.Empty, startInfo) ||
+            isToSegment ||
+            IsOptimizedTargetFormat(targetFormat);
+        string outputExtension = shouldRecordIntermediateTs ? "ts" : "flv";
+        string fileNamePattern = isToSegment
+            ? $"{baseFileName}_%03d.{outputExtension}"
+            : $"{baseFileName}.{outputExtension}";
+
+        return new RecordingPlan(
+            Path.Combine(saveFolder, fileNamePattern),
+            outputExtension,
+            "mpegts",
+            isToSegment,
+            isToSegmentBySize,
+            outputExtension.Equals("mkv", StringComparison.OrdinalIgnoreCase) ||
+            outputExtension.Equals("mp4", StringComparison.OrdinalIgnoreCase) ||
+            outputExtension.Equals("ts", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private List<string> BuildArguments(
+        RecordingPlan plan,
+        bool isUseProxy,
+        string httpProxy,
+        string headers,
+        string userAgent,
+        string rwTimeout,
+        string analyzeduration,
+        string probesize,
+        string bufsize,
+        string maxMuxingQueueSize,
+        int segmentTime)
+    {
+        List<string> arguments =
+        [
+            "-y",
+            "-v", "verbose",
+            "-rw_timeout", rwTimeout,
+            "-loglevel", "error",
+            "-hide_banner",
+            "-user_agent", userAgent,
+            "-protocol_whitelist", "rtmp,crypto,file,http,https,tcp,tls,udp,rtp,httpproxy",
+            "-thread_queue_size", "1024",
+            "-analyzeduration", analyzeduration,
+            "-probesize", probesize,
+            "-fflags", "+discardcorrupt",
+        ];
+
+        arguments
+            .AddIf(isUseProxy, "-http_proxy", httpProxy)
+            .AddIf(!string.IsNullOrWhiteSpace(headers), "-headers", headers)
+            .AddIf(true,
+                "-i", Url ?? string.Empty,
+                "-bufsize", bufsize,
+                "-sn",
+                "-dn",
+                "-reconnect_delay_max", "60",
+                "-reconnect", "1",
+                "-reconnect_streamed",
+                "1",
+                "-reconnect_at_eof",
+                "1",
+                "-reconnect_on_network_error",
+                "1",
+                "-reconnect_on_http_error",
+                "4xx,5xx",
+                "-max_muxing_queue_size", maxMuxingQueueSize,
+                "-correct_ts_overflow", "1",
+                "-avoid_negative_ts", "1"
+            )
+            .AddIf(plan.IsOptimizedAudioEnabled,
+                "-filter_complex", "[0:a:0]agate=threshold=-45dB:ratio=9000:attack=10:release=250,volume=31.6227766,acompressor=threshold=-10dB:ratio=3:attack=20:release=250,alimiter=limit=0.3162278[aopt]",
+                "-map", "0:v?",
+                "-map", "0:a:0?",
+                "-map", "[aopt]",
+                "-c:v", "copy",
+                "-c:a:0", "copy",
+                "-c:a:1", "aac",
+                "-metadata:s:a:0", "title=原声",
+                "-metadata:s:a:1", "title=音频优化版"
+            )
+            .AddIf(!plan.IsOptimizedAudioEnabled,
+                "-map", "0",
+                "-c:v", "copy",
+                "-c:a", "copy"
+            )
+            .AddIf(plan.IsToSegment && !plan.IsToSegmentBySize,
+                "-f", "segment",
+                "-segment_time", segmentTime.ToString(),
+                "-segment_time_delta", "0.05",
+                "-segment_atclocktime", "0",
+                "-segment_format", plan.SegmentFormat
+            )
+            .AddIf(plan.IsToSegmentBySize,
+                "-f", "segment",
+                "-segment_size", segmentTime.ToString(),
+                "-segment_format", plan.SegmentFormat
+            )
+            .AddIf(plan.IsToSegment,
+                "-reset_timestamps", "1"
+            )
+            .AddIf(true, plan.FileName);
+
+        return arguments;
+    }
+
+    private async Task<int> ExecuteRecorderAsync(string recorderPath, List<string> arguments, bool isUseProxy, string httpProxy, RecorderStartInfo recorderStartInfo, RecordingPlan plan, CancellationToken token)
+    {
+        ProcessStartInfo processStartInfo = new()
         {
             FileName = recorderPath,
             UseShellExecute = false,
@@ -258,18 +359,24 @@ public sealed class Recorder
 
         foreach (string argument in arguments)
         {
-            startInfo.ArgumentList.Add(argument);
+            processStartInfo.ArgumentList.Add(argument);
         }
 
         if (isUseProxy)
         {
-            startInfo.Environment["http_proxy"] = "http://" + httpProxy;
-            startInfo.Environment["https_proxy"] = "http://" + httpProxy;
+            processStartInfo.Environment["http_proxy"] = "http://" + httpProxy;
+            processStartInfo.Environment["https_proxy"] = "http://" + httpProxy;
         }
 
-        using Process process = new() { StartInfo = startInfo };
+        using Process process = new() { StartInfo = processStartInfo };
         process.Start();
         ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
+        RuntimeResourceLogger.Register(process, "ffmpeg", "record", recorderStartInfo.RoomUrl, recorderStartInfo.NickName, new
+        {
+            recorderStartInfo.Platform,
+            plan.FileName,
+            inputUrl = Url ?? string.Empty,
+        });
 
         lock (processLock)
         {
@@ -313,6 +420,8 @@ public sealed class Recorder
         {
             throw new OperationCanceledException(token);
         }
+
+        return process.ExitCode;
     }
 
     private static async Task WaitForCancellationAsync(CancellationToken token)
@@ -392,18 +501,30 @@ public sealed class Recorder
 
     private string[] GetRecordedSourceFiles()
     {
-        if (string.IsNullOrWhiteSpace(FileName))
+        string[] patterns = recordedFilePatterns.Count > 0
+            ? recordedFilePatterns.Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
+            : string.IsNullOrWhiteSpace(FileName) ? [] : [FileName];
+
+        return patterns.SelectMany(GetRecordedSourceFilesForPattern)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(file => file, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static string[] GetRecordedSourceFilesForPattern(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
         {
             return [];
         }
 
-        if (!FileName.Contains("%03d", StringComparison.Ordinal))
+        if (!fileName.Contains("%03d", StringComparison.Ordinal))
         {
-            return File.Exists(FileName) ? [FileName] : [];
+            return File.Exists(fileName) ? [fileName] : [];
         }
 
-        string? directory = Path.GetDirectoryName(FileName);
-        string pattern = Path.GetFileName(FileName);
+        string? directory = Path.GetDirectoryName(fileName);
+        string pattern = Path.GetFileName(fileName);
 
         if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory) || string.IsNullOrWhiteSpace(pattern))
         {
@@ -838,6 +959,14 @@ public record RecorderStartInfo
 
     public string SaveFileNameCustomRule { get; set; } = "{主播名}_{录制时间}";
 }
+
+internal sealed record RecordingPlan(
+    string FileName,
+    string OutputExtension,
+    string SegmentFormat,
+    bool IsToSegment,
+    bool IsToSegmentBySize,
+    bool IsOptimizedAudioEnabled);
 
 public sealed class VideoRecordingMetadata
 {

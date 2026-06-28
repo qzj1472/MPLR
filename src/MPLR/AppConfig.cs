@@ -8,6 +8,6 @@ internal class AppConfig
     public static string DisplayName => "MPLR";
     public static string EnglishName => "MPLR";
     public static string LocalizedDisplayName => "MPLR";
-    public static string Version => $"v{typeof(App).Assembly.GetName().Version!.ToString(3)}";
+    public static string Version => $"v{typeof(App).Assembly.GetName().Version!.ToString(4)} 测试版";
 }
 

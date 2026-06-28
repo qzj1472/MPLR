@@ -537,6 +537,10 @@ public partial class MainViewModel : ReactiveObject
             string avatarLocalPath = string.IsNullOrWhiteSpace(spiderResult.AvatarThumbUrl)
                 ? AvatarCache.GetCachedAvatarSource(roomUrl)
                 : await AvatarCache.UpdateAsync(roomUrl, spiderResult.AvatarThumbUrl);
+            if (!string.IsNullOrWhiteSpace(spiderResult.AvatarThumbUrl))
+            {
+                newRoom.AvatarThumbUrl = spiderResult.AvatarThumbUrl;
+            }
             ApplyRoomCardRefresh(roomStatusReactive, spiderResult, avatarLocalPath, MediaProbeResult.Empty);
             RoomInfoCache.Apply(roomStatusReactive, newRoom);
             Configurations.Rooms.Set([.. rooms]);

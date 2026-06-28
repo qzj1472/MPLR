@@ -11,6 +11,7 @@
         d:Background="Black"
         AllowsTransparency="True"
         Background="Transparent"
+        ShowActivated="False"
         ShowInTaskbar="False"
         SizeToContent="WidthAndHeight"
         WindowStartupLocation="CenterScreen"
