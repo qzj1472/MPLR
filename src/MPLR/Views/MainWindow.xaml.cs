@@ -24,6 +24,7 @@ using Windows.System;
 using WindowsAPICodePack.Dialogs;
 using Wpf.Ui.Controls;
 using Brush = System.Windows.Media.Brush;
+using Button = System.Windows.Controls.Button;
 using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 using MouseButtonState = System.Windows.Input.MouseButtonState;
 using Pen = System.Windows.Media.Pen;
@@ -89,6 +90,10 @@ public partial class MainWindow : FluentWindow
     public static readonly DependencyProperty SegmentTimeMinutesTextProperty = DependencyProperty.Register(nameof(SegmentTimeMinutesText), typeof(string), typeof(MainWindow), new PropertyMetadata(string.Empty));
 
     public static readonly DependencyProperty SegmentTimeHoursTextProperty = DependencyProperty.Register(nameof(SegmentTimeHoursText), typeof(string), typeof(MainWindow), new PropertyMetadata(string.Empty));
+
+    public static readonly DependencyProperty SegmentTimeMegabytesTextProperty = DependencyProperty.Register(nameof(SegmentTimeMegabytesText), typeof(string), typeof(MainWindow), new PropertyMetadata(string.Empty));
+
+    public static readonly DependencyProperty SegmentTimeGigabytesTextProperty = DependencyProperty.Register(nameof(SegmentTimeGigabytesText), typeof(string), typeof(MainWindow), new PropertyMetadata(string.Empty));
 
     public static readonly DependencyProperty LocalRecordFormatIndexProperty = DependencyProperty.Register(nameof(LocalRecordFormatIndex), typeof(int), typeof(MainWindow), new PropertyMetadata(0));
 
@@ -308,6 +313,18 @@ public partial class MainWindow : FluentWindow
     {
         get => (string)GetValue(SegmentTimeHoursTextProperty);
         set => SetValue(SegmentTimeHoursTextProperty, value);
+    }
+
+    public string SegmentTimeMegabytesText
+    {
+        get => (string)GetValue(SegmentTimeMegabytesTextProperty);
+        set => SetValue(SegmentTimeMegabytesTextProperty, value);
+    }
+
+    public string SegmentTimeGigabytesText
+    {
+        get => (string)GetValue(SegmentTimeGigabytesTextProperty);
+        set => SetValue(SegmentTimeGigabytesTextProperty, value);
     }
 
     public int LocalRecordFormatIndex
@@ -564,6 +581,8 @@ public partial class MainWindow : FluentWindow
 
     private const double BottomFlyoutGap = 40d;
 
+    private bool isExitStrategyPending;
+
     public MainWindow()
     {
         DataContext = ViewModel = new();
@@ -575,6 +594,10 @@ public partial class MainWindow : FluentWindow
         WeakReferenceMessenger.Default.Register<RoomCardsFlashMessage>(this, (_, _) =>
         {
             Dispatcher.BeginInvoke(BeginRoomCardsFlashAnimation, DispatcherPriority.Background);
+        });
+        WeakReferenceMessenger.Default.Register<AutoShutdownPromptMessage>(this, (_, _) =>
+        {
+            Dispatcher.BeginInvoke(() => OpenCenteredFlyout(AutoShutdownPromptFlyout), DispatcherPriority.Background);
         });
         Locale.CultureChanged += LocaleCultureChanged;
         RefreshRoutineIntervalUnitTexts();
@@ -964,12 +987,20 @@ public partial class MainWindow : FluentWindow
         SegmentTimeSecondsText = SegmentTimeUnitHelper.GetUnitText(SegmentTimeUnitHelper.Seconds);
         SegmentTimeMinutesText = SegmentTimeUnitHelper.GetUnitText(SegmentTimeUnitHelper.Minutes);
         SegmentTimeHoursText = SegmentTimeUnitHelper.GetUnitText(SegmentTimeUnitHelper.Hours);
+        SegmentTimeMegabytesText = SegmentTimeUnitHelper.GetUnitText(SegmentTimeUnitHelper.Megabytes);
+        SegmentTimeGigabytesText = SegmentTimeUnitHelper.GetUnitText(SegmentTimeUnitHelper.Gigabytes);
     }
 
     private void RecordFormatStatusTextMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         OpenBoundedFlyout(RecordFormatFlyout, RecordFormatStatusText);
         e.Handled = true;
+    }
+
+    private void AutoShutdownTimeStatusButtonClick(object sender, RoutedEventArgs e)
+    {
+        SetAutoShutdownTimeFlyoutValue(ViewModel.StatusOfAutoShutdownTime);
+        OpenBoundedFlyout(AutoShutdownTimeFlyout, AutoShutdownTimeStatusButton);
     }
 
     private void RoutineIntervalConfirmClick(object sender, RoutedEventArgs e)
@@ -996,6 +1027,31 @@ public partial class MainWindow : FluentWindow
         }
 
         RoutineIntervalConfirmClick(sender, e);
+        e.Handled = true;
+    }
+
+    private void AutoShutdownTimeConfirmClick(object sender, RoutedEventArgs e)
+    {
+        int hour = ParseClampedInteger(AutoShutdownHourInput.Text, 0, 23);
+        int minute = ParseClampedInteger(AutoShutdownMinuteInput.Text, 0, 59);
+        string value = $"{hour:D2}:{minute:D2}";
+
+        if (ViewModel.SetAutoShutdownTimeCommand.CanExecute(value))
+        {
+            ViewModel.SetAutoShutdownTimeCommand.Execute(value);
+        }
+
+        AutoShutdownTimeFlyout.Visibility = Visibility.Collapsed;
+    }
+
+    private void AutoShutdownTimeInputKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != System.Windows.Input.Key.Enter)
+        {
+            return;
+        }
+
+        AutoShutdownTimeConfirmClick(sender, e);
         e.Handled = true;
     }
 
@@ -1149,7 +1205,9 @@ public partial class MainWindow : FluentWindow
         LocalIsToRecord = room == null ? Configurations.IsToRecord.Get() : GlobalMonitor.GetEffectiveRoomRecord(room);
         LocalIsRemoveTs = settings.IsRemoveTs;
         LocalIsToSegment = settings.IsToSegment;
-        LocalSegmentTimeUnitIndex = SegmentTimeUnitHelper.GetPreferredUnitIndex(settings.SegmentTime);
+        LocalSegmentTimeUnitIndex = settings.SegmentTimeUnit is >= SegmentTimeUnitHelper.Seconds and <= SegmentTimeUnitHelper.Gigabytes
+            ? settings.SegmentTimeUnit
+            : SegmentTimeUnitHelper.GetPreferredUnitIndex(settings.SegmentTime);
         LocalSegmentTimeValue = SegmentTimeUnitHelper.ToDisplayValue(settings.SegmentTime, LocalSegmentTimeUnitIndex);
         LocalRoutineIntervalUnitIndex = RoutineIntervalUnitHelper.GetPreferredUnitIndex(settings.RoutineInterval);
         LocalRoutineIntervalValue = RoutineIntervalUnitHelper.ToDisplayValue(settings.RoutineInterval, LocalRoutineIntervalUnitIndex);
@@ -1536,9 +1594,12 @@ public partial class MainWindow : FluentWindow
         [
             (RoutineIntervalFlyout, RoutineIntervalStatusButton),
             (RecordFormatFlyout, RecordFormatStatusText),
+            (AutoShutdownTimeFlyout, AutoShutdownTimeStatusButton),
             (AddRoomFlyout, AddRoomFlyout),
             (LocalSettingsFlyout, LocalSettingsButton),
             (AboutFlyout, AboutFlyout),
+            (ExitStrategyFlyout, ExitStrategyFlyout),
+            (AutoShutdownPromptFlyout, AutoShutdownPromptFlyout),
         ];
 
         foreach ((FrameworkElement flyout, FrameworkElement target) in items)
@@ -1595,15 +1656,37 @@ public partial class MainWindow : FluentWindow
         }
     }
 
+    private void SetAutoShutdownTimeFlyoutValue(string value)
+    {
+        string[] parts = (value ?? string.Empty).Split(':');
+        int hour = parts.Length > 0 ? ParseClampedInteger(parts[0], 0, 23) : 0;
+        int minute = parts.Length > 1 ? ParseClampedInteger(parts[1], 0, 59) : 0;
+
+        AutoShutdownHourInput.Text = hour.ToString("D2", CultureInfo.InvariantCulture);
+        AutoShutdownMinuteInput.Text = minute.ToString("D2", CultureInfo.InvariantCulture);
+    }
+
+    private static int ParseClampedInteger(string? value, int min, int max)
+    {
+        return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed)
+            ? Math.Clamp(parsed, min, max)
+            : min;
+    }
+
     private void CloseFloatingPanels(FrameworkElement? except = null)
     {
-        foreach (FrameworkElement flyout in new[] { RoutineIntervalFlyout, RecordFormatFlyout, AddRoomFlyout, LocalSettingsFlyout, AboutFlyout })
+        foreach (FrameworkElement flyout in new[] { RoutineIntervalFlyout, RecordFormatFlyout, AutoShutdownTimeFlyout, AddRoomFlyout, LocalSettingsFlyout, AboutFlyout, ExitStrategyFlyout, AutoShutdownPromptFlyout })
         {
             if (!ReferenceEquals(flyout, except))
             {
                 flyout.Visibility = Visibility.Collapsed;
                 flyout.LayoutTransform = null;
             }
+        }
+
+        if (!ReferenceEquals(except, ExitStrategyFlyout) && ExitStrategyFlyout.Visibility != Visibility.Visible)
+        {
+            isExitStrategyPending = false;
         }
 
         UpdateModalOverlay();
@@ -1613,7 +1696,9 @@ public partial class MainWindow : FluentWindow
     {
         bool modalVisible = AddRoomFlyout.Visibility == Visibility.Visible ||
             LocalSettingsFlyout.Visibility == Visibility.Visible ||
-            AboutFlyout.Visibility == Visibility.Visible;
+            AboutFlyout.Visibility == Visibility.Visible ||
+            ExitStrategyFlyout.Visibility == Visibility.Visible ||
+            AutoShutdownPromptFlyout.Visibility == Visibility.Visible;
 
         ModalOverlay.Visibility = modalVisible ? Visibility.Visible : Visibility.Collapsed;
         MainContentRoot.Effect = modalVisible ? modalBlurEffect : null;
@@ -1637,13 +1722,40 @@ public partial class MainWindow : FluentWindow
 
     private void UpdateVisibleCenteredFlyouts()
     {
-        foreach (FrameworkElement flyout in new[] { AddRoomFlyout, LocalSettingsFlyout, AboutFlyout })
+        foreach (FrameworkElement flyout in new[] { AddRoomFlyout, LocalSettingsFlyout, AboutFlyout, ExitStrategyFlyout, AutoShutdownPromptFlyout })
         {
             if (flyout.Visibility == Visibility.Visible)
             {
                 CenterVisibleFlyout(flyout);
             }
         }
+    }
+
+    private void CancelAutoShutdownPromptClick(object sender, RoutedEventArgs e)
+    {
+        ViewModel.CancelAutoShutdownFromPrompt();
+        AutoShutdownPromptFlyout.Visibility = Visibility.Collapsed;
+        UpdateModalOverlay();
+    }
+
+    private void ShutdownNowPromptClick(object sender, RoutedEventArgs e)
+    {
+        AutoShutdownPromptFlyout.Visibility = Visibility.Collapsed;
+        UpdateModalOverlay();
+        ViewModel.ShutdownNowFromPrompt();
+    }
+
+    private void ShutdownAfterTranscodePromptClick(object sender, RoutedEventArgs e)
+    {
+        AutoShutdownPromptFlyout.Visibility = Visibility.Collapsed;
+        UpdateModalOverlay();
+        ViewModel.ShutdownAfterTranscodeFromPrompt();
+    }
+
+    private void CloseAutoShutdownPromptClick(object sender, RoutedEventArgs e)
+    {
+        AutoShutdownPromptFlyout.Visibility = Visibility.Collapsed;
+        UpdateModalOverlay();
     }
 
     private static Point GetRelativePosition(FrameworkElement element, FrameworkElement relativeTo)
@@ -1926,24 +2038,7 @@ public partial class MainWindow : FluentWindow
         if (!TrayIconManager.GetInstance().IsShutdownTriggered)
         {
             e.Cancel = true;
-            Hide();
-
-            if (!Configurations.IsOffRemindCloseToTray.Get())
-            {
-                Notifier.AddNoticeWithButton("Title".Tr(), "CloseToTrayHint".Tr(), [
-                    new ToastContentButtonOption()
-                    {
-                        Content = "ButtonOfOffRemind".Tr(),
-                        Arguments = [("OffRemindTheCloseToTrayHint", bool.TrueString)],
-                        ActivationType = ToastActivationType.Background,
-                    },
-                    new ToastContentButtonOption()
-                    {
-                        Content = "ButtonOfClose".Tr(),
-                        ActivationType = ToastActivationType.Foreground,
-                    },
-                ]);
-            }
+            HandleCloseButtonRequest();
         }
         else
         {
@@ -1952,6 +2047,70 @@ public partial class MainWindow : FluentWindow
                 // Stop keep awake
                 _ = Kernel32.SetThreadExecutionState(Kernel32.EXECUTION_STATE.ES_CONTINUOUS);
             }
+        }
+    }
+
+    private void HandleCloseButtonRequest()
+    {
+        if (Configurations.IsCloseActionRemembered.Get())
+        {
+            ExecuteCloseAction(Math.Clamp(Configurations.CloseAction.Get(), 0, 2));
+            return;
+        }
+
+        if (isExitStrategyPending)
+        {
+            return;
+        }
+
+        isExitStrategyPending = true;
+        ExitStrategyRememberCheckBox.IsChecked = false;
+        OpenCenteredFlyout(ExitStrategyFlyout);
+    }
+
+    private void MinimizeToTrayExitClick(object sender, RoutedEventArgs e)
+    {
+        SaveCloseActionIfNeeded(0);
+        ExecuteCloseAction(0);
+    }
+
+    private void DirectExitClick(object sender, RoutedEventArgs e)
+    {
+        SaveCloseActionIfNeeded(1);
+        ExecuteCloseAction(1);
+    }
+
+    private void CancelExitClick(object sender, RoutedEventArgs e)
+    {
+        SaveCloseActionIfNeeded(2);
+        ExecuteCloseAction(2);
+    }
+
+    private void SaveCloseActionIfNeeded(int action)
+    {
+        if (ExitStrategyRememberCheckBox.IsChecked != true)
+        {
+            return;
+        }
+
+        Configurations.CloseAction.Set(action);
+        Configurations.IsCloseActionRemembered.Set(true);
+        ConfigurationManager.Save();
+    }
+
+    private void ExecuteCloseAction(int action)
+    {
+        isExitStrategyPending = false;
+        CloseFloatingPanels();
+
+        switch (action)
+        {
+            case 0:
+                Hide();
+                break;
+            case 1:
+                TrayIconManager.GetInstance().RequestShutdown();
+                break;
         }
     }
 

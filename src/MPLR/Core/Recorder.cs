@@ -81,8 +81,8 @@ public sealed class Recorder
             bool isUseProxy = Configurations.IsUseProxy.Get() && !string.IsNullOrWhiteSpace(httpProxy);
             int segmentTime = startInfo.SegmentTime;
             bool isToSegment = startInfo.IsToSegment && segmentTime > 0;
+            bool isToSegmentBySize = isToSegment && SegmentTimeUnitHelper.IsSizeUnit(startInfo.SegmentTimeUnit);
             string? targetFormat = GetTargetFormat(startInfo.RecordFormat);
-            bool isDirectSegmentTarget = isToSegment && string.Equals(targetFormat, ".mkv", StringComparison.OrdinalIgnoreCase);
 
             IsToSegment = isToSegment;
             Url = SelectInputUrl(startInfo);
@@ -94,8 +94,14 @@ public sealed class Recorder
             }
 
             DateTime now = DateTime.Now;
-            string outputExtension = isDirectSegmentTarget ? "mkv" : IsHlsUrl(Url, startInfo) || isToSegment ? "ts" : "flv";
-            string segmentFormat = isDirectSegmentTarget ? "matroska" : "mpegts";
+            bool shouldRecordIntermediateTs = IsHlsUrl(Url, startInfo) ||
+                isToSegment ||
+                IsOptimizedTargetFormat(targetFormat);
+            string outputExtension = shouldRecordIntermediateTs ? "ts" : "flv";
+            string segmentFormat = "mpegts";
+            bool isOptimizedAudioEnabled = outputExtension.Equals("mkv", StringComparison.OrdinalIgnoreCase) ||
+                outputExtension.Equals("mp4", StringComparison.OrdinalIgnoreCase) ||
+                outputExtension.Equals("ts", StringComparison.OrdinalIgnoreCase);
             string fileName = BuildRecordFileName(startInfo, now);
             string fileNamePattern = isToSegment
                 ? $"{fileName}_%03d.{outputExtension}"
@@ -105,7 +111,7 @@ public sealed class Recorder
             MetadataPath = WriteMetadata(saveFolder, fileName, outputExtension, startInfo, now);
 
             bool isOversea = IsOverseaUrl(startInfo.RoomUrl) || IsOverseaUrl(Url);
-            string rwTimeout = isOversea ? "50000000" : "15000000";
+            string rwTimeout = isOversea ? "50000000" : "30000000";
             string analyzeduration = isOversea ? "40000000" : "20000000";
             string probesize = isOversea ? "20000000" : "10000000";
             string bufsize = isOversea ? "15000k" : "8000k";
@@ -148,23 +154,46 @@ public sealed class Recorder
                     "-sn",
                     "-dn",
                     "-reconnect_delay_max", "60",
+                    "-reconnect", "1",
                     "-reconnect_streamed",
+                    "1",
                     "-reconnect_at_eof",
+                    "1",
+                    "-reconnect_on_network_error",
+                    "1",
+                    "-reconnect_on_http_error",
+                    "4xx,5xx",
                     "-max_muxing_queue_size", maxMuxingQueueSize,
                     "-correct_ts_overflow", "1",
-                    "-avoid_negative_ts", "1",
-                    "-c:v", "copy",
-                    "-c:a", "copy",
-                    "-map", "0"
+                    "-avoid_negative_ts", "1"
                 )
-                .AddIf(isToSegment,
+                .AddIf(isOptimizedAudioEnabled,
+                    "-filter_complex", "[0:a:0]agate=threshold=-45dB:ratio=9000:attack=10:release=250,volume=31.6227766,acompressor=threshold=-10dB:ratio=3:attack=20:release=250,alimiter=limit=0.3162278[aopt]",
+                    "-map", "0:v?",
+                    "-map", "0:a:0?",
+                    "-map", "[aopt]",
+                    "-c:v", "copy",
+                    "-c:a:0", "copy",
+                    "-c:a:1", "aac",
+                    "-metadata:s:a:0", "title=原声",
+                    "-metadata:s:a:1", "title=音频优化版"
+                )
+                .AddIf(!isOptimizedAudioEnabled,
+                    "-map", "0",
+                    "-c:v", "copy",
+                    "-c:a", "copy"
+                )
+                .AddIf(isToSegment && !isToSegmentBySize,
                     "-f", "segment",
                     "-segment_time", segmentTime.ToString(),
                     "-segment_time_delta", "0.05",
+                    "-segment_atclocktime", "0",
                     "-segment_format", segmentFormat
                 )
-                .AddIf(isToSegment && isDirectSegmentTarget,
-                    "-break_non_keyframes", "1"
+                .AddIf(isToSegmentBySize,
+                    "-f", "segment",
+                    "-segment_size", segmentTime.ToString(),
+                    "-segment_format", segmentFormat
                 )
                 .AddIf(isToSegment,
                     "-reset_timestamps", "1"
@@ -336,6 +365,12 @@ public sealed class Recorder
                 .Where(IsConvertibleSourceFile)
                 .ToArray();
 
+            if (LowBatteryProtection.ShouldDeferTranscode())
+            {
+                PendingTranscodeQueue.Enqueue(sourceFiles, targetFormat, startInfo.IsRemoveTs);
+                return;
+            }
+
             foreach (string sourceFile in sourceFiles)
             {
                 if (await new Converter().ExecuteAsync(sourceFile, targetFormat) && startInfo.IsRemoveTs)
@@ -431,6 +466,11 @@ public sealed class Recorder
 
         string target = value.Split("->", StringSplitOptions.TrimEntries).LastOrDefault() ?? string.Empty;
         return string.IsNullOrWhiteSpace(target) ? null : "." + target.TrimStart('.').ToLowerInvariant();
+    }
+
+    private static bool IsOptimizedTargetFormat(string? targetFormat)
+    {
+        return targetFormat is ".mkv" or ".mp4";
     }
 
     private static void TryDelete(string file)
@@ -787,6 +827,8 @@ public record RecorderStartInfo
     public bool IsToSegment { get; set; }
 
     public int SegmentTime { get; set; } = 1800;
+
+    public int SegmentTimeUnit { get; set; }
 
     public string SaveFolder { get; set; } = string.Empty;
 

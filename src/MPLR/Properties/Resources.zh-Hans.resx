@@ -50,7 +50,7 @@
     <value>语言</value>
   </data>
   <data name="LiveNotification" xml:space="preserve">
-    <value>开播通知</value>
+    <value>通知</value>
   </data>
   <data name="GotoLiveRoom" xml:space="preserve">
     <value>进入直播间</value>
@@ -215,7 +215,7 @@
     <value>单独设置</value>
   </data>
   <data name="LiveNotificationHint" xml:space="preserve">
-    <value>是否通过 Windows 系统通知等方式通知开播</value>
+    <value>推送开播、录制、监控和异常等事件</value>
   </data>
   <data name="EnableRecord" xml:space="preserve">
     <value>启用录制</value>
@@ -392,7 +392,7 @@
     <value>是否转换格式后自动删除原 TS/FLV 文件</value>
   </data>
   <data name="SaveFolderHint" xml:space="preserve">
-    <value>指定录制视频的保存目录</value>
+    <value>指定录制视频的保存目录与保存的命名格式</value>
   </data>
   <data name="SelectFolder" xml:space="preserve">
     <value>选择目录</value>
@@ -536,7 +536,7 @@
     <value>自动关机</value>
   </data>
   <data name="AutoShutdownHint" xml:space="preserve">
-    <value>没有录制状态时自动关机</value>
+    <value>到点前自动停录并按配置关闭</value>
   </data>
   <data name="AutoShutdownTime" xml:space="preserve">
     <value>自动关机时间 (时 : 分)</value>
@@ -563,13 +563,13 @@
     <value>不检测有效性直接添加</value>
   </data>
   <data name="SegmentTime" xml:space="preserve">
-    <value>视频分段时间（秒）</value>
+    <value>分割阈值</value>
   </data>
   <data name="Segment" xml:space="preserve">
     <value>视频分段</value>
   </data>
   <data name="SegmentHint" xml:space="preserve">
-    <value>指定每个输出视频的时间长度（单位为秒）</value>
+    <value>按时长或文件大小自动切分录制视频</value>
   </data>
   <data name="CardSort" xml:space="preserve">
     <value>卡片排序</value>

@@ -15,6 +15,8 @@ internal static class AppPaths
 
     public static string CacheDirectory => Path.Combine(RootDirectory, "cache");
 
+    public static string PendingTranscodeQueuePath => Path.Combine(CacheDirectory, "pending-transcode.json");
+
     public static string[] LegacyConfigDirectories =>
     [
         .. AppConfig.LegacyPackNames.Select(static name =>

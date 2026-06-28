@@ -48,7 +48,7 @@ internal static class RoomRecordingSettings
             IsRemoveTs = Configurations.IsRemoveTs.Get(),
             IsToSegment = Configurations.IsToSegment.Get(),
             SegmentTime = Math.Max(1, Configurations.SegmentTime.Get()),
-            SegmentTimeUnit = Configurations.SegmentTimeUnit.Get(),
+            SegmentTimeUnit = NormalizeSegmentTimeUnit(Configurations.SegmentTimeUnit.Get()),
             RoutineInterval = Math.Max(500, Configurations.RoutineInterval.Get()),
             RoutineScheduleMode = Math.Clamp(Configurations.RoutineScheduleMode.Get(), 0, 1),
             RoutineScheduleDays = NormalizeScheduleDays(Configurations.RoutineScheduleDays.Get()),
@@ -78,7 +78,7 @@ internal static class RoomRecordingSettings
             IsRemoveTs = room.IsRemoveTs ?? global.IsRemoveTs,
             IsToSegment = room.IsToSegment ?? global.IsToSegment,
             SegmentTime = Math.Max(1, room.SegmentTime ?? global.SegmentTime),
-            SegmentTimeUnit = room.SegmentTimeUnit ?? global.SegmentTimeUnit,
+            SegmentTimeUnit = NormalizeSegmentTimeUnit(room.SegmentTimeUnit ?? global.SegmentTimeUnit),
             RoutineInterval = Math.Max(500, room.RoutineInterval ?? global.RoutineInterval),
             RoutineScheduleMode = Math.Clamp(room.RoutineScheduleMode ?? global.RoutineScheduleMode, 0, 1),
             RoutineScheduleDays = NormalizeScheduleDays(room.RoutineScheduleDays, global.RoutineScheduleDays),
@@ -107,7 +107,7 @@ internal static class RoomRecordingSettings
         room.IsRemoveTs = settings.IsRemoveTs;
         room.IsToSegment = settings.IsToSegment;
         room.SegmentTime = Math.Max(1, settings.SegmentTime);
-        room.SegmentTimeUnit = settings.SegmentTimeUnit;
+        room.SegmentTimeUnit = NormalizeSegmentTimeUnit(settings.SegmentTimeUnit);
         room.RoutineInterval = Math.Max(500, settings.RoutineInterval);
         room.RoutineScheduleMode = Math.Clamp(settings.RoutineScheduleMode, 0, 1);
         room.RoutineScheduleDays = NormalizeScheduleDays(settings.RoutineScheduleDays);
@@ -150,6 +150,13 @@ internal static class RoomRecordingSettings
         }
 
         return days.Count == 0 ? fallback : string.Join(",", days);
+    }
+
+    private static int NormalizeSegmentTimeUnit(int value)
+    {
+        return value is >= SegmentTimeUnitHelper.Seconds and <= SegmentTimeUnitHelper.Gigabytes
+            ? value
+            : -1;
     }
 
     private static string NormalizeCustomRule(string? value, string fallback = "{主播名}_{录制时间}")

@@ -30,9 +30,13 @@ using CheckBox = System.Windows.Controls.CheckBox;
 
 namespace MPLR.ViewModels;
 
+public sealed class AutoShutdownPromptMessage;
+
 [ObservableObject]
 public partial class MainViewModel : ReactiveObject
 {
+    private const string AutoShutdownRecordBlockReason = "auto-shutdown";
+
     protected internal ForeverDispatcherTimer DispatcherTimer { get; }
 
     [ObservableProperty]
@@ -74,6 +78,8 @@ public partial class MainViewModel : ReactiveObject
     private bool statusOfIsUseAutoShutdown = Configurations.IsUseAutoShutdown.Get();
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusOfAutoShutdownCountdown))]
+    [NotifyPropertyChangedFor(nameof(StatusOfAutoShutdownCountdownToolTip))]
     private string statusOfAutoShutdownTime = Configurations.AutoShutdownTime.Get();
 
     [ObservableProperty]
@@ -86,6 +92,28 @@ public partial class MainViewModel : ReactiveObject
     public string StatusOfRoutineIntervalWithUnit
         => RoutineIntervalUnitHelper.FormatDisplayValue(StatusOfRoutineInterval);
 
+    public string StatusOfAutoShutdownCountdown
+    {
+        get
+        {
+            if (!StatusOfIsUseAutoShutdown || !TimeSpan.TryParse(StatusOfAutoShutdownTime, out TimeSpan targetTime))
+            {
+                return StatusOfAutoShutdownTime;
+            }
+
+            TimeSpan remaining = targetTime - DateTime.Now.TimeOfDay;
+            if (remaining < TimeSpan.Zero)
+            {
+                remaining += TimeSpan.FromDays(1);
+            }
+
+            int totalHours = Math.Max(0, (int)Math.Floor(remaining.TotalHours));
+            return $"{totalHours:D2}:{remaining.Minutes:D2}";
+        }
+    }
+
+    public string StatusOfAutoShutdownCountdownToolTip => $"将在{StatusOfAutoShutdownCountdown}后关闭软件";
+
     public void ReloadConfigStatus()
     {
         StatusOfIsMonitorRunning = Configurations.IsMonitorRunning.Get();
@@ -95,6 +123,8 @@ public partial class MainViewModel : ReactiveObject
         StatusOfIsUseKeepAwake = Configurations.IsUseKeepAwake.Get();
         StatusOfIsUseAutoShutdown = Configurations.IsUseAutoShutdown.Get();
         StatusOfAutoShutdownTime = Configurations.AutoShutdownTime.Get();
+        OnPropertyChanged(nameof(StatusOfAutoShutdownCountdown));
+        OnPropertyChanged(nameof(StatusOfAutoShutdownCountdownToolTip));
         StatusOfRecordFormat = Configurations.RecordFormat.Get();
         StatusOfRoutineInterval = Configurations.RoutineInterval.Get();
     }
@@ -102,11 +132,21 @@ public partial class MainViewModel : ReactiveObject
     [ObservableProperty]
     private bool isReadyToShutdown = false;
 
+    private DateOnly? readyToShutdownDate;
+
+    private string readyToShutdownTime = string.Empty;
+
+    private DateOnly? cancelledAutoShutdownDate;
+
+    private string cancelledAutoShutdownTime = string.Empty;
+
     public CancellationTokenSource? ShutdownCancellationTokenSource { get; private set; } = null;
+
+    private bool forceShutdownAfterTranscode;
 
     public MainViewModel()
     {
-        DispatcherTimer = new(TimeSpan.FromSeconds(3), ReloadRoomStatus);
+        DispatcherTimer = new(TimeSpan.FromSeconds(1), ReloadRoomStatus);
 
         Room[] rooms = EnsureRoomAddedAt(Configurations.Rooms.Get());
 
@@ -150,7 +190,7 @@ public partial class MainViewModel : ReactiveObject
 
                 if (parsedArgs["AutoShutdownCancel"] != null)
                 {
-                    ShutdownCancellationTokenSource?.Cancel();
+                    CancelAutoShutdownForCurrentSchedule();
                 }
             }
         });
@@ -161,6 +201,7 @@ public partial class MainViewModel : ReactiveObject
         }
         ChildProcessTracerPeriodicTimer.Default.WhiteList = ["ffmpeg", "ffprobe", "ffplay", "python", "python3", "node"];
         ChildProcessTracerPeriodicTimer.Default.Start();
+        LowBatteryProtection.Start();
         DispatcherTimer.Start();
         _ = RefreshRoomCardsAsync(showToast: false);
     }
@@ -210,52 +251,174 @@ public partial class MainViewModel : ReactiveObject
             roomStatusReactive.RefreshStatus();
         }
 
-        if (StatusOfIsUseAutoShutdown && TimeSpan.TryParse(StatusOfAutoShutdownTime, out TimeSpan targetTime))
-        {
-            int timeOffset = (int)(DateTime.Now.TimeOfDay - targetTime).TotalSeconds;
+        UpdateAutoShutdownState();
+    }
 
-            if (timeOffset >= 0 && timeOffset <= 60)
+    private void UpdateAutoShutdownState()
+    {
+        DateTime now = DateTime.Now;
+        DateOnly today = DateOnly.FromDateTime(now);
+        string currentTime = StatusOfAutoShutdownTime ?? string.Empty;
+
+        if (!StatusOfIsUseAutoShutdown || !TimeSpan.TryParse(currentTime, out TimeSpan targetTime))
+        {
+            ResetAutoShutdownReadiness();
+            ClearAutoShutdownCancellation();
+            return;
+        }
+
+        if (!string.Equals(readyToShutdownTime, currentTime, StringComparison.Ordinal))
+        {
+            ResetAutoShutdownReadiness();
+            ClearAutoShutdownCancellation();
+            readyToShutdownTime = currentTime;
+        }
+
+        if (readyToShutdownDate != null && readyToShutdownDate != today)
+        {
+            ResetAutoShutdownReadiness();
+            ClearAutoShutdownCancellation();
+            readyToShutdownTime = currentTime;
+        }
+
+        if (cancelledAutoShutdownDate != null && cancelledAutoShutdownDate != today)
+        {
+            ClearAutoShutdownCancellation();
+        }
+
+        if (cancelledAutoShutdownDate == today && string.Equals(cancelledAutoShutdownTime, currentTime, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        DateTime targetDateTime = today.ToDateTime(TimeOnly.MinValue).Add(targetTime);
+        if (now - targetDateTime > TimeSpan.FromMinutes(5))
+        {
+            targetDateTime = targetDateTime.AddDays(1);
+        }
+
+        DateTime promptDateTime = targetDateTime.AddMinutes(-1);
+
+        if (!IsReadyToShutdown && now >= promptDateTime)
+        {
+            IsReadyToShutdown = true;
+            readyToShutdownDate = today;
+            readyToShutdownTime = currentTime;
+        }
+
+        if (IsReadyToShutdown && ShutdownCancellationTokenSource == null)
+        {
+            StartAutoShutdownCountdown();
+        }
+    }
+
+    private void StartAutoShutdownCountdown()
+    {
+        CancellationTokenSource cancellationTokenSource = new();
+        ShutdownCancellationTokenSource = cancellationTokenSource;
+
+        Notifier.AddNoticeWithButton("Title".Tr(), "AutoShutdownInTime".Tr(), [
+            new ToastContentButtonOption()
+                {
+                    Content = "ButtonOfCancel".Tr(),
+                    Arguments = [("AutoShutdownCancel", string.Empty)],
+                    ActivationType = ToastActivationType.Foreground,
+                }
+        ]);
+
+        GlobalMonitor.SetRecordStartBlock(AutoShutdownRecordBlockReason, true);
+        GlobalMonitor.StopAllRecorders();
+        WeakReferenceMessenger.Default.Send(new AutoShutdownPromptMessage());
+
+        ApplicationDispatcher.BeginInvoke(async () =>
+        {
+            await Task.Delay(60000);
+
+            if (!cancellationTokenSource.IsCancellationRequested)
             {
-                IsReadyToShutdown = true;
+                await ShutdownAfterTranscodeIfNeededAsync(cancellationTokenSource.Token);
             }
 
-            if (IsReadyToShutdown && !IsRecording)
+            if (ReferenceEquals(ShutdownCancellationTokenSource, cancellationTokenSource))
             {
-                if (ShutdownCancellationTokenSource == null)
-                {
-                    ShutdownCancellationTokenSource = new();
+                ShutdownCancellationTokenSource = null;
+                ResetAutoShutdownReadiness();
+            }
+        });
+    }
 
-                    Notifier.AddNoticeWithButton("Title".Tr(), "AutoShutdownInTime".Tr(), [
-                        new ToastContentButtonOption()
-                            {
-                                Content = "ButtonOfCancel".Tr(),
-                                Arguments = [("AutoShutdownCancel", string.Empty)],
-                                ActivationType = ToastActivationType.Foreground,
-                            }
-                    ]);
+    public void CancelAutoShutdownFromPrompt()
+    {
+        CancelAutoShutdownForCurrentSchedule();
+    }
 
-                    ApplicationDispatcher.BeginInvoke(async () =>
-                    {
-                        await Task.Delay(60000);
+    public void ShutdownNowFromPrompt()
+    {
+        ShutdownCancellationTokenSource?.Cancel();
+        ExecuteShutdown();
+    }
 
-                        if (!ShutdownCancellationTokenSource.IsCancellationRequested && !IsRecording)
-                        {
-                            if (Debugger.IsAttached)
-                            {
-                                _ = MessageBox.Information("AutoShutdown".Tr());
-                            }
-                            else
-                            {
-                                _ = Interop.ExitWindowsEx(User32.ExitWindowsFlags.EWX_SHUTDOWN | User32.ExitWindowsFlags.EWX_FORCE);
-                            }
-                        }
+    public async void ShutdownAfterTranscodeFromPrompt()
+    {
+        forceShutdownAfterTranscode = true;
+        Configurations.IsAutoShutdownAfterTranscode.Set(true);
+        ConfigurationManager.Save();
 
-                        ShutdownCancellationTokenSource = null;
-                        IsReadyToShutdown = false;
-                    });
-                }
+        CancellationTokenSource source = ShutdownCancellationTokenSource ?? new CancellationTokenSource();
+        ShutdownCancellationTokenSource = source;
+        await ShutdownAfterTranscodeIfNeededAsync(source.Token);
+    }
+
+    private async Task ShutdownAfterTranscodeIfNeededAsync(CancellationToken token)
+    {
+        bool waitForTranscode = forceShutdownAfterTranscode || Configurations.IsAutoShutdownAfterTranscode.Get();
+        if (waitForTranscode)
+        {
+            while (!token.IsCancellationRequested && Converter.HasActiveConversions)
+            {
+                await Task.Delay(1000, token);
             }
         }
+
+        if (!token.IsCancellationRequested)
+        {
+            ExecuteShutdown();
+        }
+    }
+
+    private static void ExecuteShutdown()
+    {
+        if (Debugger.IsAttached)
+        {
+            _ = MessageBox.Information("AutoShutdown".Tr());
+        }
+        else
+        {
+            _ = Interop.ExitWindowsEx(User32.ExitWindowsFlags.EWX_SHUTDOWN | User32.ExitWindowsFlags.EWX_FORCE);
+        }
+    }
+
+    private void ResetAutoShutdownReadiness()
+    {
+        ShutdownCancellationTokenSource?.Cancel();
+        ShutdownCancellationTokenSource = null;
+        GlobalMonitor.SetRecordStartBlock(AutoShutdownRecordBlockReason, false);
+        IsReadyToShutdown = false;
+        readyToShutdownDate = null;
+        forceShutdownAfterTranscode = false;
+    }
+
+    private void CancelAutoShutdownForCurrentSchedule()
+    {
+        cancelledAutoShutdownDate = DateOnly.FromDateTime(DateTime.Now);
+        cancelledAutoShutdownTime = StatusOfAutoShutdownTime ?? string.Empty;
+        ResetAutoShutdownReadiness();
+    }
+
+    private void ClearAutoShutdownCancellation()
+    {
+        cancelledAutoShutdownDate = null;
+        cancelledAutoShutdownTime = string.Empty;
     }
 
     [RelayCommand]
@@ -673,6 +836,26 @@ public partial class MainViewModel : ReactiveObject
         Configurations.IsUseAutoShutdown.Set(value);
         ConfigurationManager.Save();
         StatusOfIsUseAutoShutdown = value;
+        ResetAutoShutdownReadiness();
+        ClearAutoShutdownCancellation();
+        readyToShutdownTime = StatusOfAutoShutdownTime;
+    }
+
+    [RelayCommand]
+    private void SetAutoShutdownTime(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || !TimeSpan.TryParse(value, out TimeSpan time))
+        {
+            return;
+        }
+
+        string normalized = $"{(int)time.TotalHours % 24:D2}:{time.Minutes:D2}";
+        Configurations.AutoShutdownTime.Set(normalized);
+        ConfigurationManager.Save();
+        StatusOfAutoShutdownTime = normalized;
+        ResetAutoShutdownReadiness();
+        ClearAutoShutdownCancellation();
+        readyToShutdownTime = normalized;
     }
 
     [RelayCommand]

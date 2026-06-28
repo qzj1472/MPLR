@@ -1451,13 +1451,17 @@
                             </c:If.FalseValue>
                         </c:If>
                     </Button>
-                    <TextBlock FontSize="12"
-                               MinHeight="16"
-                               VerticalAlignment="Center"
-                               Foreground="{DynamicResource SystemAccentColorPrimaryBrush}"
-                               Text="{Binding StatusOfAutoShutdownTime}"
-                               ToolTip="{I18N AutoShutdown}"
-                               Visibility="{Binding StatusOfIsUseAutoShutdown, Converter={x:Static c:BoolToVisibilityConverter.Instance}}" />
+                    <Button x:Name="AutoShutdownTimeStatusButton"
+                            Style="{StaticResource MainFlyoutTextButtonStyle}"
+                            Click="AutoShutdownTimeStatusButtonClick"
+                            ToolTip="{Binding StatusOfAutoShutdownCountdownToolTip}"
+                            Visibility="{Binding StatusOfIsUseAutoShutdown, Converter={x:Static c:BoolToVisibilityConverter.Instance}}">
+                        <TextBlock FontSize="12"
+                                   MinHeight="16"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource SystemAccentColorPrimaryBrush}"
+                                   Text="{Binding StatusOfAutoShutdownTime}" />
+                    </Button>
                     <Separator />
                     <Button x:Name="RoutineIntervalStatusButton"
                             Style="{StaticResource MainFlyoutTextButtonStyle}"
@@ -1467,9 +1471,6 @@
                             <TextBlock FontSize="12"
                                        Opacity="0.85"
                                        Text="{Binding StatusOfRoutineIntervalWithUnit}" />
-                            <ui:FontIcon FontFamily="{DynamicResource SymbolThemeFontFamily}"
-                                         FontSize="10"
-                                         Glyph="{x:Static ui:FontSymbols.ChevronDown}" />
                         </ui:StackPanel>
                     </Button>
                     <Separator />
@@ -1541,6 +1542,49 @@
                     <Button Content="TS/FLV -> MP4" Tag="TS/FLV -> MP4" Click="RecordFormatOptionClick" Style="{StaticResource MainFlyoutOptionButtonStyle}" />
                     <Button Content="TS/FLV -> MKV" Tag="TS/FLV -> MKV" Click="RecordFormatOptionClick" Style="{StaticResource MainFlyoutOptionButtonStyle}" />
                 </ui:StackPanel>
+            </Border>
+            <Border x:Name="AutoShutdownTimeFlyout"
+                    Width="244"
+                    Padding="14"
+                    Style="{StaticResource MainFlyoutBorderStyle}"
+                    Visibility="Collapsed">
+                <ui:Grid RowDefinitions="Auto,Auto">
+                    <TextBlock Grid.Row="0"
+                               Margin="2,0,0,10"
+                               FontWeight="SemiBold"
+                               Text="{I18N AutoShutdownTime}" />
+                    <ui:Grid Grid.Row="1" ColumnDefinitions="68,8,Auto,8,68,12,36">
+                        <ui:TextBox x:Name="AutoShutdownHourInput"
+                                    Width="68"
+                                    Style="{StaticResource MainNumberInputTextBoxStyle}"
+                                    Tag="Integer"
+                                    KeyDown="AutoShutdownTimeInputKeyDown" />
+                        <TextBlock Grid.Column="2"
+                                   VerticalAlignment="Center"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Text=":" />
+                        <ui:TextBox x:Name="AutoShutdownMinuteInput"
+                                    Grid.Column="4"
+                                    Width="68"
+                                    Style="{StaticResource MainNumberInputTextBoxStyle}"
+                                    Tag="Integer"
+                                    KeyDown="AutoShutdownTimeInputKeyDown" />
+                        <Button Grid.Column="6"
+                                Width="32"
+                                Height="32"
+                                MinWidth="32"
+                                Padding="0"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                Style="{StaticResource MainAccentButtonStyle}"
+                                Click="AutoShutdownTimeConfirmClick">
+                            <ui:FontIcon FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                         FontSize="12"
+                                         Glyph="{x:Static ui:FontSymbols.Accept}" />
+                        </Button>
+                    </ui:Grid>
+                </ui:Grid>
             </Border>
             <Border x:Name="AddRoomFlyout"
                     Width="540"
@@ -1824,6 +1868,8 @@
                                                 <ComboBoxItem Content="{Binding SegmentTimeSecondsText, ElementName=Root}" />
                                                 <ComboBoxItem Content="{Binding SegmentTimeMinutesText, ElementName=Root}" />
                                                 <ComboBoxItem Content="{Binding SegmentTimeHoursText, ElementName=Root}" />
+                                                <ComboBoxItem Content="{Binding SegmentTimeMegabytesText, ElementName=Root}" />
+                                                <ComboBoxItem Content="{Binding SegmentTimeGigabytesText, ElementName=Root}" />
                                             </ComboBox>
                                             <ui:ToggleSwitch Margin="24,0,0,0" IsChecked="{Binding LocalIsToSegment, ElementName=Root, Mode=TwoWay}" />
                                         </ui:StackPanel>
@@ -2231,6 +2277,8 @@
                                             <ComboBoxItem Content="{Binding SegmentTimeSecondsText, ElementName=Root}" />
                                             <ComboBoxItem Content="{Binding SegmentTimeMinutesText, ElementName=Root}" />
                                             <ComboBoxItem Content="{Binding SegmentTimeHoursText, ElementName=Root}" />
+                                            <ComboBoxItem Content="{Binding SegmentTimeMegabytesText, ElementName=Root}" />
+                                            <ComboBoxItem Content="{Binding SegmentTimeGigabytesText, ElementName=Root}" />
                                         </ComboBox>
                                         <ui:ToggleSwitch Margin="24,0,0,0" IsChecked="{Binding LocalIsToSegment, ElementName=Root, Mode=TwoWay}" />
                                     </ui:StackPanel>
@@ -2419,6 +2467,94 @@
                             </ScrollViewer>
                         </ui:StackPanel>
                     </Border>
+                </ui:Grid>
+            </Border>
+            <Border x:Name="ExitStrategyFlyout"
+                    Width="404"
+                    Padding="18"
+                    Style="{StaticResource MainFlyoutBorderStyle}"
+                    Visibility="Collapsed">
+                <ui:Grid RowDefinitions="Auto,Auto,Auto">
+                    <ui:Grid Grid.Row="0" ColumnDefinitions="Auto,*">
+                        <ui:FontIcon Grid.Column="0"
+                                     Margin="0,0,12,0"
+                                     VerticalAlignment="Center"
+                                     FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                     FontSize="20"
+                                     Glyph="{x:Static ui:FontSymbols.PowerButton}" />
+                        <TextBlock Grid.Column="1"
+                                   Style="{StaticResource MainFlyoutTitleStyle}"
+                                   Text="退出程序" />
+                    </ui:Grid>
+                    <ui:StackPanel Grid.Row="1"
+                                   Margin="0,18,0,20"
+                                   Spacing="10">
+                        <TextBlock Style="{StaticResource MainFlyoutCaptionStyle}" Text="请选择点击关闭按钮后的处理方式。" />
+                        <CheckBox x:Name="ExitStrategyRememberCheckBox" Content="下次不再询问" />
+                    </ui:StackPanel>
+                    <ui:StackPanel Grid.Row="2"
+                                   HorizontalAlignment="Right"
+                                   Orientation="Horizontal"
+                                   Spacing="12">
+                        <Button MinWidth="104"
+                                Content="取消"
+                                Click="CancelExitClick" />
+                        <Button MinWidth="104"
+                                Margin="12,0,0,0"
+                                Style="{StaticResource MainDangerAccentButtonStyle}"
+                                Content="直接退出"
+                                Click="DirectExitClick" />
+                        <Button MinWidth="92"
+                                Content="最小化"
+                                Click="MinimizeToTrayExitClick" />
+                    </ui:StackPanel>
+                </ui:Grid>
+            </Border>
+            <Border x:Name="AutoShutdownPromptFlyout"
+                    Width="620"
+                    Padding="20"
+                    Style="{StaticResource MainFlyoutBorderStyle}"
+                    Visibility="Collapsed">
+                <ui:Grid RowDefinitions="Auto,Auto,Auto,Auto">
+                    <ui:Grid Grid.Row="0" ColumnDefinitions="Auto,*">
+                        <ui:FontIcon Grid.Column="0"
+                                     Margin="0,0,12,0"
+                                     VerticalAlignment="Center"
+                                     FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                     FontSize="20"
+                                     Glyph="{x:Static ui:FontSymbols.PowerButton}" />
+                        <TextBlock Grid.Column="1"
+                                   Style="{StaticResource MainFlyoutTitleStyle}"
+                                   Text="{I18N AutoShutdown}" />
+                    </ui:Grid>
+                    <TextBlock Grid.Row="1"
+                               Margin="0,18,0,18"
+                               FontSize="13"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               Text="录制已结束，有转码的话我们会尽快完成转码，当到了指定时间没有转码完成我们会保存已经转码部分。如果你希望完成转码再关闭，可以在设置内选择‘转码完关闭’，或者选择下方的‘转码完关闭’按钮" />
+                    <ui:StackPanel Grid.Row="2"
+                                   HorizontalAlignment="Right"
+                                   Orientation="Horizontal"
+                                   Spacing="12">
+                        <Button MinWidth="104"
+                                Content="取消关闭"
+                                Click="CancelAutoShutdownPromptClick" />
+                        <Button MinWidth="104"
+                                Style="{StaticResource MainDangerAccentButtonStyle}"
+                                Content="现在关闭"
+                                Click="ShutdownNowPromptClick" />
+                        <Button MinWidth="116"
+                                Content="转码完关闭"
+                                Click="ShutdownAfterTranscodePromptClick" />
+                    </ui:StackPanel>
+                    <Button Grid.Row="3"
+                            Height="38"
+                            Margin="0,18,0,0"
+                            HorizontalAlignment="Stretch"
+                            Style="{StaticResource MainAccentButtonStyle}"
+                            Content="我知道了"
+                            Click="CloseAutoShutdownPromptClick" />
                 </ui:Grid>
             </Border>
         </Canvas>

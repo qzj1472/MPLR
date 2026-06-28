@@ -624,6 +624,22 @@
                                            IsEnabled="{Binding IsToNotify}"
                                            Spacing="12">
                                 <CheckBox Content="{I18N LiveNotificationToSystem}" IsChecked="{Binding IsToNotifyWithSystem, Mode=TwoWay}" />
+                                <ui:Grid ColumnDefinitions="Auto,120,*">
+                                    <TextBlock Grid.Column="0"
+                                               VerticalAlignment="Center"
+                                               Text="通知汇总间隔（分钟）" />
+                                    <ui:TextBox Grid.Column="1"
+                                                Margin="8,0,0,0"
+                                                PreviewKeyDown="NumberInputPreviewKeyDown"
+                                                PreviewTextInput="NumberInputPreviewTextInput"
+                                                Text="{Binding NotifySummaryIntervalMinutes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock Grid.Column="2"
+                                               Margin="8,0,0,0"
+                                               VerticalAlignment="Center"
+                                               FontSize="11"
+                                               Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                               Text="0 为实时通知，5 为五分钟汇总" />
+                                </ui:Grid>
                                 <ui:Grid ColumnDefinitions="Auto,*">
                                     <CheckBox Grid.Column="0"
                                               Content="{I18N LiveNotificationToPlayMusic}"
@@ -891,9 +907,9 @@
                                            IsEnabled="{Binding IsToSegment}"
                                            Spacing="12">
                                 <ui:Grid ColumnDefinitions="Auto,8,112,12,112">
-                                    <TextBlock Grid.Column="0"
-                                               VerticalAlignment="Center"
-                                               Text="{I18N SegmentTime}" />
+                                        <TextBlock Grid.Column="0"
+                                                   VerticalAlignment="Center"
+                                                   Text="{Binding SegmentTimeValueLabel}" />
                                     <ui:TextBox Grid.Column="2"
                                                 Width="112"
                                                 FontSize="15"
@@ -906,6 +922,8 @@
                                         <ComboBoxItem Content="{Binding SegmentTimeSecondsText}" />
                                         <ComboBoxItem Content="{Binding SegmentTimeMinutesText}" />
                                         <ComboBoxItem Content="{Binding SegmentTimeHoursText}" />
+                                        <ComboBoxItem Content="{Binding SegmentTimeMegabytesText}" />
+                                        <ComboBoxItem Content="{Binding SegmentTimeGigabytesText}" />
                                     </ComboBox>
                                 </ui:Grid>
                             </ui:StackPanel>
@@ -1101,7 +1119,7 @@
                             </ui:Grid>
                         </ui:CardExpander.Header>
                         <ui:StackPanel IsEnabled="{Binding IsUseAutoShutdown}" Spacing="12">
-                            <ui:Grid Margin="42,0,28,0" ColumnDefinitions="Auto,*">
+                            <ui:Grid Margin="42,0,28,0" ColumnDefinitions="Auto,*,Auto">
                                 <TextBlock VerticalAlignment="Center" Text="{I18N AutoShutdownTime}" />
                                 <ui:StackPanel Grid.Column="1"
                                                Margin="16,0,0,0"
@@ -1120,6 +1138,11 @@
                                                 Style="{StaticResource SettingsNumberInputTextBoxStyle}"
                                                 Text="{Binding AutoShutdownTimeMinute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 </ui:StackPanel>
+                                <CheckBox Grid.Column="2"
+                                          Margin="18,0,0,0"
+                                          VerticalAlignment="Center"
+                                          Content="转码完关闭"
+                                          IsChecked="{Binding IsAutoShutdownAfterTranscode, Mode=TwoWay}" />
                             </ui:Grid>
                         </ui:StackPanel>
                     </ui:CardExpander>

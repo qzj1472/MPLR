@@ -25,6 +25,7 @@ public static class ConfigImporter
         nameof(Configurations.RoutineScheduleEndMinute),
         nameof(Configurations.IsMonitorRunning),
         nameof(Configurations.IsToNotify),
+        nameof(Configurations.NotifySummaryIntervalMinutes),
         nameof(Configurations.IsToNotifyWithSystem),
         nameof(Configurations.IsToNotifyWithMusic),
         nameof(Configurations.ToNotifyWithMusicPath),
