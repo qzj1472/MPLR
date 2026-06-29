@@ -286,11 +286,7 @@ jobs:
             }
             $previousTag = git tag --merged $rangeEnd --sort=-creatordate | Where-Object { $_ -match "^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$" } | Select-Object -First 1
           } else {
-            if ($tagExists) {
-              $previousTag = $tag
-            } else {
-              $previousTag = git tag --merged $rangeEnd --sort=-creatordate | Where-Object { $_ -match "^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$" } | Select-Object -First 1
-            }
+            $previousTag = git tag --merged $rangeEnd --sort=-creatordate | Where-Object { $_ -match "^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$" } | Select-Object -First 1
           }
           if ([string]::IsNullOrWhiteSpace($previousTag)) {
             $previousTag = git rev-list --max-parents=0 HEAD | Select-Object -First 1
@@ -338,7 +334,7 @@ jobs:
           }
           $friendlySetupPath = Join-Path $env:VELOPACK_DIR "${{ steps.version.outputs.setup_asset_name }}"
           if ($setupPath.FullName -ne $friendlySetupPath) {
-            Move-Item -LiteralPath $setupPath.FullName -Destination $friendlySetupPath -Force
+            Copy-Item -LiteralPath $setupPath.FullName -Destination $friendlySetupPath -Force
           }
 
       - name: Upload artifact
