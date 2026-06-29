@@ -265,13 +265,6 @@ jobs:
                 Add-MarkdownBody ([string[]]$extraNotes)
               }
             }
-          } else {
-            $lines.Add("## Beta 测试版")
-            $lines.Add("")
-            $lines.Add("- 此发布用于 Beta 更新通道，会覆盖旧的 Beta 预发布。")
-            $lines.Add("- 安装包版本：``$packageVersion``")
-            $lines.Add("- 更新通道：``$velopackChannel``")
-            $lines.Add("")
           }
           $rangeEnd = "HEAD"
           $tagExists = $false
