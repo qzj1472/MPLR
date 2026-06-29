@@ -2434,7 +2434,7 @@
                     Padding="18"
                     Style="{StaticResource MainFlyoutBorderStyle}"
                     Visibility="Collapsed">
-                <ui:Grid RowDefinitions="Auto,Auto,Auto">
+                <ui:Grid RowDefinitions="Auto,Auto,Auto,Auto">
                     <ui:Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
                         <Image Grid.Column="0"
                                Height="44"
@@ -2485,11 +2485,21 @@
                                     <ui:HyperlinkButton Command="{Binding OpenHyperlinkCommand}" CommandParameter="https://github.com/ksineni/FluentWPF/tree/master/LottieSharp" Content="LottieSharp" Cursor="Hand" />
                                     <ui:HyperlinkButton Command="{Binding OpenHyperlinkCommand}" CommandParameter="https://github.com/CommunityToolkit/WindowsCommunityToolkit" Content="Microsoft.Toolkit.Uwp.Notifications" Cursor="Hand" />
                                     <ui:HyperlinkButton Command="{Binding OpenHyperlinkCommand}" CommandParameter="https://github.com/naudio/NAudio" Content="NAudio" Cursor="Hand" />
+                                    <ui:HyperlinkButton Command="{Binding OpenHyperlinkCommand}" CommandParameter="https://github.com/velopack/velopack" Content="Velopack" Cursor="Hand" />
                                     <ui:HyperlinkButton Command="{Binding OpenHyperlinkCommand}" CommandParameter="https://ffmpeg.org/" Content="FFmpeg" Cursor="Hand" />
                                 </ui:StackPanel>
                             </ScrollViewer>
                         </ui:StackPanel>
                     </Border>
+                    <ui:StackPanel Grid.Row="3"
+                                   Margin="0,12,0,0"
+                                   HorizontalAlignment="Right"
+                                   Orientation="Horizontal"
+                                   Spacing="8">
+                        <Button MinWidth="104"
+                                Content="检查更新"
+                                Click="CheckUpdatesClick" />
+                    </ui:StackPanel>
                 </ui:Grid>
             </Border>
             <Border x:Name="ExitStrategyFlyout"

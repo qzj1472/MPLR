@@ -1,7 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using System.Diagnostics;
-using System.Reflection;
 using System.Windows;
 using System.Windows.Interop;
 using MPLR.Core;
@@ -37,7 +36,7 @@ internal class TrayIconManager
                 },
                 new TrayMenuItem()
                 {
-                    Header = $"v{Assembly.GetExecutingAssembly().GetName().Version!.ToString(3)}",
+                    Header = AppConfig.Version,
                     IsEnabled = false,
                 },
                 new TraySeparator(),

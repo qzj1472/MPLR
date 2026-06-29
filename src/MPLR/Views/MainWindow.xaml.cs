@@ -1151,6 +1151,11 @@ public partial class MainWindow : FluentWindow
         OpenCenteredFlyout(AboutFlyout);
     }
 
+    private async void CheckUpdatesClick(object sender, RoutedEventArgs e)
+    {
+        await AppUpdater.CheckAsync(showNoUpdateMessage: true);
+    }
+
     private void OpenDeveloperToolsClick(object sender, RoutedEventArgs e)
     {
         foreach (Window win in Application.Current.Windows)

@@ -7,6 +7,7 @@ using System.Windows.Threading;
 using MPLR.Core;
 using MPLR.Extensions;
 using MPLR.Threading;
+using Velopack;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Violeta.Appearance;
 using Wpf.Ui.Violeta.Controls;
@@ -16,7 +17,16 @@ namespace MPLR;
 
 public partial class App : Application
 {
-    static App()
+    [STAThread]
+    public static void Main(string[] args)
+    {
+        VelopackApp.Build().Run();
+        InitializeProcess();
+        App app = new();
+        app.Run();
+    }
+
+    private static void InitializeProcess()
     {
         SystemMenuThemeManager.Apply();
         TaskbarGrouping.SetCurrentProcessAppId();
@@ -97,6 +107,7 @@ public partial class App : Application
         NotificationCenter.Start();
         RuntimeResourceLogger.Start();
         _ = ExternalStreamResolver.WarmUpAsync();
+        AppUpdater.CheckInBackground();
     }
 
     /// <summary>
