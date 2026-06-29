@@ -1,0 +1,201 @@
+<ui:FluentWindow x:Class="MPLR.Views.DeveloperToolsWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 Title="开发者工具"
+                 Width="980"
+                 Height="720"
+                 MinWidth="820"
+                 MinHeight="560"
+                 d:Background="#FF101010"
+                 ExtendsContentIntoTitleBar="True"
+                 WindowBackdropType="Mica"
+                 WindowStartupLocation="CenterOwner"
+                 mc:Ignorable="d">
+    <ui:FluentWindow.Resources>
+        <Style x:Key="DeveloperToolNavButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Height" Value="36" />
+            <Setter Property="MinWidth" Value="112" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="DeveloperToolPanelStyle" TargetType="{x:Type Border}">
+            <Setter Property="Padding" Value="18" />
+            <Setter Property="Background" Value="#0A000000" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+        <Style x:Key="DeveloperToolMetricCardStyle" TargetType="{x:Type Border}">
+            <Setter Property="Padding" Value="14" />
+            <Setter Property="Background" Value="#08000000" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Margin" Value="0,0,10,0" />
+        </Style>
+        <Style x:Key="ProcessGridColumnHeaderStyle" TargetType="{x:Type DataGridColumnHeader}">
+            <Setter Property="MinHeight" Value="38" />
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="ProcessGridCellStyle" TargetType="{x:Type DataGridCell}">
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="ProcessGridTextElementStyle" TargetType="{x:Type TextBlock}">
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="ProcessGridCheckBoxElementStyle" TargetType="{x:Type CheckBox}">
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="IsHitTestVisible" Value="False" />
+        </Style>
+    </ui:FluentWindow.Resources>
+
+    <Grid>
+        <ui:Grid Margin="16,48,16,16" RowDefinitions="Auto,*">
+            <ui:Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                <ui:StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock FontSize="20" FontWeight="SemiBold" Text="开发者工具" />
+                    <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}" Text="用于本机诊断、测试容量和模拟通知事件" />
+                </ui:StackPanel>
+                <WrapPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button Style="{StaticResource DeveloperToolNavButtonStyle}" Click="ShowNetworkPanelClick" Content="网络测试" />
+                    <Button Style="{StaticResource DeveloperToolNavButtonStyle}" Click="ShowProcessPanelClick" Content="进程诊断" />
+                    <Button Style="{StaticResource DeveloperToolNavButtonStyle}" Click="ShowSimulationPanelClick" Content="模拟信号" />
+                </WrapPanel>
+            </ui:Grid>
+
+            <Grid Grid.Row="1" Margin="0,16,0,0">
+                <Border Style="{StaticResource DeveloperToolPanelStyle}" Visibility="{Binding NetworkPanelVisibility}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ui:Grid RowDefinitions="Auto,Auto,Auto,Auto">
+                            <TextBlock FontSize="18" FontWeight="SemiBold" Text="直播录制网络容量测试" />
+                            <ui:Grid Grid.Row="1" Margin="0,16,0,0" ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto">
+                                <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="测试地址" />
+                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding TestUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,12,0,0" VerticalAlignment="Center" Text="单直播间 Mbps" />
+                                <ui:Grid Grid.Row="1" Grid.Column="1" Margin="0,12,0,0" ColumnDefinitions="220,24,120,*">
+                                    <TextBox Grid.Column="0" Text="{Binding RoomMbpsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="测试秒数" />
+                                    <TextBox Grid.Column="3" Text="{Binding DurationSecondsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                </ui:Grid>
+                                <WrapPanel Grid.Row="2" Grid.Column="1" Margin="0,14,0,0">
+                                    <Button MinWidth="112" Click="RunNetworkTestClick">
+                                        <StackPanel Orientation="Horizontal">
+                                            <ui:FontIcon FontFamily="{DynamicResource SymbolThemeFontFamily}" Glyph="{x:Static ui:FontSymbols.Play}" />
+                                            <TextBlock Margin="8,0,0,0" Text="开始测试" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button MinWidth="96" Margin="8,0,0,0" Click="CancelNetworkTestClick">
+                                        <StackPanel Orientation="Horizontal">
+                                            <ui:FontIcon FontFamily="{DynamicResource SymbolThemeFontFamily}" Glyph="{x:Static ui:FontSymbols.Stop}" />
+                                            <TextBlock Margin="8,0,0,0" Text="停止" />
+                                        </StackPanel>
+                                    </Button>
+                                </WrapPanel>
+                            </ui:Grid>
+                            <UniformGrid Grid.Row="2" Columns="4" Margin="0,18,0,0">
+                                <Border Style="{StaticResource DeveloperToolMetricCardStyle}">
+                                    <StackPanel>
+                                        <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}" Text="下载带宽" />
+                                        <TextBlock Margin="0,8,0,0" FontSize="22" FontWeight="SemiBold" Text="{Binding DownloadMbpsText}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource DeveloperToolMetricCardStyle}">
+                                    <StackPanel>
+                                        <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}" Text="理论直播间" />
+                                        <TextBlock Margin="0,8,0,0" FontSize="22" FontWeight="SemiBold" Text="{Binding TheoreticalRoomsText}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource DeveloperToolMetricCardStyle}">
+                                    <StackPanel>
+                                        <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}" Text="建议直播间" />
+                                        <TextBlock Margin="0,8,0,0" FontSize="22" FontWeight="SemiBold" Text="{Binding SafeRoomsText}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource DeveloperToolMetricCardStyle}">
+                                    <StackPanel>
+                                        <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}" Text="测试数据" />
+                                        <TextBlock Margin="0,8,0,0" FontSize="22" FontWeight="SemiBold" Text="{Binding NetworkBytesText}" />
+                                    </StackPanel>
+                                </Border>
+                            </UniformGrid>
+                            <TextBlock Grid.Row="3" Margin="0,14,0,0" Text="{Binding NetworkStatusText}" TextWrapping="Wrap" />
+                        </ui:Grid>
+                    </ScrollViewer>
+                </Border>
+
+                <Border Style="{StaticResource DeveloperToolPanelStyle}" Visibility="{Binding ProcessPanelVisibility}">
+                    <ui:Grid RowDefinitions="Auto,*">
+                        <WrapPanel>
+                            <Button MinWidth="96" Click="RefreshProcessesClick">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:FontIcon FontFamily="{DynamicResource SymbolThemeFontFamily}" Glyph="{x:Static ui:FontSymbols.Sync}" />
+                                    <TextBlock Margin="8,0,0,0" Text="刷新" />
+                                </StackPanel>
+                            </Button>
+                            <Button MinWidth="160" Margin="8,0,0,0" Click="KillManagedProcessesClick">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:FontIcon FontFamily="{DynamicResource SymbolThemeFontFamily}" Glyph="{x:Static ui:FontSymbols.Delete}" />
+                                    <TextBlock Margin="8,0,0,0" Text="清理 MPLR 子进程" />
+                                </StackPanel>
+                            </Button>
+                            <TextBlock Margin="16,0,0,0" VerticalAlignment="Center" Text="{Binding ProcessStatusText}" TextWrapping="Wrap" />
+                        </WrapPanel>
+                        <DataGrid Grid.Row="1"
+                                  Margin="0,14,0,0"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False"
+                                  CellStyle="{StaticResource ProcessGridCellStyle}"
+                                  ColumnHeaderStyle="{StaticResource ProcessGridColumnHeaderStyle}"
+                                  ColumnHeaderHeight="38"
+                                  IsReadOnly="True"
+                                  ItemsSource="{Binding Processes}"
+                                  RowHeight="40">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Width="80" Binding="{Binding ProcessId}" ElementStyle="{StaticResource ProcessGridTextElementStyle}" Header="PID" />
+                                <DataGridTextColumn Width="140" Binding="{Binding ProcessName}" ElementStyle="{StaticResource ProcessGridTextElementStyle}" Header="进程" />
+                                <DataGridTextColumn Width="96" Binding="{Binding ParentProcessId}" ElementStyle="{StaticResource ProcessGridTextElementStyle}" Header="父 PID" />
+                                <DataGridCheckBoxColumn Width="116" Binding="{Binding IsMplrChild}" ElementStyle="{StaticResource ProcessGridCheckBoxElementStyle}" Header="MPLR 子进程" />
+                                <DataGridCheckBoxColumn Width="96" Binding="{Binding IsManaged}" ElementStyle="{StaticResource ProcessGridCheckBoxElementStyle}" Header="已纳管" />
+                                <DataGridTextColumn Width="104" Binding="{Binding WorkingSetMb}" ElementStyle="{StaticResource ProcessGridTextElementStyle}" Header="内存 MB" />
+                                <DataGridTextColumn Width="190" Binding="{Binding StartedAt}" ElementStyle="{StaticResource ProcessGridTextElementStyle}" Header="启动时间" />
+                                <DataGridTextColumn Width="*" Binding="{Binding State}" ElementStyle="{StaticResource ProcessGridTextElementStyle}" Header="状态" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </ui:Grid>
+                </Border>
+
+                <Border Style="{StaticResource DeveloperToolPanelStyle}" Visibility="{Binding SimulationPanelVisibility}">
+                    <StackPanel>
+                        <TextBlock FontSize="18" FontWeight="SemiBold" Text="通知与事件模拟" />
+                        <WrapPanel Margin="0,16,0,0">
+                            <Button Margin="0,0,8,8" Click="SimulateLiveStartedClick" Content="模拟开播通知" />
+                            <Button Margin="0,0,8,8" Click="SimulateRecordStartedClick" Content="模拟录制开始" />
+                            <Button Margin="0,0,8,8" Click="SimulateRecordErrorClick" Content="模拟录制异常" />
+                            <Button Margin="0,0,8,8" Click="SimulateMonitorErrorClick" Content="模拟监控异常" />
+                        </WrapPanel>
+                        <TextBlock Margin="0,8,0,0" Text="{Binding SimulationStatusText}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </ui:Grid>
+        <Grid>
+            <ui:TitleBar Title="开发者工具" ShowMaximize="True">
+                <ui:TitleBar.Icon>
+                    <ui:ImageIcon Source="pack://application:,,,/Assets/Favicon.png" />
+                </ui:TitleBar.Icon>
+            </ui:TitleBar>
+        </Grid>
+    </Grid>
+</ui:FluentWindow>

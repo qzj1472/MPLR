@@ -172,6 +172,14 @@ public partial class ChildProcessTracerPeriodicTimer(TimeSpan period) : IDisposa
         }
     }
 
+    public HashSet<int> GetTracedProcessIds()
+    {
+        lock (syncRoot)
+        {
+            return [.. TracedChildProcessIds];
+        }
+    }
+
     [SuppressMessage("Usage", "CA1816:Dispose methods should call SuppressFinalize")]
     [SuppressMessage("CodeQuality", "IDE0079:Remove unnecessary suppression")]
     public void Dispose()

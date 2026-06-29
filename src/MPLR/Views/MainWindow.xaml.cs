@@ -1151,6 +1151,23 @@ public partial class MainWindow : FluentWindow
         OpenCenteredFlyout(AboutFlyout);
     }
 
+    private void OpenDeveloperToolsClick(object sender, RoutedEventArgs e)
+    {
+        foreach (Window win in Application.Current.Windows)
+        {
+            if (win is DeveloperToolsWindow)
+            {
+                win.Activate();
+                return;
+            }
+        }
+
+        new DeveloperToolsWindow
+        {
+            Owner = Application.Current.MainWindow,
+        }.Show();
+    }
+
     private void AddRoomFollowGlobalSettingsChanged(object sender, RoutedEventArgs e)
     {
         if (AddRoomFlyout == null)
