@@ -18,7 +18,7 @@ public sealed partial class DouyinSpider : ISpider
 
         if (string.IsNullOrWhiteSpace(result.AvatarThumbUrl))
         {
-            result.AvatarThumbUrl = TryFetchProfileAvatar(htmlStr);
+            result.AvatarThumbUrl = TryFetchProfileAvatar(roomUrl, htmlStr);
         }
 
         result.RoomUrl = roomUrl;
@@ -144,9 +144,9 @@ public sealed partial class DouyinSpider : ISpider
         return result;
     }
 
-    private string? TryFetchProfileAvatar(string? liveHtml)
+    private string? TryFetchProfileAvatar(string? roomUrl, string? liveHtml)
     {
-        foreach (string profileUrl in GetProfileUrlCandidates(liveHtml))
+        foreach (string profileUrl in GetProfileUrlCandidates(roomUrl, liveHtml))
         {
             string? profileHtml = RequestUrl(profileUrl, "https://www.douyin.com/");
             string? avatar = ExtractFirstAvatar(profileHtml);
@@ -160,15 +160,15 @@ public sealed partial class DouyinSpider : ISpider
         return null;
     }
 
-    private static IEnumerable<string> GetProfileUrlCandidates(string? htmlStr)
+    private static IEnumerable<string> GetProfileUrlCandidates(string? roomUrl, string? htmlStr)
     {
-        if (string.IsNullOrWhiteSpace(htmlStr))
+        if (string.IsNullOrWhiteSpace(htmlStr) && string.IsNullOrWhiteSpace(roomUrl))
         {
             yield break;
         }
 
         HashSet<string> candidates = [];
-        string normalized = NormalizeDouyinText(htmlStr);
+        string normalized = NormalizeDouyinText(htmlStr ?? string.Empty);
 
         foreach (Match match in ProfileUrlRegex.Matches(normalized))
         {
@@ -190,6 +190,26 @@ public sealed partial class DouyinSpider : ISpider
                 }
             }
         }
+
+        string? roomId = GetDouyinRoomId(roomUrl);
+        if (!string.IsNullOrWhiteSpace(roomId) && !roomId.All(char.IsDigit))
+        {
+            string profileUrl = $"https://www.douyin.com/user/{roomId}";
+            if (candidates.Add(profileUrl))
+            {
+                yield return profileUrl;
+            }
+        }
+    }
+
+    private static string? GetDouyinRoomId(string? roomUrl)
+    {
+        if (string.IsNullOrWhiteSpace(roomUrl) || !Uri.TryCreate(roomUrl, UriKind.Absolute, out Uri? uri))
+        {
+            return null;
+        }
+
+        return uri.Segments.LastOrDefault()?.Trim('/');
     }
 
     private static string? ExtractFirstAvatar(string? htmlStr)
@@ -242,14 +262,26 @@ public sealed partial class DouyinSpider : ISpider
     [GeneratedRegex("\"avatar_thumb\"\\s*:\\s*\\{[^\\{\\}]*\"url_list\"\\s*:\\s*\\[\"([^\"]+)\"")]
     private static partial Regex AvatarThumbRegex { get; }
 
+    [GeneratedRegex("\"avatar_thumb\".*?\"url_list\"\\s*:\\s*\\[\"([^\"]+)\"", RegexOptions.Singleline)]
+    private static partial Regex AvatarThumbBroadRegex { get; }
+
     [GeneratedRegex("\"avatarThumb\"\\s*:\\s*\\{[^\\{\\}]*\"urlList\"\\s*:\\s*\\[\"([^\"]+)\"")]
     private static partial Regex AvatarThumbCamelRegex { get; }
+
+    [GeneratedRegex("\"avatarThumb\".*?\"urlList\"\\s*:\\s*\\[\"([^\"]+)\"", RegexOptions.Singleline)]
+    private static partial Regex AvatarThumbCamelBroadRegex { get; }
 
     [GeneratedRegex("\"avatarMedium\"\\s*:\\s*\\{[^\\{\\}]*\"urlList\"\\s*:\\s*\\[\"([^\"]+)\"")]
     private static partial Regex AvatarMediumRegex { get; }
 
+    [GeneratedRegex("\"avatarMedium\".*?\"urlList\"\\s*:\\s*\\[\"([^\"]+)\"", RegexOptions.Singleline)]
+    private static partial Regex AvatarMediumBroadRegex { get; }
+
     [GeneratedRegex("\"avatarLarger\"\\s*:\\s*\\{[^\\{\\}]*\"urlList\"\\s*:\\s*\\[\"([^\"]+)\"")]
     private static partial Regex AvatarLargerRegex { get; }
+
+    [GeneratedRegex("\"avatarLarger\".*?\"urlList\"\\s*:\\s*\\[\"([^\"]+)\"", RegexOptions.Singleline)]
+    private static partial Regex AvatarLargerBroadRegex { get; }
 
     [GeneratedRegex("\"avatar_url\"\\s*:\\s*\"([^\"]+)\"")]
     private static partial Regex AvatarUrlRegex { get; }
@@ -257,9 +289,13 @@ public sealed partial class DouyinSpider : ISpider
     private static Regex[] AvatarRegexes { get; } =
     [
         AvatarThumbRegex,
+        AvatarThumbBroadRegex,
         AvatarThumbCamelRegex,
+        AvatarThumbCamelBroadRegex,
         AvatarMediumRegex,
+        AvatarMediumBroadRegex,
         AvatarLargerRegex,
+        AvatarLargerBroadRegex,
         AvatarUrlRegex,
     ];
 }

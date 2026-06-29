@@ -1,4 +1,4 @@
-<ui:FluentWindow x:Class="MPLR.Views.ScreenRecordListWindow"
+﻿<ui:FluentWindow x:Class="MPLR.Views.ScreenRecordListWindow"
                  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -97,7 +97,7 @@
     </ui:FluentWindow.Resources>
 
     <Grid>
-        <Grid Margin="14,48,14,0">
+        <Grid x:Name="VideoListContentRoot" Margin="14,48,14,0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="48" />
                 <RowDefinition Height="*" />
@@ -172,6 +172,13 @@
                         <TextBlock VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                    Text="{Binding SelectedVideoSummary}" />
+                        <Button Click="OpenMergeSelectedClick"
+                                IsEnabled="{Binding HasSelectedVideos}"
+                                Style="{StaticResource VideoListAccentIconButtonStyle}"
+                                ToolTip="合并">
+                            <ui:FontIcon FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                         Glyph="{x:Static ui:FontSymbols.Link}" />
+                        </Button>
                         <Button Click="DeleteSelectedClick"
                                 IsEnabled="{Binding HasSelectedVideos}"
                                 Style="{StaticResource VideoListAccentIconButtonStyle}"
@@ -192,6 +199,44 @@
                                 ToolTip="复制">
                             <ui:FontIcon FontFamily="{DynamicResource SymbolThemeFontFamily}"
                                          Glyph="{x:Static ui:FontSymbols.Copy}" />
+                        </Button>
+                        <Button Click="SelectAllVideosClick"
+                                Style="{StaticResource VideoListAccentIconButtonStyle}"
+                                ToolTip="全选">
+                            <Grid Width="20" Height="20">
+                                <Path Data="M5,8 L8.5,11.5 L15.5,4.5"
+                                      Stroke="White"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round" />
+                                <Path Data="M5,15 L8.5,18.5 L15.5,11.5"
+                                      Stroke="White"
+                                      StrokeDashArray="1,2"
+                                      StrokeThickness="1.4"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round" />
+                            </Grid>
+                        </Button>
+                        <Button Click="InvertSelectedVideosClick"
+                                Style="{StaticResource VideoListAccentIconButtonStyle}"
+                                ToolTip="反选">
+                            <Grid Width="20" Height="20">
+                                <Path Data="M5,8 L8.5,11.5 L15.5,4.5"
+                                      Stroke="White"
+                                      StrokeDashArray="1,2"
+                                      StrokeThickness="1.4"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round" />
+                                <Path Data="M5,15 L8.5,18.5 L15.5,11.5"
+                                      Stroke="White"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round" />
+                            </Grid>
                         </Button>
                         <Button Click="CancelMultiSelectClick"
                                 Style="{StaticResource VideoListAccentIconButtonStyle}"
@@ -220,28 +265,61 @@
                 </ui:StackPanel>
             </Grid>
 
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                <ItemsControl ItemsSource="{Binding Videos}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Margin="2,8,10,0"
-                                    Padding="14"
-                                    Background="{DynamicResource CardBackground}"
-                                    BorderBrush="{DynamicResource CardBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="10">
+            <ListBox x:Name="VideoListBox"
+                     Grid.Row="1"
+                     ItemsSource="{Binding Videos}"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     ScrollViewer.CanContentScroll="True"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     ScrollViewer.ScrollChanged="VideoListScrollChanged"
+                     VirtualizingPanel.IsVirtualizing="True"
+                     VirtualizingPanel.VirtualizationMode="Recycling">
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                        <Setter Property="Padding" Value="0" />
+                        <Setter Property="Margin" Value="0" />
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                                    <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                      SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <VirtualizingStackPanel />
+                    </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Border x:Name="VideoCardShell"
+                                Margin="2,8,10,0"
+                                Padding="12"
+                                Background="{DynamicResource CardBackground}"
+                                BorderBrush="{DynamicResource CardBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="10"
+                                MouseLeftButtonDown="VideoCardMouseLeftButtonDown"
+                                Loaded="VideoCardLoaded">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="172" />
+                                        <ColumnDefinition Width="146" />
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
 
-                                    <Border Width="148"
-                                            Height="111"
+                                    <Border Width="128"
+                                            Height="72"
                                             HorizontalAlignment="Left"
-                                            VerticalAlignment="Top"
+                                            VerticalAlignment="Center"
                                             Background="#16000000"
                                             BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
                                             BorderThickness="1"
@@ -276,7 +354,7 @@
                                         </Grid>
                                     </Border>
 
-                                    <StackPanel Grid.Column="1" Margin="0,0,20,0">
+                                    <StackPanel Grid.Column="1" Margin="0,0,20,0" VerticalAlignment="Center">
                                         <TextBlock FontSize="18"
                                                    FontWeight="SemiBold"
                                                    Text="{Binding FileName}"
@@ -297,7 +375,7 @@
                                                            Text="{Binding Bitrate}" />
                                             </Border>
                                         </ui:StackPanel>
-                                        <TextBlock Margin="0,10,0,0"
+                                        <TextBlock Margin="0,8,0,0"
                                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                                    Text="{Binding Title}"
                                                    TextTrimming="CharacterEllipsis" />
@@ -326,6 +404,10 @@
                                                 </Style>
                                             </Button.Style>
                                         </Button>
+                                        <Button Margin="0,0,8,0"
+                                                Click="OpenSplitSingleVideoFlyoutClick"
+                                                Content="分割"
+                                                Tag="{Binding}" />
                                         <Button Click="OpenDirectoryClick"
                                                 Content="打开目录"
                                                 Tag="{Binding}" />
@@ -335,7 +417,7 @@
                                               Margin="14,0,0,0"
                                               HorizontalAlignment="Right"
                                               VerticalAlignment="Center"
-                                              Click="SelectionCheckBoxClick"
+                                              PreviewMouseLeftButtonDown="SelectionCheckBoxPreviewMouseLeftButtonDown"
                                               IsChecked="{Binding IsSelected, Mode=TwoWay}"
                                               Tag="{Binding}">
                                         <CheckBox.Style>
@@ -350,11 +432,16 @@
                                         </CheckBox.Style>
                                     </CheckBox>
                                 </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
+                        </Border>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                <Setter TargetName="VideoCardShell" Property="Background" Value="#2A4DA7B0" />
+                                <Setter TargetName="VideoCardShell" Property="BorderBrush" Value="#884DA7B0" />
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
         </Grid>
 
         <Grid>
@@ -364,5 +451,141 @@
                 </ui:TitleBar.Icon>
             </ui:TitleBar>
         </Grid>
+        <Grid x:Name="VideoListModalOverlay"
+              Background="Transparent"
+              MouseDown="VideoListModalOverlayMouseDown"
+              Panel.ZIndex="40"
+              Visibility="Collapsed" />
+        <Canvas x:Name="VideoListFlyoutLayer"
+                ClipToBounds="True"
+                Panel.ZIndex="50">
+            <Border x:Name="SplitVideoFlyout"
+                    Width="420"
+                    Padding="18"
+                    Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
+                    BorderBrush="{DynamicResource SurfaceStrokeColorFlyoutBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Visibility="Collapsed">
+                <ui:Grid RowDefinitions="Auto,Auto,Auto">
+                    <ui:Grid Grid.Row="0" ColumnDefinitions="Auto,*">
+                        <ui:FontIcon Grid.Column="0"
+                                     Margin="0,0,12,0"
+                                     VerticalAlignment="Center"
+                                     FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                     FontSize="20"
+                                     Glyph="{x:Static ui:FontSymbols.Cut}" />
+                        <TextBlock Grid.Column="1"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Text="分割视频" />
+                    </ui:Grid>
+                    <ui:Grid Grid.Row="1"
+                             Margin="0,18,0,18"
+                             ColumnDefinitions="*,12,112">
+                        <ui:TextBox Grid.Column="0"
+                                    PlaceholderText="30"
+                                    Text="{Binding SplitDurationValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        <ComboBox Grid.Column="2"
+                                  SelectedIndex="{Binding SplitDurationUnitIndex, Mode=TwoWay}">
+                            <ComboBoxItem Content="秒" />
+                            <ComboBoxItem Content="分钟" />
+                            <ComboBoxItem Content="小时" />
+                        </ComboBox>
+                    </ui:Grid>
+                    <ui:StackPanel Grid.Row="2"
+                                   HorizontalAlignment="Right"
+                                   Orientation="Horizontal"
+                                   Spacing="16">
+                        <Button MinWidth="78"
+                                Content="取消"
+                                Click="CloseVideoListModalClick" />
+                        <Button MinWidth="78"
+                                Style="{StaticResource VideoListAccentButtonStyle}"
+                                Content="确定"
+                                Click="ConfirmSplitSelectedClick" />
+                    </ui:StackPanel>
+                </ui:Grid>
+            </Border>
+            <Border x:Name="MergeVideoFlyout"
+                    Width="520"
+                    Padding="18"
+                    Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
+                    BorderBrush="{DynamicResource SurfaceStrokeColorFlyoutBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Visibility="Collapsed">
+                <ui:Grid RowDefinitions="Auto,Auto,Auto">
+                    <ui:Grid Grid.Row="0" ColumnDefinitions="Auto,*">
+                        <ui:FontIcon Grid.Column="0"
+                                     Margin="0,0,12,0"
+                                     VerticalAlignment="Center"
+                                     FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                     FontSize="20"
+                                     Glyph="{x:Static ui:FontSymbols.Link}" />
+                        <TextBlock Grid.Column="1"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Text="合并视频" />
+                    </ui:Grid>
+                    <ui:StackPanel Grid.Row="1"
+                                   Margin="0,18,0,20"
+                                   Spacing="10">
+                        <TextBlock Text="是否确认将选中的视频合并为一个视频？"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Foreground="#B91C1C"
+                                   Text="{Binding MergeWarningText}"
+                                   TextWrapping="Wrap">
+                            <TextBlock.Style>
+                                <Style TargetType="{x:Type TextBlock}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasMergeWarnings}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <ProgressBar Height="6"
+                                     IsIndeterminate="{Binding IsMergeProgressIndeterminate}"
+                                     Maximum="100"
+                                     Value="{Binding MergeProgressValue}">
+                            <ProgressBar.Style>
+                                <Style TargetType="{x:Type ProgressBar}" BasedOn="{StaticResource {x:Type ProgressBar}}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsMergingVideos}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ProgressBar.Style>
+                        </ProgressBar>
+                    </ui:StackPanel>
+                    <ui:StackPanel Grid.Row="2"
+                                   HorizontalAlignment="Right"
+                                   Orientation="Horizontal"
+                                   Spacing="16">
+                        <Button MinWidth="78"
+                                Content="取消"
+                                Click="CloseVideoListModalClick" />
+                        <Button MinWidth="78"
+                                Content="确定"
+                                Click="ConfirmMergeSelectedClick">
+                            <Button.Style>
+                                <Style TargetType="{x:Type Button}" BasedOn="{StaticResource VideoListAccentButtonStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsMergingVideos}" Value="True">
+                                            <Setter Property="IsEnabled" Value="False" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </ui:StackPanel>
+                </ui:Grid>
+            </Border>
+        </Canvas>
     </Grid>
 </ui:FluentWindow>

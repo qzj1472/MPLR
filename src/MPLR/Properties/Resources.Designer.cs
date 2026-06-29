@@ -696,16 +696,6 @@ namespace MPLR.Properties {
             }
         }
         
-        /// <summary>
-        ///   Looks up a localized string similar to File ffplay not found so cannot be played!.
-        /// </summary>
-        public static string PlayerErrorOfFFplayNotFound {
-            get {
-                return ResourceManager.GetString("PlayerErrorOfFFplayNotFound", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to No playable recording file.
         /// </summary>
         public static string PlayerErrorOfNoFile {
@@ -736,7 +726,7 @@ namespace MPLR.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Use FFplay player.
+        ///   Looks up a localized string similar to Use embedded player.
         /// </summary>
         public static string PlayerInnerHint {
             get {

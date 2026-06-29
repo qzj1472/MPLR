@@ -2,18 +2,17 @@
 using System.Runtime.InteropServices;
 using System.Text;
 using MPLR.Threading;
+using MPLR.Views;
 
 namespace MPLR.Core;
 
 public sealed class Player
 {
-    private const string FfplayExeName = "ffplay.exe";
     private const string FfprobeExeName = "ffprobe.exe";
     private const int PreviewWindowWidth = 960;
     private const int PreviewWindowHeight = 540;
     private const double PreviewScreenRatio = 0.85d;
-    private const int PreviewWindowCenteringSeconds = 8;
-    private const int PreviewWindowCenteringIntervalMilliseconds = 120;
+    private static readonly Lazy<string?> FfprobePath = new(FindFfprobeCore, LazyThreadSafetyMode.ExecutionAndPublication);
 
     public static Task PlayAsync(string mediaPath, bool isSeekable = false)
     {
@@ -30,84 +29,23 @@ public sealed class Player
         string title = "")
     {
         List<string> cachedPreviewUrls = SelectPreviewUrls(hlsUrl, flvUrl, recordUrl);
-        List<string> previewUrls = [];
         string previewTitle = SelectPreviewTitle(title, nickName);
-        string previewHeaders = headers;
-
-        if (ShouldResolveFreshStream(roomUrl))
-        {
-            ISpiderResult? spiderResult = await Task.Run(() => Spider.GetResult(roomUrl));
-
-            if (spiderResult != null)
-            {
-                previewUrls = SelectPreviewUrls(spiderResult.HlsUrl, spiderResult.FlvUrl, spiderResult.RecordUrl);
-                previewTitle = SelectPreviewTitle(spiderResult.Title, spiderResult.Nickname, nickName);
-                previewHeaders = SelectPreviewHeaders(headers, spiderResult.Headers);
-
-                AppSessionLogger.Event("info", "player", "preview_stream_resolved", "preview stream resolved", new
-                {
-                    roomUrl,
-                    isLiveStreaming = spiderResult.IsLiveStreaming,
-                    hasRecordUrl = !string.IsNullOrWhiteSpace(spiderResult.RecordUrl),
-                    hasHlsUrl = !string.IsNullOrWhiteSpace(spiderResult.HlsUrl),
-                    hasFlvUrl = !string.IsNullOrWhiteSpace(spiderResult.FlvUrl),
-                });
-            }
-        }
-
-        if (previewUrls.Count == 0)
-        {
-            previewUrls = cachedPreviewUrls;
-        }
-
-        if (previewUrls.Count == 0)
-        {
-            AppSessionLogger.Event("warn", "player", "preview_no_stream", "preview has no playable stream", new
-            {
-                roomUrl,
-                nickName,
-            });
-            _ = MessageBox.Warning("PlayerErrorOfNoPreviewStream".Tr());
-            return;
-        }
-
-        string? ffplayPath = FindFfplay();
-
-        if (string.IsNullOrWhiteSpace(ffplayPath))
-        {
-            AppSessionLogger.Event("error", "player", "preview_ffplay_not_found", "ffplay executable not found", new
-            {
-                roomUrl,
-            });
-            _ = MessageBox.Warning("PlayerErrorOfFFplayNotFound".Tr());
-            return;
-        }
 
         try
         {
-            string preparedHeaders = PreparePreviewHeaders(previewHeaders, roomUrl, previewUrls);
-            PreviewSource previewSource = await SelectPreviewSourceAsync(previewUrls, preparedHeaders);
-            VideoSize? previewSize = CalculatePreviewVideoSize(previewSource.Size);
-            ProcessStartInfo startInfo = CreateFfplayStartInfo(ffplayPath, previewSource.Url, previewTitle, preparedHeaders, previewSize);
-            Process? process = Process.Start(startInfo);
+            PreviewPlaybackRequest request = new(
+                cachedPreviewUrls,
+                previewTitle,
+                headers,
+                roomUrl,
+                nickName);
 
-            if (process != null)
+            await ShowEmbeddedPreviewAsync(request);
+            AppSessionLogger.Event("info", "player", "preview_requested", "embedded preview window opened", new
             {
-                ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
-                AppSessionLogger.Event("info", "player", "preview_started", "ffplay preview process started", new
-                {
-                    roomUrl,
-                    previewUrl = RedactUrl(previewSource.Url),
-                    ffplayPath,
-                    processId = process.Id,
-                    width = previewSize?.Width,
-                    height = previewSize?.Height,
-                });
-                process.BeginOutputReadLine();
-                process.BeginErrorReadLine();
-                _ = LogPreviewExitAsync(process, roomUrl, previewSource.Url);
-                _ = ManagePreviewWindowAsync(process.Id);
-            }
+                roomUrl,
+                cachedPreviewUrlCount = cachedPreviewUrls.Count,
+            });
         }
         catch (Exception e)
         {
@@ -117,59 +55,63 @@ public sealed class Player
         }
     }
 
-    private static ProcessStartInfo CreateFfplayStartInfo(string ffplayPath, string previewUrl, string title, string headers, VideoSize? previewSize)
+    private static async Task ShowEmbeddedPreviewAsync(PreviewPlaybackRequest request)
     {
-        ProcessStartInfo startInfo = new()
+        System.Windows.Application? application = System.Windows.Application.Current;
+        if (application?.Dispatcher == null)
         {
-            FileName = ffplayPath,
-            WorkingDirectory = Path.GetDirectoryName(ffplayPath) ?? AppContext.BaseDirectory,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-        };
-
-        startInfo.ArgumentList.Add("-hide_banner");
-        startInfo.ArgumentList.Add("-nostats");
-        startInfo.ArgumentList.Add("-loglevel");
-        startInfo.ArgumentList.Add("quiet");
-        startInfo.ArgumentList.Add("-window_title");
-        startInfo.ArgumentList.Add(title);
-        startInfo.ArgumentList.Add("-protocol_whitelist");
-        startInfo.ArgumentList.Add("file,http,https,tcp,tls,crypto,data,udp,rtp,rtmp,rtmps");
-        startInfo.ArgumentList.Add("-analyzeduration");
-        startInfo.ArgumentList.Add("10000000");
-        startInfo.ArgumentList.Add("-probesize");
-        startInfo.ArgumentList.Add("10000000");
-        if (previewSize.HasValue)
-        {
-            startInfo.ArgumentList.Add("-x");
-            startInfo.ArgumentList.Add(previewSize.Value.Width.ToString());
-            startInfo.ArgumentList.Add("-y");
-            startInfo.ArgumentList.Add(previewSize.Value.Height.ToString());
-        }
-        startInfo.ArgumentList.Add("-autoexit");
-        startInfo.ArgumentList.Add("-fflags");
-        startInfo.ArgumentList.Add("nobuffer");
-        startInfo.ArgumentList.Add("-flags");
-        startInfo.ArgumentList.Add("low_delay");
-
-        if (!string.IsNullOrWhiteSpace(headers))
-        {
-            AddHeaderProtocolOptions(startInfo, headers);
-            startInfo.ArgumentList.Add("-headers");
-            startInfo.ArgumentList.Add(headers.EndsWith("\r\n", StringComparison.Ordinal) ? headers : headers + "\r\n");
+            throw new InvalidOperationException("WPF application dispatcher is unavailable.");
         }
 
-        startInfo.ArgumentList.Add(previewUrl);
-        return startInfo;
+        await application.Dispatcher.InvokeAsync(() =>
+        {
+            EmbeddedPreviewWindow window = new(request)
+            {
+                Owner = application.MainWindow,
+            };
+            window.Show();
+        });
     }
 
     private static async Task<PreviewSource> SelectPreviewSourceAsync(IReadOnlyList<string> previewUrls, string headers)
     {
-        foreach (string previewUrl in previewUrls)
+        if (previewUrls.Count == 1)
         {
-            VideoSize? size = await ProbeVideoSizeAsync(previewUrl, headers);
+            return new PreviewSource(previewUrls[0], null);
+        }
+
+        using CancellationTokenSource cancellationTokenSource = new(TimeSpan.FromSeconds(2));
+        Task<PreviewSource?>[] probeTasks = previewUrls
+            .Select(url => TryCreatePreviewSourceAsync(url, headers, cancellationTokenSource.Token))
+            .ToArray();
+
+        while (probeTasks.Length > 0)
+        {
+            Task<PreviewSource?> completedTask = await Task.WhenAny(probeTasks);
+            PreviewSource? source = await completedTask;
+
+            if (source.HasValue)
+            {
+                cancellationTokenSource.Cancel();
+                return source.Value;
+            }
+
+            probeTasks = probeTasks.Where(task => task != completedTask).ToArray();
+        }
+
+        AppSessionLogger.Event("warn", "player", "preview_probe_fallback", "preview probe failed for all streams", new
+        {
+            count = previewUrls.Count,
+            firstPreviewUrl = RedactUrl(previewUrls[0]),
+        });
+        return new PreviewSource(previewUrls[0], null);
+    }
+
+    private static async Task<PreviewSource?> TryCreatePreviewSourceAsync(string previewUrl, string headers, CancellationToken token)
+    {
+        try
+        {
+            VideoSize? size = await ProbeVideoSizeAsync(previewUrl, headers, token);
             if (size != null)
             {
                 AppSessionLogger.Event("info", "player", "preview_probe_succeeded", "preview probe succeeded", new
@@ -181,16 +123,14 @@ public sealed class Player
                 return new PreviewSource(previewUrl, size.Value);
             }
         }
-
-        AppSessionLogger.Event("warn", "player", "preview_probe_fallback", "preview probe failed for all streams", new
+        catch (OperationCanceledException)
         {
-            count = previewUrls.Count,
-            firstPreviewUrl = RedactUrl(previewUrls[0]),
-        });
-        return new PreviewSource(previewUrls[0], null);
+        }
+
+        return null;
     }
 
-    private static async Task<VideoSize?> ProbeVideoSizeAsync(string previewUrl, string headers)
+    private static async Task<VideoSize?> ProbeVideoSizeAsync(string previewUrl, string headers, CancellationToken token)
     {
         string? ffprobePath = FindFfprobe();
         if (string.IsNullOrWhiteSpace(ffprobePath))
@@ -200,7 +140,6 @@ public sealed class Player
 
         try
         {
-            using CancellationTokenSource cancellationTokenSource = new(TimeSpan.FromSeconds(8));
             ProcessStartInfo startInfo = new()
             {
                 FileName = ffprobePath,
@@ -210,6 +149,8 @@ public sealed class Player
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
             };
+
+            token.ThrowIfCancellationRequested();
 
             startInfo.ArgumentList.Add("-v");
             startInfo.ArgumentList.Add("error");
@@ -228,13 +169,13 @@ public sealed class Player
             startInfo.ArgumentList.Add("-reconnect_on_http_error");
             startInfo.ArgumentList.Add("4xx,5xx");
             startInfo.ArgumentList.Add("-rw_timeout");
-            startInfo.ArgumentList.Add("15000000");
+            startInfo.ArgumentList.Add("3000000");
             startInfo.ArgumentList.Add("-timeout");
-            startInfo.ArgumentList.Add("15000000");
+            startInfo.ArgumentList.Add("3000000");
             startInfo.ArgumentList.Add("-analyzeduration");
-            startInfo.ArgumentList.Add("10000000");
+            startInfo.ArgumentList.Add("1000000");
             startInfo.ArgumentList.Add("-probesize");
-            startInfo.ArgumentList.Add("10000000");
+            startInfo.ArgumentList.Add("1000000");
             startInfo.ArgumentList.Add("-live_start_index");
             startInfo.ArgumentList.Add("-3");
             startInfo.ArgumentList.Add("-multiple_requests");
@@ -260,36 +201,63 @@ public sealed class Player
                 StartInfo = startInfo,
             };
 
-            process.Start();
-            ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
-            string output = await process.StandardOutput.ReadToEndAsync(cancellationTokenSource.Token);
-            string error = await process.StandardError.ReadToEndAsync(cancellationTokenSource.Token);
-            await process.WaitForExitAsync(cancellationTokenSource.Token);
-
-            if (process.ExitCode != 0)
+            try
             {
-                AppSessionLogger.Event("warn", "player", "preview_probe_failed", TrimError(error), new
+                process.Start();
+                ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
+                RuntimeResourceLogger.Register(process, "ffprobe", "preview_probe", previewUrl, null, new
                 {
                     previewUrl = RedactUrl(previewUrl),
-                    exitCode = process.ExitCode,
-                    stdoutLength = output.Length,
-                    stderrLength = error.Length,
                 });
-                return null;
-            }
+                string output = await process.StandardOutput.ReadToEndAsync(token);
+                string error = await process.StandardError.ReadToEndAsync(token);
+                await process.WaitForExitAsync(token);
 
-            foreach (string line in output.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                string[] parts = line.Split('x', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                if (parts.Length >= 2 &&
-                    int.TryParse(parts[0], out int width) &&
-                    int.TryParse(parts[1], out int height) &&
-                    width > 0 &&
-                    height > 0)
+                if (process.ExitCode != 0)
                 {
-                    return new VideoSize(width, height);
+                    AppSessionLogger.Event("warn", "player", "preview_probe_failed", TrimError(error), new
+                    {
+                        previewUrl = RedactUrl(previewUrl),
+                        exitCode = process.ExitCode,
+                        stdoutLength = output.Length,
+                        stderrLength = error.Length,
+                    });
+                    return null;
+                }
+
+                foreach (string line in output.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    string[] parts = line.Split('x', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    if (parts.Length >= 2 &&
+                        int.TryParse(parts[0], out int width) &&
+                        int.TryParse(parts[1], out int height) &&
+                        width > 0 &&
+                        height > 0)
+                    {
+                        return new VideoSize(width, height);
+                    }
                 }
             }
+            catch (OperationCanceledException)
+            {
+                if (!process.HasExited)
+                {
+                    try
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.WriteLine(e);
+                    }
+                }
+
+                throw;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception e)
         {
@@ -382,27 +350,12 @@ public sealed class Player
         return new WindowFrameMetrics(width, height);
     }
 
-    private static string? FindFfplay()
+    private static string? FindFfprobe()
     {
-        string baseDirectory = AppContext.BaseDirectory;
-        string[] candidates =
-        [
-            Path.Combine(baseDirectory, FfplayExeName),
-            Path.Combine(baseDirectory, "ffmpeg", FfplayExeName),
-        ];
-
-        foreach (string candidate in candidates)
-        {
-            if (File.Exists(candidate))
-            {
-                return candidate;
-            }
-        }
-
-        return FindExecutableOnPath(FfplayExeName);
+        return FfprobePath.Value;
     }
 
-    private static string? FindFfprobe()
+    private static string? FindFfprobeCore()
     {
         string baseDirectory = AppContext.BaseDirectory;
         string[] candidates =
@@ -477,32 +430,6 @@ public sealed class Player
         return Uri.TryCreate(roomUrl, UriKind.Absolute, out Uri? uri) &&
                (uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
                 uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static async Task LogPreviewExitAsync(Process process, string roomUrl, string previewUrl)
-    {
-        try
-        {
-            await process.WaitForExitAsync();
-            AppSessionLogger.Event(process.ExitCode == 0 ? "info" : "warn", "player", "preview_exited", "ffplay preview process exited", new
-            {
-                roomUrl,
-                previewUrl = RedactUrl(previewUrl),
-                processId = process.Id,
-                exitCode = process.ExitCode,
-            });
-            process.Dispose();
-        }
-        catch (Exception e)
-        {
-            Debug.WriteLine(e);
-            AppSessionLogger.Event("warn", "player", "preview_exit_trace_failed", e.Message, new
-            {
-                roomUrl,
-                previewUrl = RedactUrl(previewUrl),
-                type = e.GetType().FullName,
-            });
-        }
     }
 
     private static string TrimError(string value)
@@ -819,182 +746,14 @@ public sealed class Player
         return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
     }
 
-    private static async Task ManagePreviewWindowAsync(int processId)
-    {
-        DateTime deadline = DateTime.Now.AddSeconds(PreviewWindowCenteringSeconds);
-        bool grouped = false;
-
-        while (DateTime.Now < deadline)
-        {
-            await Task.Delay(PreviewWindowCenteringIntervalMilliseconds);
-
-            try
-            {
-                using Process process = Process.GetProcessById(processId);
-                process.Refresh();
-
-                if (process.HasExited)
-                {
-                    return;
-                }
-
-                IntPtr handle = SelectPreviewWindowHandle(process);
-                if (handle == IntPtr.Zero)
-                {
-                    continue;
-                }
-
-                if (!grouped)
-                {
-                    grouped = TryGroupPreviewWindows(process);
-                }
-
-                _ = FitWindowIntoWorkingArea(handle);
-            }
-            catch (Exception e)
-            {
-                Debug.WriteLine(e);
-                return;
-            }
-        }
-    }
-
-    private static IntPtr SelectPreviewWindowHandle(Process process)
-    {
-        IntPtr[] handles = Interop.GetWindowHandleByProcessId(process.Id);
-        return handles.FirstOrDefault(handle => handle != IntPtr.Zero);
-    }
-
-    private static bool TryGroupPreviewWindows(Process process)
-    {
-        bool grouped = false;
-        foreach (IntPtr handle in Interop.GetWindowHandleByProcessId(process.Id))
-        {
-            grouped |= TaskbarGrouping.SetPreviewWindowAssociation(handle, process);
-        }
-
-        return grouped;
-    }
-
-    private static bool FitWindowIntoWorkingArea(IntPtr handle)
-    {
-        if (!GetWindowRect(handle, out NativeRect rect))
-        {
-            return false;
-        }
-
-        int width = rect.Right - rect.Left;
-        int height = rect.Bottom - rect.Top;
-
-        if (width <= 0 || height <= 0)
-        {
-            return false;
-        }
-
-        NativeRect workingArea = GetWindowWorkingArea(handle);
-        int workingWidth = workingArea.Right - workingArea.Left;
-        int workingHeight = workingArea.Bottom - workingArea.Top;
-        int maxWidth = Math.Max(1, (int)Math.Floor(workingWidth * PreviewScreenRatio));
-        int maxHeight = Math.Max(1, (int)Math.Floor(workingHeight * PreviewScreenRatio));
-
-        if (width > maxWidth || height > maxHeight)
-        {
-            double scale = Math.Min((double)maxWidth / width, (double)maxHeight / height);
-            width = Math.Max(1, (int)Math.Floor(width * scale));
-            height = Math.Max(1, (int)Math.Floor(height * scale));
-        }
-
-        int left = workingArea.Left + (workingWidth - width) / 2;
-        int top = workingArea.Top + (workingHeight - height) / 2;
-
-        left = Math.Clamp(left, workingArea.Left, Math.Max(workingArea.Left, workingArea.Right - width));
-        top = Math.Clamp(top, workingArea.Top, Math.Max(workingArea.Top, workingArea.Bottom - height));
-
-        _ = SetWindowPos(handle, IntPtr.Zero, left, top, width, height, SetWindowPosFlags.NoZOrder | SetWindowPosFlags.NoActivate);
-        return true;
-    }
-
-    private static NativeRect GetWindowWorkingArea(IntPtr handle)
-    {
-        IntPtr monitor = MonitorFromWindow(handle, MonitorDefaultToFlags.Nearest);
-        MonitorInfo monitorInfo = new()
-        {
-            Size = Marshal.SizeOf<MonitorInfo>(),
-        };
-
-        return monitor != IntPtr.Zero && GetMonitorInfo(monitor, ref monitorInfo)
-            ? monitorInfo.Work
-            : RectFromDrawingRectangle(System.Windows.Forms.Screen.FromHandle(handle).WorkingArea);
-    }
-
-    private static NativeRect RectFromDrawingRectangle(System.Drawing.Rectangle rectangle)
-    {
-        return new NativeRect()
-        {
-            Left = rectangle.Left,
-            Top = rectangle.Top,
-            Right = rectangle.Right,
-            Bottom = rectangle.Bottom,
-        };
-    }
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool GetWindowRect(IntPtr hWnd, out NativeRect lpRect);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, SetWindowPosFlags flags);
-
     [DllImport("user32.dll")]
     private static extern int GetSystemMetrics(SystemMetric nIndex);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, MonitorDefaultToFlags dwFlags);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MonitorInfo lpmi);
 
     private readonly record struct VideoSize(int Width, int Height);
 
     private readonly record struct PreviewSource(string Url, VideoSize? Size);
 
     private readonly record struct WindowFrameMetrics(int Width, int Height);
-
-    [Flags]
-    private enum SetWindowPosFlags : uint
-    {
-        NoSize = 0x0001,
-        NoZOrder = 0x0004,
-        NoActivate = 0x0010,
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct NativeRect
-    {
-        public int Left;
-
-        public int Top;
-
-        public int Right;
-
-        public int Bottom;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MonitorInfo
-    {
-        public int Size;
-
-        public NativeRect Monitor;
-
-        public NativeRect Work;
-
-        public uint Flags;
-    }
-
-    private enum MonitorDefaultToFlags : uint
-    {
-        Nearest = 2,
-    }
 
     private enum SystemMetric
     {

@@ -17,7 +17,11 @@ internal static class WindowSizing
 
     public static void UseRelativeMainWindowSize(Window window, double baseWidth, double baseHeight)
     {
-        window.SourceInitialized += (_, _) => ApplyMainWindowRelative(window, baseWidth, baseHeight);
+        window.SourceInitialized += (_, _) =>
+        {
+            ApplyMainWindowRelative(window, baseWidth, baseHeight);
+            TrackMainWindowRelativePlacement(window, baseWidth, baseHeight);
+        };
     }
 
     private static void ApplyScreenRelative(Window window, double baseWidth, double baseHeight)
@@ -76,6 +80,34 @@ internal static class WindowSizing
         CenterWindow(window, reference, screen, dpi, width, height);
     }
 
+    private static void TrackMainWindowRelativePlacement(Window window, double baseWidth, double baseHeight)
+    {
+        Window? reference = GetMainWindowReference(window);
+        if (reference == null)
+        {
+            return;
+        }
+
+        void UpdatePlacement(object? sender, EventArgs e)
+        {
+            if (window.IsVisible && window.WindowState != WindowState.Minimized)
+            {
+                ApplyMainWindowRelative(window, baseWidth, baseHeight);
+            }
+        }
+
+        SizeChangedEventHandler sizeChanged = (_, e) => UpdatePlacement(reference, e);
+        reference.SizeChanged += sizeChanged;
+        reference.LocationChanged += UpdatePlacement;
+        reference.StateChanged += UpdatePlacement;
+        window.Closed += (_, _) =>
+        {
+            reference.SizeChanged -= sizeChanged;
+            reference.LocationChanged -= UpdatePlacement;
+            reference.StateChanged -= UpdatePlacement;
+        };
+    }
+
     private static Window? GetMainWindowReference(Window window)
     {
         if (window.Owner != null)
@@ -109,17 +141,24 @@ internal static class WindowSizing
 
     private static void CenterWindow(Window window, Window? reference, System.Windows.Forms.Screen screen, DpiScale dpi, double width, double height)
     {
-        if (reference != null && reference.IsVisible)
+        Rect viewport = GetReferenceViewport(reference, screen, dpi);
+        window.Left = Clamp(viewport.Left + (viewport.Width - width) / 2d, viewport.Left, viewport.Right - width);
+        window.Top = Clamp(viewport.Top + (viewport.Height - height) / 2d, viewport.Top, viewport.Bottom - height);
+    }
+
+    private static Rect GetReferenceViewport(Window? reference, System.Windows.Forms.Screen screen, DpiScale dpi)
+    {
+        double screenLeft = screen.WorkingArea.Left / dpi.DpiScaleX;
+        double screenTop = screen.WorkingArea.Top / dpi.DpiScaleY;
+        double screenWidth = screen.WorkingArea.Width / dpi.DpiScaleX;
+        double screenHeight = screen.WorkingArea.Height / dpi.DpiScaleY;
+
+        if (reference == null || !reference.IsVisible || reference.WindowState == WindowState.Minimized || reference.WindowState == WindowState.Maximized)
         {
-            double left = reference.Left + (GetReferenceWidth(reference, screen, dpi) - width) / 2d;
-            double top = reference.Top + (GetReferenceHeight(reference, screen, dpi) - height) / 2d;
-            window.Left = Clamp(left, screen.WorkingArea.Left / dpi.DpiScaleX, screen.WorkingArea.Right / dpi.DpiScaleX - width);
-            window.Top = Clamp(top, screen.WorkingArea.Top / dpi.DpiScaleY, screen.WorkingArea.Bottom / dpi.DpiScaleY - height);
-            return;
+            return new Rect(screenLeft, screenTop, screenWidth, screenHeight);
         }
 
-        window.Left = screen.WorkingArea.Left / dpi.DpiScaleX + (screen.WorkingArea.Width / dpi.DpiScaleX - width) / 2d;
-        window.Top = screen.WorkingArea.Top / dpi.DpiScaleY + (screen.WorkingArea.Height / dpi.DpiScaleY - height) / 2d;
+        return new Rect(reference.Left, reference.Top, GetReferenceWidth(reference, screen, dpi), GetReferenceHeight(reference, screen, dpi));
     }
 
     private static double Clamp(double value, double min, double max)
@@ -150,4 +189,5 @@ internal static class WindowSizing
             ? System.Windows.Forms.Screen.PrimaryScreen ?? System.Windows.Forms.Screen.AllScreens.First()
             : System.Windows.Forms.Screen.FromHandle(handle);
     }
+
 }

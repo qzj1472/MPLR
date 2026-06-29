@@ -30,6 +30,10 @@ internal static class MediaProbe
             using Process process = new() { StartInfo = startInfo };
             process.Start();
             ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
+            RuntimeResourceLogger.Register(process, "ffprobe", "media_probe", url, null, new
+            {
+                url,
+            });
 
             Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
             Task<string> errorTask = process.StandardError.ReadToEndAsync();
@@ -192,6 +196,10 @@ internal static class MediaProbe
             using Process process = new() { StartInfo = startInfo };
             process.Start();
             ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
+            RuntimeResourceLogger.Register(process, "ffmpeg", "frame_probe", url, null, new
+            {
+                url,
+            });
 
             Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
             Task<string> errorTask = process.StandardError.ReadToEndAsync();

@@ -30,9 +30,13 @@ using CheckBox = System.Windows.Controls.CheckBox;
 
 namespace MPLR.ViewModels;
 
+public sealed class AutoShutdownPromptMessage;
+
 [ObservableObject]
 public partial class MainViewModel : ReactiveObject
 {
+    private const string AutoShutdownRecordBlockReason = "auto-shutdown";
+
     protected internal ForeverDispatcherTimer DispatcherTimer { get; }
 
     [ObservableProperty]
@@ -74,6 +78,8 @@ public partial class MainViewModel : ReactiveObject
     private bool statusOfIsUseAutoShutdown = Configurations.IsUseAutoShutdown.Get();
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusOfAutoShutdownCountdown))]
+    [NotifyPropertyChangedFor(nameof(StatusOfAutoShutdownCountdownToolTip))]
     private string statusOfAutoShutdownTime = Configurations.AutoShutdownTime.Get();
 
     [ObservableProperty]
@@ -86,14 +92,61 @@ public partial class MainViewModel : ReactiveObject
     public string StatusOfRoutineIntervalWithUnit
         => RoutineIntervalUnitHelper.FormatDisplayValue(StatusOfRoutineInterval);
 
+    public string StatusOfAutoShutdownCountdown
+    {
+        get
+        {
+            if (!StatusOfIsUseAutoShutdown || !TimeSpan.TryParse(StatusOfAutoShutdownTime, out TimeSpan targetTime))
+            {
+                return StatusOfAutoShutdownTime;
+            }
+
+            TimeSpan remaining = targetTime - DateTime.Now.TimeOfDay;
+            if (remaining < TimeSpan.Zero)
+            {
+                remaining += TimeSpan.FromDays(1);
+            }
+
+            int totalHours = Math.Max(0, (int)Math.Floor(remaining.TotalHours));
+            return $"{totalHours:D2}:{remaining.Minutes:D2}";
+        }
+    }
+
+    public string StatusOfAutoShutdownCountdownToolTip => $"将在{StatusOfAutoShutdownCountdown}后关闭软件";
+
+    public void ReloadConfigStatus()
+    {
+        StatusOfIsMonitorRunning = Configurations.IsMonitorRunning.Get();
+        StatusOfIsToNotify = Configurations.IsToNotify.Get();
+        StatusOfIsToRecord = Configurations.IsToRecord.Get();
+        StatusOfIsUseProxy = Configurations.IsUseProxy.Get();
+        StatusOfIsUseKeepAwake = Configurations.IsUseKeepAwake.Get();
+        StatusOfIsUseAutoShutdown = Configurations.IsUseAutoShutdown.Get();
+        StatusOfAutoShutdownTime = Configurations.AutoShutdownTime.Get();
+        OnPropertyChanged(nameof(StatusOfAutoShutdownCountdown));
+        OnPropertyChanged(nameof(StatusOfAutoShutdownCountdownToolTip));
+        StatusOfRecordFormat = Configurations.RecordFormat.Get();
+        StatusOfRoutineInterval = Configurations.RoutineInterval.Get();
+    }
+
     [ObservableProperty]
     private bool isReadyToShutdown = false;
 
+    private DateOnly? readyToShutdownDate;
+
+    private string readyToShutdownTime = string.Empty;
+
+    private DateOnly? cancelledAutoShutdownDate;
+
+    private string cancelledAutoShutdownTime = string.Empty;
+
     public CancellationTokenSource? ShutdownCancellationTokenSource { get; private set; } = null;
+
+    private bool forceShutdownAfterTranscode;
 
     public MainViewModel()
     {
-        DispatcherTimer = new(TimeSpan.FromSeconds(3), ReloadRoomStatus);
+        DispatcherTimer = new(TimeSpan.FromSeconds(1), ReloadRoomStatus);
 
         Room[] rooms = EnsureRoomAddedAt(Configurations.Rooms.Get());
 
@@ -137,7 +190,7 @@ public partial class MainViewModel : ReactiveObject
 
                 if (parsedArgs["AutoShutdownCancel"] != null)
                 {
-                    ShutdownCancellationTokenSource?.Cancel();
+                    CancelAutoShutdownForCurrentSchedule();
                 }
             }
         });
@@ -146,8 +199,9 @@ public partial class MainViewModel : ReactiveObject
         {
             GlobalMonitor.Start();
         }
-        ChildProcessTracerPeriodicTimer.Default.WhiteList = ["ffmpeg", "ffprobe", "ffplay", "python", "python3", "node"];
+        ChildProcessTracerPeriodicTimer.Default.WhiteList = ["ffmpeg", "ffprobe", "python", "python3", "node"];
         ChildProcessTracerPeriodicTimer.Default.Start();
+        LowBatteryProtection.Start();
         DispatcherTimer.Start();
         _ = RefreshRoomCardsAsync(showToast: false);
     }
@@ -197,52 +251,174 @@ public partial class MainViewModel : ReactiveObject
             roomStatusReactive.RefreshStatus();
         }
 
-        if (StatusOfIsUseAutoShutdown && TimeSpan.TryParse(StatusOfAutoShutdownTime, out TimeSpan targetTime))
-        {
-            int timeOffset = (int)(DateTime.Now.TimeOfDay - targetTime).TotalSeconds;
+        UpdateAutoShutdownState();
+    }
 
-            if (timeOffset >= 0 && timeOffset <= 60)
+    private void UpdateAutoShutdownState()
+    {
+        DateTime now = DateTime.Now;
+        DateOnly today = DateOnly.FromDateTime(now);
+        string currentTime = StatusOfAutoShutdownTime ?? string.Empty;
+
+        if (!StatusOfIsUseAutoShutdown || !TimeSpan.TryParse(currentTime, out TimeSpan targetTime))
+        {
+            ResetAutoShutdownReadiness();
+            ClearAutoShutdownCancellation();
+            return;
+        }
+
+        if (!string.Equals(readyToShutdownTime, currentTime, StringComparison.Ordinal))
+        {
+            ResetAutoShutdownReadiness();
+            ClearAutoShutdownCancellation();
+            readyToShutdownTime = currentTime;
+        }
+
+        if (readyToShutdownDate != null && readyToShutdownDate != today)
+        {
+            ResetAutoShutdownReadiness();
+            ClearAutoShutdownCancellation();
+            readyToShutdownTime = currentTime;
+        }
+
+        if (cancelledAutoShutdownDate != null && cancelledAutoShutdownDate != today)
+        {
+            ClearAutoShutdownCancellation();
+        }
+
+        if (cancelledAutoShutdownDate == today && string.Equals(cancelledAutoShutdownTime, currentTime, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        DateTime targetDateTime = today.ToDateTime(TimeOnly.MinValue).Add(targetTime);
+        if (now - targetDateTime > TimeSpan.FromMinutes(5))
+        {
+            targetDateTime = targetDateTime.AddDays(1);
+        }
+
+        DateTime promptDateTime = targetDateTime.AddMinutes(-1);
+
+        if (!IsReadyToShutdown && now >= promptDateTime)
+        {
+            IsReadyToShutdown = true;
+            readyToShutdownDate = today;
+            readyToShutdownTime = currentTime;
+        }
+
+        if (IsReadyToShutdown && ShutdownCancellationTokenSource == null)
+        {
+            StartAutoShutdownCountdown();
+        }
+    }
+
+    private void StartAutoShutdownCountdown()
+    {
+        CancellationTokenSource cancellationTokenSource = new();
+        ShutdownCancellationTokenSource = cancellationTokenSource;
+
+        Notifier.AddNoticeWithButton("Title".Tr(), "AutoShutdownInTime".Tr(), [
+            new ToastContentButtonOption()
+                {
+                    Content = "ButtonOfCancel".Tr(),
+                    Arguments = [("AutoShutdownCancel", string.Empty)],
+                    ActivationType = ToastActivationType.Foreground,
+                }
+        ]);
+
+        GlobalMonitor.SetRecordStartBlock(AutoShutdownRecordBlockReason, true);
+        GlobalMonitor.StopAllRecorders();
+        WeakReferenceMessenger.Default.Send(new AutoShutdownPromptMessage());
+
+        ApplicationDispatcher.BeginInvoke(async () =>
+        {
+            await Task.Delay(60000);
+
+            if (!cancellationTokenSource.IsCancellationRequested)
             {
-                IsReadyToShutdown = true;
+                await ShutdownAfterTranscodeIfNeededAsync(cancellationTokenSource.Token);
             }
 
-            if (IsReadyToShutdown && !IsRecording)
+            if (ReferenceEquals(ShutdownCancellationTokenSource, cancellationTokenSource))
             {
-                if (ShutdownCancellationTokenSource == null)
-                {
-                    ShutdownCancellationTokenSource = new();
+                ShutdownCancellationTokenSource = null;
+                ResetAutoShutdownReadiness();
+            }
+        });
+    }
 
-                    Notifier.AddNoticeWithButton("Title".Tr(), "AutoShutdownInTime".Tr(), [
-                        new ToastContentButtonOption()
-                            {
-                                Content = "ButtonOfCancel".Tr(),
-                                Arguments = [("AutoShutdownCancel", string.Empty)],
-                                ActivationType = ToastActivationType.Foreground,
-                            }
-                    ]);
+    public void CancelAutoShutdownFromPrompt()
+    {
+        CancelAutoShutdownForCurrentSchedule();
+    }
 
-                    ApplicationDispatcher.BeginInvoke(async () =>
-                    {
-                        await Task.Delay(60000);
+    public void ShutdownNowFromPrompt()
+    {
+        ShutdownCancellationTokenSource?.Cancel();
+        ExecuteShutdown();
+    }
 
-                        if (!ShutdownCancellationTokenSource.IsCancellationRequested && !IsRecording)
-                        {
-                            if (Debugger.IsAttached)
-                            {
-                                _ = MessageBox.Information("AutoShutdown".Tr());
-                            }
-                            else
-                            {
-                                _ = Interop.ExitWindowsEx(User32.ExitWindowsFlags.EWX_SHUTDOWN | User32.ExitWindowsFlags.EWX_FORCE);
-                            }
-                        }
+    public async void ShutdownAfterTranscodeFromPrompt()
+    {
+        forceShutdownAfterTranscode = true;
+        Configurations.IsAutoShutdownAfterTranscode.Set(true);
+        ConfigurationManager.Save();
 
-                        ShutdownCancellationTokenSource = null;
-                        IsReadyToShutdown = false;
-                    });
-                }
+        CancellationTokenSource source = ShutdownCancellationTokenSource ?? new CancellationTokenSource();
+        ShutdownCancellationTokenSource = source;
+        await ShutdownAfterTranscodeIfNeededAsync(source.Token);
+    }
+
+    private async Task ShutdownAfterTranscodeIfNeededAsync(CancellationToken token)
+    {
+        bool waitForTranscode = forceShutdownAfterTranscode || Configurations.IsAutoShutdownAfterTranscode.Get();
+        if (waitForTranscode)
+        {
+            while (!token.IsCancellationRequested && Converter.HasActiveConversions)
+            {
+                await Task.Delay(1000, token);
             }
         }
+
+        if (!token.IsCancellationRequested)
+        {
+            ExecuteShutdown();
+        }
+    }
+
+    private static void ExecuteShutdown()
+    {
+        if (Debugger.IsAttached)
+        {
+            _ = MessageBox.Information("AutoShutdown".Tr());
+        }
+        else
+        {
+            _ = Interop.ExitWindowsEx(User32.ExitWindowsFlags.EWX_SHUTDOWN | User32.ExitWindowsFlags.EWX_FORCE);
+        }
+    }
+
+    private void ResetAutoShutdownReadiness()
+    {
+        ShutdownCancellationTokenSource?.Cancel();
+        ShutdownCancellationTokenSource = null;
+        GlobalMonitor.SetRecordStartBlock(AutoShutdownRecordBlockReason, false);
+        IsReadyToShutdown = false;
+        readyToShutdownDate = null;
+        forceShutdownAfterTranscode = false;
+    }
+
+    private void CancelAutoShutdownForCurrentSchedule()
+    {
+        cancelledAutoShutdownDate = DateOnly.FromDateTime(DateTime.Now);
+        cancelledAutoShutdownTime = StatusOfAutoShutdownTime ?? string.Empty;
+        ResetAutoShutdownReadiness();
+    }
+
+    private void ClearAutoShutdownCancellation()
+    {
+        cancelledAutoShutdownDate = null;
+        cancelledAutoShutdownTime = string.Empty;
     }
 
     [RelayCommand]
@@ -255,12 +431,12 @@ public partial class MainViewModel : ReactiveObject
         {
             if (!string.IsNullOrWhiteSpace(dialog.NickName))
             {
-                await AddRoomToListAsync(dialog.Url, dialog.RoomUrl!, dialog.NickName, dialog.SpiderResult, dialog.IsToNotify, dialog.IsFollowGlobalSettings);
+                await AddRoomToListAsync(dialog.Url, dialog.RoomUrl!, dialog.NickName, dialog.SpiderResult, dialog.IsToNotify, dialog.IsFollowGlobalSettings, true, Configurations.IsToRecord.Get());
             }
         }
     }
 
-    public async Task<bool> TryAddRoomFromFlyoutAsync(string? url, bool isForcedAdd, bool isToNotify, bool isFollowGlobalSettings)
+    public async Task<bool> TryAddRoomFromFlyoutAsync(string? url, bool isForcedAdd, bool isToNotify, bool isFollowGlobalSettings, bool isToMonitor, bool isToRecord, RoomRecordingOptions? localSettings)
     {
         if (string.IsNullOrWhiteSpace(url))
         {
@@ -284,7 +460,7 @@ public partial class MainViewModel : ReactiveObject
                 return false;
             }
 
-            await AddRoomToListAsync(url, roomUrl, roomUrl, null, isToNotify, isFollowGlobalSettings);
+            await AddRoomToListAsync(url, roomUrl, roomUrl, null, isToNotify, isFollowGlobalSettings, isToMonitor, isToRecord, localSettings);
             Toast.Success("AddRoomSucc".Tr(roomUrl));
             return true;
         }
@@ -293,7 +469,7 @@ public partial class MainViewModel : ReactiveObject
         {
             try
             {
-                ISpiderResult? spider = await Task.Run(() => Spider.GetResult(url));
+                ISpiderResult? spider = await Task.Run(() => Spider.GetResult(url, localSettings?.StreamQuality));
 
                 if (string.IsNullOrWhiteSpace(spider?.Nickname) || string.IsNullOrWhiteSpace(spider.RoomUrl))
                 {
@@ -307,7 +483,7 @@ public partial class MainViewModel : ReactiveObject
                     return false;
                 }
 
-                await AddRoomToListAsync(url, spider.RoomUrl, spider.Nickname, spider, isToNotify, isFollowGlobalSettings);
+                await AddRoomToListAsync(url, spider.RoomUrl, spider.Nickname, spider, isToNotify, isFollowGlobalSettings, isToMonitor, isToRecord, localSettings);
                 Toast.Success("AddRoomSucc".Tr(spider.Nickname));
                 return true;
             }
@@ -319,7 +495,7 @@ public partial class MainViewModel : ReactiveObject
         }
     }
 
-    private async Task AddRoomToListAsync(string? originalUrl, string roomUrl, string nickName, ISpiderResult? spiderResult, bool isToNotify, bool isFollowGlobalSettings)
+    private async Task AddRoomToListAsync(string? originalUrl, string roomUrl, string nickName, ISpiderResult? spiderResult, bool isToNotify, bool isFollowGlobalSettings, bool isToMonitor, bool isToRecord, RoomRecordingOptions? localSettings = null)
     {
         List<Room> rooms = [.. Configurations.Rooms.Get()];
 
@@ -331,7 +507,13 @@ public partial class MainViewModel : ReactiveObject
             AddedAt = DateTime.Now,
             IsToNotify = isToNotify,
             IsFollowGlobalSettings = isFollowGlobalSettings,
+            IsToMonitor = isToMonitor,
+            IsToRecord = isToRecord,
         };
+        if (!isFollowGlobalSettings)
+        {
+            RoomRecordingSettings.Apply(newRoom, localSettings ?? RoomRecordingSettings.GetGlobal());
+        }
         rooms.RemoveAll(room => room.RoomUrl == originalUrl || room.RoomUrl == roomUrl);
         rooms.Add(newRoom);
         Configurations.Rooms.Set([.. rooms]);
@@ -346,6 +528,8 @@ public partial class MainViewModel : ReactiveObject
             AvatarLocalPath = AvatarCache.GetCachedAvatarSource(roomUrl),
             IsToNotify = isToNotify,
             IsFollowGlobalSettings = isFollowGlobalSettings,
+            IsToMonitor = isToMonitor,
+            IsToRecord = isToRecord,
         };
 
         if (spiderResult != null)
@@ -353,6 +537,10 @@ public partial class MainViewModel : ReactiveObject
             string avatarLocalPath = string.IsNullOrWhiteSpace(spiderResult.AvatarThumbUrl)
                 ? AvatarCache.GetCachedAvatarSource(roomUrl)
                 : await AvatarCache.UpdateAsync(roomUrl, spiderResult.AvatarThumbUrl);
+            if (!string.IsNullOrWhiteSpace(spiderResult.AvatarThumbUrl))
+            {
+                newRoom.AvatarThumbUrl = spiderResult.AvatarThumbUrl;
+            }
             ApplyRoomCardRefresh(roomStatusReactive, spiderResult, avatarLocalPath, MediaProbeResult.Empty);
             RoomInfoCache.Apply(roomStatusReactive, newRoom);
             Configurations.Rooms.Set([.. rooms]);
@@ -361,6 +549,35 @@ public partial class MainViewModel : ReactiveObject
 
         RoomStatuses.Add(roomStatusReactive);
         SelectedItem = roomStatusReactive;
+    }
+
+    public bool SaveSelectedRoomLocalSettings(bool isToMonitor, bool isToRecord, RoomRecordingOptions settings)
+    {
+        if (SelectedItem == null || string.IsNullOrWhiteSpace(SelectedItem.RoomUrl))
+        {
+            return false;
+        }
+
+        Room[] rooms = Configurations.Rooms.Get();
+        Room? room = rooms.FirstOrDefault(room => string.Equals(room.RoomUrl, SelectedItem.RoomUrl, StringComparison.OrdinalIgnoreCase));
+        if (room == null)
+        {
+            return false;
+        }
+
+        room.IsFollowGlobalSettings = false;
+        room.IsToMonitor = isToMonitor;
+        room.IsToRecord = isToRecord;
+        RoomRecordingSettings.Apply(room, settings);
+        Configurations.Rooms.Set(rooms);
+        ConfigurationManager.Save();
+        GlobalMonitor.ClearTemporaryRoomOverrides(room.RoomUrl);
+
+        SelectedItem.IsFollowGlobalSettings = false;
+        SelectedItem.IsToMonitor = isToMonitor;
+        SelectedItem.IsToRecord = isToRecord;
+        SelectedItem.RefreshStatus();
+        return true;
     }
 
     private static string GetRoomInfoErrorMessage(string? roomUrl, string? fallback = null)
@@ -546,8 +763,16 @@ public partial class MainViewModel : ReactiveObject
         }
         else if (!isToRecord)
         {
+            Room[] rooms = Configurations.Rooms.Get();
             foreach (RoomStatus roomStatus in GlobalMonitor.RoomStatus.Values)
             {
+                Room? room = rooms.FirstOrDefault(room => string.Equals(room.RoomUrl, roomStatus.RoomUrl, StringComparison.OrdinalIgnoreCase));
+                bool shouldKeepRecording = room is { IsFollowGlobalSettings: false } && GlobalMonitor.GetEffectiveRoomRecord(room);
+                if (shouldKeepRecording)
+                {
+                    continue;
+                }
+
                 if (roomStatus.RecordStatus == RecordStatus.Recording)
                 {
                     roomStatus.Recorder.Stop();
@@ -556,6 +781,8 @@ public partial class MainViewModel : ReactiveObject
                 roomStatus.RecordStatus = RecordStatus.Disabled;
             }
         }
+
+        RefreshRoomStatusFlags();
 
         if (isToRecord)
         {
@@ -574,6 +801,7 @@ public partial class MainViewModel : ReactiveObject
         Configurations.IsToNotify.Set(value);
         ConfigurationManager.Save();
         StatusOfIsToNotify = value;
+        RefreshRoomStatusFlags();
     }
 
     [RelayCommand]
@@ -583,6 +811,14 @@ public partial class MainViewModel : ReactiveObject
         Configurations.IsUseProxy.Set(value);
         ConfigurationManager.Save();
         StatusOfIsUseProxy = value;
+    }
+
+    private void RefreshRoomStatusFlags()
+    {
+        foreach (RoomStatusReactive roomStatusReactive in RoomStatuses)
+        {
+            roomStatusReactive.RefreshStatus();
+        }
     }
 
     [RelayCommand]
@@ -604,6 +840,26 @@ public partial class MainViewModel : ReactiveObject
         Configurations.IsUseAutoShutdown.Set(value);
         ConfigurationManager.Save();
         StatusOfIsUseAutoShutdown = value;
+        ResetAutoShutdownReadiness();
+        ClearAutoShutdownCancellation();
+        readyToShutdownTime = StatusOfAutoShutdownTime;
+    }
+
+    [RelayCommand]
+    private void SetAutoShutdownTime(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || !TimeSpan.TryParse(value, out TimeSpan time))
+        {
+            return;
+        }
+
+        string normalized = $"{(int)time.TotalHours % 24:D2}:{time.Minutes:D2}";
+        Configurations.AutoShutdownTime.Set(normalized);
+        ConfigurationManager.Save();
+        StatusOfAutoShutdownTime = normalized;
+        ResetAutoShutdownReadiness();
+        ClearAutoShutdownCancellation();
+        readyToShutdownTime = normalized;
     }
 
     [RelayCommand]
@@ -691,7 +947,7 @@ public partial class MainViewModel : ReactiveObject
 
         if (showToast)
         {
-            if (results.Any(item => item.Result != null))
+            if (results.Any(item => item.Result != null || HasProbeData(item.Probe)))
             {
                 Toast.Success("RoomCardsRefreshed".Tr());
             }
@@ -710,7 +966,8 @@ public partial class MainViewModel : ReactiveObject
             await semaphore.WaitAsync();
             try
             {
-                ISpiderResult? result = string.IsNullOrWhiteSpace(room.RoomUrl) ? null : await Task.Run(() => Spider.GetResult(room.RoomUrl));
+                string streamQuality = GetRoomStreamQuality(room);
+                ISpiderResult? result = string.IsNullOrWhiteSpace(room.RoomUrl) ? null : await Task.Run(() => Spider.GetResult(room.RoomUrl, streamQuality));
                 string avatarLocalPath = result == null || string.IsNullOrWhiteSpace(result.AvatarThumbUrl)
                     ? AvatarCache.GetCachedAvatarSource(room.RoomUrl)
                     : await AvatarCache.UpdateAsync(room.RoomUrl, result.AvatarThumbUrl);
@@ -902,7 +1159,8 @@ public partial class MainViewModel : ReactiveObject
         IsRefreshingSelectedRoomInfo = true;
         try
         {
-            ISpiderResult? result = await Task.Run(() => Spider.GetResult(SelectedItem.RoomUrl));
+            string streamQuality = GetRoomStreamQuality(SelectedItem);
+            ISpiderResult? result = await Task.Run(() => Spider.GetResult(SelectedItem.RoomUrl, streamQuality));
             string avatarLocalPath = result == null || string.IsNullOrWhiteSpace(result.AvatarThumbUrl)
                 ? AvatarCache.GetCachedAvatarSource(SelectedItem.RoomUrl)
                 : await AvatarCache.UpdateAsync(SelectedItem.RoomUrl, result.AvatarThumbUrl);
@@ -913,7 +1171,14 @@ public partial class MainViewModel : ReactiveObject
 
             ApplyRoomCardRefresh(SelectedItem, result, avatarLocalPath, probe);
             SaveRoomOrder();
-            Toast.Success("RoomInfoRefreshed".Tr());
+            if (result != null || HasProbeData(probe))
+            {
+                Toast.Success("RoomInfoRefreshed".Tr());
+            }
+            else
+            {
+                Toast.Error("GetRoomInfoFailed".Tr());
+            }
         }
         finally
         {
@@ -931,7 +1196,6 @@ public partial class MainViewModel : ReactiveObject
         if (spiderResult == null)
         {
             room.Platform = PlatformDetector.DetectFromUrl(room.RoomUrl);
-            room.StreamStatus = StreamStatus.NotStreaming;
 
             AppSessionLogger.Event("warn", "business", "room_card_refresh_no_result", "room refresh returned no result", new
             {
@@ -1046,9 +1310,23 @@ public partial class MainViewModel : ReactiveObject
 
     private static string SelectProbeUrl(ISpiderResult? result, RoomStatusReactive room)
     {
-        return result == null
+        string freshUrl = result == null
             ? string.Empty
             : SelectFirstNonWhite(result.RecordUrl, result.HlsUrl, result.FlvUrl);
+
+        return string.IsNullOrWhiteSpace(freshUrl) ? room.LiveStreamUrl : freshUrl;
+    }
+
+    private static string GetRoomStreamQuality(RoomStatusReactive room)
+    {
+        return string.IsNullOrWhiteSpace(room.RoomUrl)
+            ? RoomRecordingSettings.GetGlobal().StreamQuality
+            : RoomRecordingSettings.Get(room.RoomUrl).StreamQuality;
+    }
+
+    private static bool HasProbeData(MediaProbeResult probe)
+    {
+        return IsUsableResolutionText(probe.Resolution) || !string.IsNullOrWhiteSpace(probe.Bitrate);
     }
 
     private static string SelectFirstNonWhite(params string?[] values)

@@ -103,7 +103,9 @@ async def get_douyin_web_stream_data(url: str, proxy_addr: OptionalStr = None, c
             if not json_data['data']:
                 raise Exception(f"{url} VR live is not supported")
             room_data = json_data['data'][0]
-            room_data['anchor_name'] = json_data['user']['nickname']
+            user_data = json_data.get('user') or {}
+            room_data['anchor_name'] = user_data.get('nickname') or ''
+            room_data['user'] = user_data
         except Exception as e:
             raise Exception(f"Douyin web data fetch error, because {e}.")
 

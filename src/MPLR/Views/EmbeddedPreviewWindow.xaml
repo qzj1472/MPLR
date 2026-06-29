@@ -1,0 +1,143 @@
+<ui:FluentWindow x:Class="MPLR.Views.EmbeddedPreviewWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:wfi="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
+                 Title="MPLR Preview"
+                 Width="980"
+                 Height="620"
+                 MinWidth="720"
+                 MinHeight="460"
+                 Background="#0B0D10"
+                 d:Background="#0B0D10"
+                 ExtendsContentIntoTitleBar="True"
+                 ResizeMode="CanResize"
+                 SnapsToDevicePixels="True"
+                 UseLayoutRounding="True"
+                 WindowBackdropType="None"
+                 WindowStartupLocation="CenterOwner"
+                 mc:Ignorable="d">
+    <Grid x:Name="RootGrid"
+          Background="#0B0D10"
+          ClipToBounds="True"
+          SnapsToDevicePixels="True">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="58" />
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar x:Name="PreviewTitleBar"
+                     Grid.Row="0"
+                     Title="MPLR Preview"
+                     ShowMaximize="True">
+            <ui:TitleBar.Icon>
+                <ui:ImageIcon Source="pack://application:,,,/Assets/Favicon.png" />
+            </ui:TitleBar.Icon>
+        </ui:TitleBar>
+
+        <Border x:Name="VideoHost"
+                Grid.Row="1"
+                Background="#000000"
+                ClipToBounds="True"
+                SizeChanged="VideoHostSizeChanged"
+                SnapsToDevicePixels="True">
+            <Grid Background="#000000" ClipToBounds="True" SnapsToDevicePixels="True">
+                <wfi:WindowsFormsHost x:Name="VideoFormsHost"
+                                      HorizontalAlignment="Stretch"
+                                      VerticalAlignment="Stretch" />
+                <Border x:Name="StatusOverlay"
+                        Padding="18,12"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Background="#E611141A"
+                        BorderBrush="#353B45"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        IsHitTestVisible="False"
+                        MaxWidth="520">
+                    <TextBlock x:Name="StatusText"
+                               FontSize="13"
+                               Foreground="#F5F7FA"
+                               Text="正在准备预览..."
+                               TextAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               TextWrapping="Wrap" />
+                </Border>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="2"
+                Background="#141820"
+                BorderBrush="#242A33"
+                BorderThickness="0,1,0,0"
+                SnapsToDevicePixels="True">
+            <Grid Margin="16,0"
+                  VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="150" />
+                </Grid.ColumnDefinitions>
+
+                <Button x:Name="PlayPauseButton"
+                        Grid.Column="0"
+                        Width="38"
+                        Height="34"
+                        Click="PlayPauseClick"
+                        IsEnabled="False"
+                        ToolTip="播放/暂停">
+                    <ui:FontIcon x:Name="PlayPauseIcon"
+                                 FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                 Glyph="{x:Static ui:FontSymbols.Play}" />
+                </Button>
+
+                <Button Grid.Column="2"
+                        Width="38"
+                        Height="34"
+                        Click="StopClick"
+                        ToolTip="停止">
+                    <ui:FontIcon FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                 Glyph="{x:Static ui:FontSymbols.Stop}" />
+                </Button>
+
+                <StackPanel Grid.Column="4"
+                            VerticalAlignment="Center">
+                    <TextBlock x:Name="PlayerTitleText"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               Foreground="#F4F7FB"
+                               Text="MPLR Preview"
+                               TextTrimming="CharacterEllipsis" />
+                    <TextBlock x:Name="PlaybackStateText"
+                               Margin="0,3,0,0"
+                               FontSize="11"
+                               Foreground="#9BA3AF"
+                               Text="准备中"
+                               TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+
+                <TextBlock Grid.Column="6"
+                           VerticalAlignment="Center"
+                           FontSize="12"
+                           Foreground="#AEB6C2"
+                           Text="音量" />
+
+                <Slider x:Name="VolumeSlider"
+                        Grid.Column="8"
+                        Minimum="0"
+                        Maximum="100"
+                        Value="100"
+                        ValueChanged="VolumeSliderValueChanged" />
+            </Grid>
+        </Border>
+    </Grid>
+</ui:FluentWindow>

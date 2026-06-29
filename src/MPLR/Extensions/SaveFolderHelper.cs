@@ -35,7 +35,7 @@ internal static class SaveFolderHelper
         }
     }
 
-    public static string GetRecordFolder(string? settingsFolder, RecorderStartInfo startInfo, DateTime now)
+    public static string GetRecordFolder(string? settingsFolder, RecorderStartInfo startInfo, DateTime now, int? pathLevel = null)
     {
         string saveFolder = GetSaveFolder(settingsFolder);
         string author = SanitizeFolderName(startInfo.NickName);
@@ -44,7 +44,7 @@ internal static class SaveFolderHelper
             : SanitizeFolderName(startInfo.Platform);
         string time = now.ToString("yyyy-MM");
 
-        return Configurations.SaveFolderPathLevel.Get() switch
+        return Math.Clamp(pathLevel ?? Configurations.SaveFolderPathLevel.Get(), 0, 1) switch
         {
             1 => Path.Combine(saveFolder, platform, author, time),
             _ => Path.Combine(saveFolder, author, time),

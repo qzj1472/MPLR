@@ -81,13 +81,18 @@ internal static class Notifier
 
     public static bool SendEmail(string smtpServer, string userName, string password, string nickName, string roomUrl)
     {
+        return SendEmailHtml(smtpServer, userName, password, $"{nickName}{Locale.Culture.WordSpace()}{"LiveNotification".Tr()} - {AppConfig.DisplayName}", $"<html><body>{"MailBodyElement".Tr(nickName)} <a href=\"{roomUrl}\">{roomUrl}</a></body></html>");
+    }
+
+    public static bool SendEmailHtml(string smtpServer, string userName, string password, string subject, string htmlBody)
+    {
         try
         {
             using MailMessage mail = new();
             mail.From = new MailAddress(userName);
             mail.To.Add(userName);
-            mail.Subject = $"{nickName}{Locale.Culture.WordSpace()}{"LiveNotification".Tr()} - {AppConfig.DisplayName}";
-            mail.Body = $"<html><body>{"MailBodyElement".Tr(nickName)} <a href=\"{roomUrl}\">{roomUrl}</a></body></html>";
+            mail.Subject = subject;
+            mail.Body = htmlBody;
             mail.IsBodyHtml = true;
 
             using SmtpClient smtp = new(smtpServer, 25);

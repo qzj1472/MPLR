@@ -107,16 +107,13 @@
     <value>Language</value>
   </data>
   <data name="LiveNotification" xml:space="preserve">
-    <value>Live Notification</value>
+    <value>Notification</value>
   </data>
   <data name="GotoLiveRoom" xml:space="preserve">
     <value>Goto Live Room</value>
   </data>
   <data name="MailBodyElement" xml:space="preserve">
     <value>Goto {0}'s live room immediately</value>
-  </data>
-  <data name="PlayerErrorOfFFplayNotFound" xml:space="preserve">
-    <value>FFplay preview player is not available.</value>
   </data>
   <data name="TrayMenuShowMainWindow" xml:space="preserve">
     <value>Show (&amp;V)</value>
@@ -137,7 +134,7 @@
     <value>No playable recording file</value>
   </data>
   <data name="PlayerErrorOfPotPlayerNotFound" xml:space="preserve">
-    <value>The built-in FFplay preview player is not available.</value>
+    <value>The embedded preview player is not available.</value>
   </data>
   <data name="PlayerErrorOfNoPlayerFound" xml:space="preserve">
     <value>No built-in preview player was found.</value>
@@ -272,7 +269,7 @@
     <value>Single Settings</value>
   </data>
   <data name="LiveNotificationHint" xml:space="preserve">
-    <value>Whether to notify the start of the streaming through Windows system notifications, etc</value>
+    <value>Notify live, recording, monitor, and error events.</value>
   </data>
   <data name="EnableRecord" xml:space="preserve">
     <value>Enable Recording</value>
@@ -449,7 +446,7 @@
     <value>Whether to auto delete the original TS/FLV file after converting the format</value>
   </data>
   <data name="SaveFolderHint" xml:space="preserve">
-    <value>Specify the saving directory of recorded videos</value>
+    <value>Specify the save folder and naming format for recorded videos</value>
   </data>
   <data name="SelectFolder" xml:space="preserve">
     <value>Select Folder</value>
@@ -464,13 +461,13 @@
     <value>Preview Player</value>
   </data>
   <data name="PlayerInner" xml:space="preserve">
-    <value>Built-in FFplay player</value>
+    <value>Embedded player</value>
   </data>
   <data name="PlayerSystem" xml:space="preserve">
     <value>System player</value>
   </data>
   <data name="PlayerInnerHint" xml:space="preserve">
-    <value>Use the app bundled FFplay player for preview.</value>
+    <value>Use the app embedded player for preview.</value>
   </data>
   <data name="PlayerSystemHint" xml:space="preserve">
     <value>Use System player</value>
@@ -593,7 +590,7 @@
     <value>Auto Shutdown</value>
   </data>
   <data name="AutoShutdownHint" xml:space="preserve">
-    <value>Auto shutdown when unrecording</value>
+    <value>Stop recording before the scheduled shutdown and follow the selected shutdown strategy</value>
   </data>
   <data name="AutoShutdownTime" xml:space="preserve">
     <value>Auto Shutdown Time (HH:MM)</value>
@@ -620,13 +617,13 @@
     <value>Add it directly without detecting validity</value>
   </data>
   <data name="SegmentTime" xml:space="preserve">
-    <value>Video Segment Time (sec)</value>
+    <value>Split threshold</value>
   </data>
   <data name="Segment" xml:space="preserve">
     <value>Video Segment</value>
   </data>
   <data name="SegmentHint" xml:space="preserve">
-    <value>Specifies the length of time (in seconds) for each output video</value>
+    <value>Split recorded videos by duration or file size</value>
   </data>
   <data name="CardSort" xml:space="preserve">
     <value>Card Sort</value>

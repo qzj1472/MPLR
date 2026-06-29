@@ -10,6 +10,8 @@ public static class Configurations
     public static ConfigurationDefinition<string> Theme { get; } = new(nameof(Theme), string.Empty);
     public static ConfigurationDefinition<int> DisplayScale { get; } = new(nameof(DisplayScale), 100);
     public static ConfigurationDefinition<bool> IsOffRemindCloseToTray { get; } = new(nameof(IsOffRemindCloseToTray), false);
+    public static ConfigurationDefinition<bool> IsCloseActionRemembered { get; } = new(nameof(IsCloseActionRemembered), false);
+    public static ConfigurationDefinition<int> CloseAction { get; } = new(nameof(CloseAction), 0);
     public static ConfigurationDefinition<Room[]> Rooms { get; } = new(nameof(Rooms), []);
     public static ConfigurationDefinition<bool> IsUseStatusTray { get; } = new(nameof(IsUseStatusTray), true);
     public static ConfigurationDefinition<bool> IsSessionLogEnabled { get; } = new(nameof(IsSessionLogEnabled), true);
@@ -22,6 +24,7 @@ public static class Configurations
     public static ConfigurationDefinition<int> RoutineScheduleEndMinute { get; } = new(nameof(RoutineScheduleEndMinute), 59);
     public static ConfigurationDefinition<bool> IsMonitorRunning { get; } = new(nameof(IsMonitorRunning), true);
     public static ConfigurationDefinition<bool> IsToNotify { get; } = new(nameof(IsToNotify), true);
+    public static ConfigurationDefinition<int> NotifySummaryIntervalMinutes { get; } = new(nameof(NotifySummaryIntervalMinutes), 0);
     public static ConfigurationDefinition<bool> IsToNotifyWithSystem { get; } = new(nameof(IsToNotifyWithSystem), true);
     public static ConfigurationDefinition<bool> IsToNotifyWithMusic { get; } = new(nameof(IsToNotifyWithMusic), true);
     public static ConfigurationDefinition<string?> ToNotifyWithMusicPath { get; } = new(nameof(ToNotifyWithMusicPath), null);
@@ -43,11 +46,12 @@ public static class Configurations
     public static ConfigurationDefinition<int> SaveFolderPathLevel { get; } = new(nameof(SaveFolderPathLevel), 0);
     public static ConfigurationDefinition<int> SaveFileNameRule { get; } = new(nameof(SaveFileNameRule), 0);
     public static ConfigurationDefinition<string> SaveFileNameCustomRule { get; } = new(nameof(SaveFileNameCustomRule), "{主播名}_{录制时间}");
-    public static ConfigurationDefinition<string> Player { get; } = new(nameof(Player), "ffplay");
+    public static ConfigurationDefinition<string> Player { get; } = new(nameof(Player), "embedded");
     public static ConfigurationDefinition<bool> IsPlayerRect { get; } = new(nameof(IsPlayerRect), false);
     public static ConfigurationDefinition<bool> IsUseKeepAwake { get; } = new(nameof(IsUseKeepAwake), false);
     public static ConfigurationDefinition<bool> IsUseAutoShutdown { get; } = new(nameof(IsUseAutoShutdown), false);
     public static ConfigurationDefinition<string> AutoShutdownTime { get; } = new(nameof(AutoShutdownTime), "00:00");
+    public static ConfigurationDefinition<bool> IsAutoShutdownAfterTranscode { get; } = new(nameof(IsAutoShutdownAfterTranscode), false);
     public static ConfigurationDefinition<bool> IsUseProxy { get; } = new(nameof(IsUseProxy), false);
     public static ConfigurationDefinition<string> ProxyUrl { get; } = new(nameof(ProxyUrl), string.Empty);
     public static ConfigurationDefinition<string> CookieChina { get; } = new(nameof(CookieChina), string.Empty);
@@ -78,6 +82,23 @@ public sealed class Room
     public bool IsToMonitor { get; set; } = true;
     public bool IsFollowGlobalSettings { get; set; } = true;
     public DateTime AddedAt { get; set; } = DateTime.MinValue;
+    public string? RecordFormat { get; set; }
+    public string? StreamQuality { get; set; }
+    public bool? IsRemoveTs { get; set; }
+    public bool? IsToSegment { get; set; }
+    public int? SegmentTime { get; set; }
+    public int? SegmentTimeUnit { get; set; }
+    public int? RoutineInterval { get; set; }
+    public int? RoutineScheduleMode { get; set; }
+    public string? RoutineScheduleDays { get; set; }
+    public int? RoutineScheduleStartHour { get; set; }
+    public int? RoutineScheduleStartMinute { get; set; }
+    public int? RoutineScheduleEndHour { get; set; }
+    public int? RoutineScheduleEndMinute { get; set; }
+    public string? SaveFolder { get; set; }
+    public int? SaveFolderPathLevel { get; set; }
+    public int? SaveFileNameRule { get; set; }
+    public string? SaveFileNameCustomRule { get; set; }
 
     public override string ToString() => $"{RoomUrl},{NickName}";
 }

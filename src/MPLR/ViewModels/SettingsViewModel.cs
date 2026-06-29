@@ -39,6 +39,12 @@ public partial class SettingsViewModel : ReactiveObject
 
     public string SegmentTimeHoursText => SegmentTimeUnitHelper.GetUnitText(SegmentTimeUnitHelper.Hours);
 
+    public string SegmentTimeMegabytesText => SegmentTimeUnitHelper.GetUnitText(SegmentTimeUnitHelper.Megabytes);
+
+    public string SegmentTimeGigabytesText => SegmentTimeUnitHelper.GetUnitText(SegmentTimeUnitHelper.Gigabytes);
+
+    public string SegmentTimeValueLabel => SegmentTimeUnitHelper.GetValueLabel(SegmentTimeUnitIndex);
+
     private enum LanguageIndexEnum
     {
         Auto,
@@ -165,26 +171,8 @@ public partial class SettingsViewModel : ReactiveObject
         });
     }
 
-    [RelayCommand]
-    private async Task ExportLogsAsync()
+    public void ExportLogs(bool latest)
     {
-        ContentDialog dialog = new()
-        {
-            Title = "导出运行日志",
-            Content = "请选择要导出的日志范围。",
-            PrimaryButtonText = "导出最近",
-            SecondaryButtonText = "导出全部",
-            CloseButtonText = "取消",
-            DefaultButton = ContentDialogButton.Primary,
-        };
-
-        ContentDialogResult result = await dialog.ShowAsync();
-
-        if (result == ContentDialogResult.None)
-        {
-            return;
-        }
-
         using CommonOpenFileDialog folderDialog = new()
         {
             IsFolderPicker = true,
@@ -199,7 +187,7 @@ public partial class SettingsViewModel : ReactiveObject
 
         try
         {
-            string archivePath = result == ContentDialogResult.Primary
+            string archivePath = latest
                 ? LogExporter.ExportLatest(folderDialog.FileName)
                 : LogExporter.ExportAll(folderDialog.FileName);
 
@@ -314,6 +302,22 @@ public partial class SettingsViewModel : ReactiveObject
     partial void OnIsToNotifyChanged(bool value)
     {
         Configurations.IsToNotify.Set(value);
+        ConfigurationManager.Save();
+    }
+
+    [ObservableProperty]
+    private int notifySummaryIntervalMinutes = Configurations.NotifySummaryIntervalMinutes.Get();
+
+    partial void OnNotifySummaryIntervalMinutesChanged(int value)
+    {
+        int next = Math.Clamp(value, 0, 1440);
+        if (next != value)
+        {
+            NotifySummaryIntervalMinutes = next;
+            return;
+        }
+
+        Configurations.NotifySummaryIntervalMinutes.Set(next);
         ConfigurationManager.Save();
     }
 
@@ -681,6 +685,7 @@ public partial class SettingsViewModel : ReactiveObject
     private double segmentTimeValue = SegmentTimeUnitHelper.ToDisplayValue(Configurations.SegmentTime.Get(), GetInitialSegmentTimeUnitIndex());
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SegmentTimeValueLabel))]
     private int segmentTimeUnitIndex = GetInitialSegmentTimeUnitIndex();
 
     private bool isUpdatingSegmentTime;
@@ -697,7 +702,7 @@ public partial class SettingsViewModel : ReactiveObject
 
     partial void OnSegmentTimeUnitIndexChanged(int value)
     {
-        int unitIndex = Math.Clamp(value, SegmentTimeUnitHelper.Seconds, SegmentTimeUnitHelper.Hours);
+        int unitIndex = Math.Clamp(value, SegmentTimeUnitHelper.Seconds, SegmentTimeUnitHelper.Gigabytes);
 
         if (unitIndex != value)
         {
@@ -705,8 +710,9 @@ public partial class SettingsViewModel : ReactiveObject
             return;
         }
 
-        int seconds = Configurations.SegmentTime.Get();
-        double displayValue = SegmentTimeUnitHelper.ToDisplayValue(seconds, unitIndex);
+        double displayValue = SegmentTimeUnitHelper.IsSizeUnit(unitIndex)
+            ? SegmentTimeValue
+            : SegmentTimeUnitHelper.ToDisplayValue(Configurations.SegmentTime.Get(), unitIndex);
 
         isUpdatingSegmentTime = true;
         try
@@ -734,7 +740,7 @@ public partial class SettingsViewModel : ReactiveObject
     {
         int configuredUnit = Configurations.SegmentTimeUnit.Get();
 
-        return configuredUnit is >= SegmentTimeUnitHelper.Seconds and <= SegmentTimeUnitHelper.Hours
+        return configuredUnit is >= SegmentTimeUnitHelper.Seconds and <= SegmentTimeUnitHelper.Gigabytes
             ? configuredUnit
             : SegmentTimeUnitHelper.GetPreferredUnitIndex(Configurations.SegmentTime.Get());
     }
@@ -874,7 +880,7 @@ public partial class SettingsViewModel : ReactiveObject
     partial void OnPlayerIndexChanged(int value)
     {
         PlayerIndex = 0;
-        Configurations.Player.Set("ffplay");
+        Configurations.Player.Set("embedded");
         ConfigurationManager.Save();
     }
 
@@ -957,6 +963,15 @@ public partial class SettingsViewModel : ReactiveObject
         }
 
         Configurations.AutoShutdownTime.Set($"{AutoShutdownTimeHour:D2}:{next:D2}");
+        ConfigurationManager.Save();
+    }
+
+    [ObservableProperty]
+    private bool isAutoShutdownAfterTranscode = Configurations.IsAutoShutdownAfterTranscode.Get();
+
+    partial void OnIsAutoShutdownAfterTranscodeChanged(bool value)
+    {
+        Configurations.IsAutoShutdownAfterTranscode.Set(value);
         ConfigurationManager.Save();
     }
 

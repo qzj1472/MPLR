@@ -10,10 +10,21 @@ namespace MPLR.Core;
 internal static class ExternalStreamResolver
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(75);
-    private static readonly SemaphoreSlim ResolverSemaphore = new(3);
+    private static readonly SemaphoreSlim ResolverSemaphore = new(Math.Clamp(Environment.ProcessorCount, 4, 6));
     private static readonly ConcurrentDictionary<string, string> LastErrorsByUrl = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Lazy<string?> ResolverScriptPath = new(FindResolverScriptCore, LazyThreadSafetyMode.ExecutionAndPublication);
+    private static readonly Lazy<string?> PythonPath = new(FindPythonCore, LazyThreadSafetyMode.ExecutionAndPublication);
 
     public static string LastError { get; private set; } = string.Empty;
+
+    public static Task WarmUpAsync()
+    {
+        return Task.Run(() =>
+        {
+            _ = ResolverScriptPath.Value;
+            _ = PythonPath.Value;
+        });
+    }
 
     public static string GetLastError(string? url)
     {
@@ -81,13 +92,14 @@ internal static class ExternalStreamResolver
         return value;
     }
 
-    public static ISpiderResult? GetResult(string url)
+    public static ISpiderResult? GetResult(string url, string? streamQuality = null)
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
         string? normalizedUrl = NormalizeUrl(url);
         string lastError = SetLastError(url, normalizedUrl, string.Empty);
         string? scriptPath = FindResolverScript();
         string? pythonPath = FindPython();
+        string quality = string.IsNullOrWhiteSpace(streamQuality) ? Configurations.StreamQuality.Get() : streamQuality;
 
         AppSessionLogger.Event("info", "business", "stream_resolver_started", "external stream resolver started", new
         {
@@ -97,7 +109,7 @@ internal static class ExternalStreamResolver
             pythonFound = !string.IsNullOrWhiteSpace(pythonPath),
             pythonPath,
             isProxyEnabled = Configurations.IsUseProxy.Get(),
-            quality = Configurations.StreamQuality.Get(),
+            quality,
         });
 
         if (string.IsNullOrWhiteSpace(normalizedUrl))
@@ -134,12 +146,15 @@ internal static class ExternalStreamResolver
             return null;
         }
 
+        string? resolverConfigPath = null;
+
         try
         {
             using ResolverConcurrencyLease lease = EnterResolverConcurrency();
+            ProcessStartInfo startInfo = CreateStartInfo(pythonPath, scriptPath, normalizedUrl, quality, out resolverConfigPath);
             using Process process = new()
             {
-                StartInfo = CreateStartInfo(pythonPath, scriptPath, normalizedUrl),
+                StartInfo = startInfo,
             };
 
             process.Start();
@@ -288,6 +303,10 @@ internal static class ExternalStreamResolver
             AppSessionLogger.WriteException(e);
             return null;
         }
+        finally
+        {
+            DeleteResolverConfig(resolverConfigPath);
+        }
     }
 
     private static string GetPlatform(string? platform, string? url)
@@ -397,7 +416,7 @@ internal static class ExternalStreamResolver
         return lines.Length == 0 ? value.Trim() : string.Join(Environment.NewLine, lines);
     }
 
-    private static ProcessStartInfo CreateStartInfo(string pythonPath, string scriptPath, string url)
+    private static ProcessStartInfo CreateStartInfo(string pythonPath, string scriptPath, string url, string quality, out string? configPath)
     {
         ProcessStartInfo startInfo = new()
         {
@@ -413,7 +432,7 @@ internal static class ExternalStreamResolver
         startInfo.ArgumentList.Add("--url");
         startInfo.ArgumentList.Add(url);
         startInfo.ArgumentList.Add("--quality");
-        startInfo.ArgumentList.Add(Configurations.StreamQuality.Get());
+        startInfo.ArgumentList.Add(quality);
 
         string proxy = Configurations.ProxyUrl.Get();
         if (Configurations.IsUseProxy.Get() && !string.IsNullOrWhiteSpace(proxy))
@@ -436,7 +455,7 @@ internal static class ExternalStreamResolver
             startInfo.ArgumentList.Add(cookieOversea);
         }
 
-        string? configPath = WriteResolverConfig();
+        configPath = WriteResolverConfig();
         if (!string.IsNullOrWhiteSpace(configPath))
         {
             startInfo.ArgumentList.Add("--config");
@@ -456,12 +475,51 @@ internal static class ExternalStreamResolver
 
         string directory = Path.Combine(Path.GetTempPath(), AppConfig.PackName, "stream_resolver");
         Directory.CreateDirectory(directory);
-        string path = Path.Combine(directory, "resolver_config.json");
+        CleanStaleResolverConfigs(directory);
+
+        string path = Path.Combine(directory, $"resolver_config_{Environment.ProcessId}_{Guid.NewGuid():N}.json");
         File.WriteAllText(path, JsonSerializer.Serialize(new Dictionary<string, object>
         {
             ["cookies"] = cookies,
         }));
         return path;
+    }
+
+    private static void DeleteResolverConfig(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Debug.WriteLine(e);
+        }
+    }
+
+    private static void CleanStaleResolverConfigs(string directory)
+    {
+        DateTime threshold = DateTime.Now.AddDays(-1);
+
+        foreach (string path in Directory.EnumerateFiles(directory, "resolver_config*.json"))
+        {
+            try
+            {
+                if (File.GetLastWriteTime(path) < threshold)
+                {
+                    File.Delete(path);
+                }
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                Debug.WriteLine(e);
+            }
+        }
     }
 
     private static Dictionary<string, string> ParsePlatformCookies(string value)
@@ -501,6 +559,11 @@ internal static class ExternalStreamResolver
 
     private static string? FindResolverScript()
     {
+        return ResolverScriptPath.Value;
+    }
+
+    private static string? FindResolverScriptCore()
+    {
         foreach (string candidate in EnumerateResolverScriptCandidates())
         {
             if (File.Exists(candidate))
@@ -529,6 +592,11 @@ internal static class ExternalStreamResolver
     }
 
     private static string? FindPython()
+    {
+        return PythonPath.Value;
+    }
+
+    private static string? FindPythonCore()
     {
         string? configured = Environment.GetEnvironmentVariable("STREAM_RESOLVER_PYTHON");
         if (!string.IsNullOrWhiteSpace(configured) && IsUsablePython(configured))

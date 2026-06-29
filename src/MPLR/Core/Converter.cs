@@ -9,6 +9,10 @@ namespace MPLR.Core;
 
 public sealed class Converter
 {
+    private static int activeCount;
+
+    public static bool HasActiveConversions => Volatile.Read(ref activeCount) > 0;
+
     public async Task<bool> ExecuteAsync(string sourceFileName, string targetFormat, CancellationTokenSource? tokenSource = null)
     {
         _ = sourceFileName ?? throw new ArgumentNullException(nameof(sourceFileName));
@@ -80,15 +84,18 @@ public sealed class Converter
         }
 
         CancellationToken token = tokenSource?.Token ?? default;
-        process.Start();
-        ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
-
-        Task errorTask = ReadPipeAsync(process.StandardError, OnStandardErrorReceived, token);
-        Task outputTask = ReadPipeAsync(process.StandardOutput, OnStandardOutputReceived, token);
-
+        Interlocked.Increment(ref activeCount);
         try
         {
+            process.Start();
+            ChildProcessTracerPeriodicTimer.Default.TryTraceProcess(process);
+
+            Task errorTask = ReadPipeAsync(process.StandardError, OnStandardErrorReceived, token);
+            Task outputTask = ReadPipeAsync(process.StandardOutput, OnStandardOutputReceived, token);
+
             await process.WaitForExitAsync(token);
+
+            await Task.WhenAll(errorTask, outputTask);
         }
         catch (OperationCanceledException)
         {
@@ -96,8 +103,10 @@ public sealed class Converter
             await process.WaitForExitAsync(CancellationToken.None);
             throw;
         }
-
-        await Task.WhenAll(errorTask, outputTask);
+        finally
+        {
+            Interlocked.Decrement(ref activeCount);
+        }
 
         Debug.WriteLine($"[Converter] exit code is {process.ExitCode}.");
 
