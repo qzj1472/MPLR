@@ -37,6 +37,8 @@ jobs:
       PROJECT_PATH: src/MPLR/MPLR.csproj
       PUBLISH_DIR: artifacts/publish/win-x64
       PACKAGE_DIR: artifacts/package
+      VELOPACK_DIR: artifacts/velopack
+      VELOPACK_VERSION: 1.2.0
 
     steps:
       - name: Checkout
@@ -69,6 +71,7 @@ jobs:
           "version=$version" >> $env:GITHUB_OUTPUT
           "tag=$tag" >> $env:GITHUB_OUTPUT
           "asset_name=MPLR_v$version`_win-x64.zip" >> $env:GITHUB_OUTPUT
+          "setup_asset_name=MPLR_v$version`_win-x64_Setup.exe" >> $env:GITHUB_OUTPUT
 
       - name: Restore
         run: dotnet restore $env:PROJECT_PATH
@@ -84,6 +87,12 @@ jobs:
         run: |
           dotnet publish $env:PROJECT_PATH -c Release -p:Platform=x64 -p:PublishProfile=FolderProfile -o $env:PUBLISH_DIR
           Remove-Item -LiteralPath (Join-Path $env:PUBLISH_DIR "downloads") -Recurse -Force -ErrorAction SilentlyContinue
+
+      - name: Install Velopack CLI
+        shell: pwsh
+        run: |
+          dotnet tool install --global vpk --version $env:VELOPACK_VERSION
+          "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
 
       - name: Package
         shell: pwsh
@@ -197,6 +206,26 @@ jobs:
           $lines | Set-Content -LiteralPath $notesPath -Encoding utf8
           "path=$notesPath" >> $env:GITHUB_OUTPUT
 
+      - name: Package Velopack
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:VELOPACK_DIR | Out-Null
+          vpk --yes download github --repoUrl "https://github.com/$env:GITHUB_REPOSITORY" --outputDir $env:VELOPACK_DIR --token $env:GH_TOKEN
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "No previous Velopack release assets were downloaded; building a full package only."
+          }
+          vpk --yes pack --packId MPLR --packTitle MPLR --packVersion "${{ steps.version.outputs.version }}" --packDir $env:PUBLISH_DIR --mainExe MPLR.exe --outputDir $env:VELOPACK_DIR --icon src/MPLR/Assets/Favicon.ico --releaseNotes "${{ steps.notes.outputs.path }}" --packAuthors qzj1472
+          $setupPath = Get-ChildItem -LiteralPath $env:VELOPACK_DIR -Filter "*Setup.exe" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if ($null -eq $setupPath) {
+            throw "Velopack setup exe was not generated"
+          }
+          $friendlySetupPath = Join-Path $env:VELOPACK_DIR "${{ steps.version.outputs.setup_asset_name }}"
+          if ($setupPath.FullName -ne $friendlySetupPath) {
+            Move-Item -LiteralPath $setupPath.FullName -Destination $friendlySetupPath -Force
+          }
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -204,6 +233,7 @@ jobs:
           path: |
             ${{ env.PACKAGE_DIR }}/${{ steps.version.outputs.asset_name }}
             ${{ env.PACKAGE_DIR }}/release-notes.md
+            ${{ env.VELOPACK_DIR }}/*
 
       - name: Publish GitHub release
         if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_release == 'true')
@@ -213,6 +243,7 @@ jobs:
         run: |
           $tag = "${{ steps.version.outputs.tag }}"
           $assetPath = Join-Path $env:PACKAGE_DIR "${{ steps.version.outputs.asset_name }}"
+          $velopackDir = $env:VELOPACK_DIR
           $notesPath = "${{ steps.notes.outputs.path }}"
           git fetch origin --tags
           git rev-parse $tag 2>$null
@@ -220,6 +251,7 @@ jobs:
             git tag $tag $env:GITHUB_SHA
             git push origin $tag
           }
+          vpk --yes upload github --repoUrl "https://github.com/$env:GITHUB_REPOSITORY" --outputDir $velopackDir --token $env:GH_TOKEN --publish --merge --releaseName "MPLR $tag" --tag $tag
           gh release view $tag 2>$null
           if ($LASTEXITCODE -eq 0) {
             gh release upload $tag $assetPath --clobber
