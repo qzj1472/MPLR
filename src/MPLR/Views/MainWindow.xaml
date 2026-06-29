@@ -7,6 +7,7 @@
                  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                  xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
                  xmlns:local="clr-namespace:MPLR"
+                 xmlns:lottie="clr-namespace:LottieSharp.WPF;assembly=LottieSharp"
                  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                  xmlns:sys="clr-namespace:System;assembly=System.Runtime"
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -1498,6 +1499,19 @@
               MouseDown="ModalOverlayMouseDown"
               Panel.ZIndex="40"
               Visibility="Collapsed" />
+        <Grid x:Name="AddRoomLoadingOverlay"
+              Background="Transparent"
+              IsHitTestVisible="True"
+              Panel.ZIndex="70"
+              Visibility="Collapsed">
+            <lottie:LottieAnimationView Width="46"
+                                        Height="46"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        AutoPlay="True"
+                                        RepeatCount="-1"
+                                        ResourcePath="pack://application:,,,/Assets/Loading.json" />
+        </Grid>
         <Canvas x:Name="MainFlyoutLayer"
                 ClipToBounds="True"
                 Panel.ZIndex="50">
@@ -1999,7 +2013,8 @@
                                 BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
                                 Content="{I18N ButtonOfClose}"
                                 Click="CloseFloatingPanelsClick" />
-                        <Button MinWidth="78"
+                        <Button x:Name="AddRoomConfirmButton"
+                                MinWidth="78"
                                 Style="{StaticResource MainAccentButtonStyle}"
                                 Content="{I18N ButtonOfAdd}"
                                 Click="AddRoomConfirmClick" />

@@ -268,15 +268,15 @@ public partial class RoomStatusReactive : ReactiveObject
     }
 
     [RelayCommand]
-    private void CopyRoomUrl()
+    private async Task CopyRoomUrlAsync()
     {
-        CopyToClipboard(RoomUrl);
+        await CopyToClipboardAsync(RoomUrl);
     }
 
     [RelayCommand]
-    private void CopyLiveStream()
+    private async Task CopyLiveStreamAsync()
     {
-        CopyToClipboard(LiveStreamUrl);
+        await CopyToClipboardAsync(LiveStreamUrl);
     }
 
     [RelayCommand]
@@ -330,15 +330,21 @@ public partial class RoomStatusReactive : ReactiveObject
         _ = await dialog.ShowAsync();
     }
 
-    private static void CopyToClipboard(string value)
+    private static async Task CopyToClipboardAsync(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
             return;
         }
 
-        System.Windows.Clipboard.SetText(value);
-        Toast.Success("Copied".Tr());
+        if (await ClipboardService.SetTextAsync(value))
+        {
+            Toast.Success("Copied".Tr());
+        }
+        else
+        {
+            Toast.Error("FailOp".Tr());
+        }
     }
 
     private static string SelectLiveStreamUrl(params string?[] values)

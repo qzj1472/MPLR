@@ -465,33 +465,30 @@ public partial class MainViewModel : ReactiveObject
             return true;
         }
 
-        using (LoadingWindow.ShowAsync())
+        try
         {
-            try
+            ISpiderResult? spider = await Task.Run(() => Spider.GetResult(url, localSettings?.StreamQuality));
+
+            if (string.IsNullOrWhiteSpace(spider?.Nickname) || string.IsNullOrWhiteSpace(spider.RoomUrl))
             {
-                ISpiderResult? spider = await Task.Run(() => Spider.GetResult(url, localSettings?.StreamQuality));
-
-                if (string.IsNullOrWhiteSpace(spider?.Nickname) || string.IsNullOrWhiteSpace(spider.RoomUrl))
-                {
-                    Toast.Error(GetRoomInfoErrorMessage(url));
-                    return false;
-                }
-
-                if (Configurations.Rooms.Get().Any(room => room.RoomUrl == spider.RoomUrl))
-                {
-                    Toast.Warning("AddRoomErrorDuplicated".Tr(spider.Nickname));
-                    return false;
-                }
-
-                await AddRoomToListAsync(url, spider.RoomUrl, spider.Nickname, spider, isToNotify, isFollowGlobalSettings, isToMonitor, isToRecord, localSettings);
-                Toast.Success("AddRoomSucc".Tr(spider.Nickname));
-                return true;
-            }
-            catch (Exception exception)
-            {
-                Toast.Error(GetRoomInfoErrorMessage(url, exception.Message));
+                Toast.Error(GetRoomInfoErrorMessage(url));
                 return false;
             }
+
+            if (Configurations.Rooms.Get().Any(room => room.RoomUrl == spider.RoomUrl))
+            {
+                Toast.Warning("AddRoomErrorDuplicated".Tr(spider.Nickname));
+                return false;
+            }
+
+            await AddRoomToListAsync(url, spider.RoomUrl, spider.Nickname, spider, isToNotify, isFollowGlobalSettings, isToMonitor, isToRecord, localSettings);
+            Toast.Success("AddRoomSucc".Tr(spider.Nickname));
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Toast.Error(GetRoomInfoErrorMessage(url, exception.Message));
+            return false;
         }
     }
 

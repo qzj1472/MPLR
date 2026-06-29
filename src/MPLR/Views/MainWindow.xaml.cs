@@ -1439,19 +1439,42 @@ public partial class MainWindow : FluentWindow
 
     private async void AddRoomConfirmClick(object sender, RoutedEventArgs e)
     {
-        bool added = await ViewModel.TryAddRoomFromFlyoutAsync(
-            AddRoomUrlInput.Text,
-            AddRoomForceCheckBox.IsChecked == true,
-            AddRoomNotifyCheckBox.IsChecked == true,
-            AddRoomFollowGlobalSettingsCheckBox.IsChecked == true,
-            LocalIsToMonitor,
-            LocalIsToRecord,
-            AddRoomFollowGlobalSettingsCheckBox.IsChecked == true ? null : BuildLocalRecordingOptions());
-        if (added)
+        if (AddRoomLoadingOverlay.Visibility == Visibility.Visible)
         {
-            AddRoomFlyout.Visibility = Visibility.Collapsed;
-            UpdateModalOverlay();
+            return;
         }
+
+        SetAddRoomLoading(true);
+        try
+        {
+            bool added = await ViewModel.TryAddRoomFromFlyoutAsync(
+                AddRoomUrlInput.Text,
+                AddRoomForceCheckBox.IsChecked == true,
+                AddRoomNotifyCheckBox.IsChecked == true,
+                AddRoomFollowGlobalSettingsCheckBox.IsChecked == true,
+                LocalIsToMonitor,
+                LocalIsToRecord,
+                AddRoomFollowGlobalSettingsCheckBox.IsChecked == true ? null : BuildLocalRecordingOptions());
+            if (added)
+            {
+                AddRoomFlyout.Visibility = Visibility.Collapsed;
+                UpdateModalOverlay();
+            }
+        }
+        finally
+        {
+            SetAddRoomLoading(false);
+        }
+    }
+
+    private void SetAddRoomLoading(bool isLoading)
+    {
+        AddRoomLoadingOverlay.Visibility = isLoading ? Visibility.Visible : Visibility.Collapsed;
+        AddRoomConfirmButton.IsEnabled = !isLoading;
+        AddRoomUrlInput.IsEnabled = !isLoading;
+        AddRoomForceCheckBox.IsEnabled = !isLoading;
+        AddRoomFollowGlobalSettingsCheckBox.IsEnabled = !isLoading;
+        AddRoomNotifyCheckBox.IsEnabled = !isLoading;
     }
 
     private void AddRoomUrlInputKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
