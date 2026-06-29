@@ -380,12 +380,13 @@ public partial class SettingsViewModel : ReactiveObject
     [RelayCommand]
     private void CreateDesktopShortcut()
     {
+        string executablePath = AppLaunchPath.ExecutablePath;
         ShortcutHelper.CreateShortcutOnDesktop(
             shortcutName: AppConfig.DisplayName,
-            targetPath: Path.Combine(AppDomain.CurrentDomain.BaseDirectory, AppDomain.CurrentDomain.FriendlyName),
+            targetPath: executablePath,
             arguments: null!,
             description: AppConfig.LocalizedDisplayName,
-            iconLocation: Path.Combine(AppDomain.CurrentDomain.BaseDirectory, AppDomain.CurrentDomain.FriendlyName + ".exe"));
+            iconLocation: AppLaunchPath.IconPath);
 
         Toast.Success("SuccOp".Tr());
     }

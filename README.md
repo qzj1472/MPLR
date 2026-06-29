@@ -11,7 +11,7 @@ MPLR is a Windows-only WPF desktop app for live-room monitoring and unattended r
 - Add live room links and monitor them from one list.
 - Switch monitor, record, and notification behavior per room.
 - Preview streams before recording and keep recording unattended.
-- Use the bundled FFmpeg, FFprobe, and FFplay binaries.
+- Use bundled FFmpeg and FFprobe binaries for recording and media probing.
 - Resolve stream URLs through the included Python resolver when needed.
 - Store config, logs, and cache locally under the app directory.
 - Support platform cookies for cases where the platform requires them.
@@ -33,6 +33,15 @@ MPLR is a Windows-only WPF desktop app for live-room monitoring and unattended r
 - .NET Desktop Runtime 9.0
 - Python 3.11 or newer
 
+## Installation
+
+GitHub Releases provide one user-facing installer per channel:
+
+- Stable: `MPLR-win.msi`
+- Beta: `MPLR-win-beta.msi`
+
+The MSI installer supports choosing the installation location. In-app automatic updates continue to update the current installation folder instead of creating a second copy in the default location. The installer does not enable startup on boot by default; startup on boot is controlled manually from the MPLR tray menu.
+
 ## Build
 
 ```powershell
@@ -47,6 +56,8 @@ dotnet build .\src\MPLR\MPLR.csproj -c Debug -p:Platform=x64
 
 ## Packaging
 
+GitHub Actions builds and publishes Velopack MSI installers plus update assets. The legacy local script still creates a manual archive package:
+
 ```powershell
 .\build\publish_win-x64.cmd
 ```
@@ -55,10 +66,10 @@ dotnet build .\src\MPLR\MPLR.csproj -c Debug -p:Platform=x64
 
 ```text
 src/MPLR              Main WPF application
-docs                  Cookie and privacy docs
-build                 Publish scripts and packaging assets
+docs                  Cookie, privacy, and release docs
+build                 Publish scripts, installer text, and packaging assets
 tools/stream_resolver Bundled Python resolver and vendor code
-tools/ffmpeg/win-x64  FFmpeg, FFprobe, and FFplay binaries
+tools/ffmpeg/win-x64  FFmpeg and FFprobe binaries
 ```
 
 ## Documentation

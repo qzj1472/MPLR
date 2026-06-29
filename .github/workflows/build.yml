@@ -134,8 +134,6 @@ jobs:
           "is_prerelease=$isPrerelease" >> $env:GITHUB_OUTPUT
           "tag=$tag" >> $env:GITHUB_OUTPUT
           "release_name=$releaseName" >> $env:GITHUB_OUTPUT
-          "asset_name=MPLR_v$packageVersion`_$artifactChannel.zip" >> $env:GITHUB_OUTPUT
-          "setup_asset_name=MPLR_v$packageVersion`_$artifactChannel`_Setup.exe" >> $env:GITHUB_OUTPUT
 
       - name: Restore
         run: dotnet restore $env:PROJECT_PATH
@@ -174,22 +172,13 @@ jobs:
           dotnet tool install --global vpk --version $env:VELOPACK_VERSION
           "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
 
-      - name: Package
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path $env:PACKAGE_DIR | Out-Null
-          $assetPath = Join-Path $env:PACKAGE_DIR "${{ steps.version.outputs.asset_name }}"
-          if (Test-Path -LiteralPath $assetPath) {
-            Remove-Item -LiteralPath $assetPath -Force
-          }
-          Compress-Archive -Path (Join-Path $env:PUBLISH_DIR "*") -DestinationPath $assetPath -Force
-
       - name: Generate release notes
         id: notes
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          New-Item -ItemType Directory -Force -Path $env:PACKAGE_DIR | Out-Null
           $version = "${{ steps.version.outputs.version }}"
           $packageVersion = "${{ steps.version.outputs.package_version }}"
           $releaseChannel = "${{ steps.version.outputs.release_channel }}"
@@ -317,17 +306,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             Write-Host "No previous Velopack release assets were downloaded; building a full package only."
           }
-          vpk --yes pack --packId MPLR --packTitle MPLR --packVersion "${{ steps.version.outputs.package_version }}" --packDir $env:PUBLISH_DIR --mainExe MPLR.exe --outputDir $env:VELOPACK_DIR --icon src/MPLR/Assets/Favicon.ico --releaseNotes "${{ steps.notes.outputs.path }}" --packAuthors qzj1472 --channel "${{ steps.version.outputs.velopack_channel }}"
+          vpk --yes pack --packId MPLR --packTitle MPLR --packVersion "${{ steps.version.outputs.package_version }}" --packDir $env:PUBLISH_DIR --mainExe MPLR.exe --outputDir $env:VELOPACK_DIR --icon src/MPLR/Assets/Favicon.ico --releaseNotes "${{ steps.notes.outputs.path }}" --packAuthors qzj1472 --channel "${{ steps.version.outputs.velopack_channel }}" --msi --instLocation Either --instWelcome build/installer/welcome.txt --instLicense build/installer/disclaimer.md --instReadme build/installer/install-notes.md --instConclusion build/installer/conclusion.txt
           if ($LASTEXITCODE -ne 0) {
             throw "Velopack pack failed"
           }
-          $setupPath = Get-ChildItem -LiteralPath $env:VELOPACK_DIR -Filter "*Setup.exe" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-          if ($null -eq $setupPath) {
-            throw "Velopack setup exe was not generated"
-          }
-          $friendlySetupPath = Join-Path $env:VELOPACK_DIR "${{ steps.version.outputs.setup_asset_name }}"
-          if ($setupPath.FullName -ne $friendlySetupPath) {
-            Copy-Item -LiteralPath $setupPath.FullName -Destination $friendlySetupPath -Force
+          $msiPath = Get-ChildItem -LiteralPath $env:VELOPACK_DIR -Filter "*.msi" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if ($null -eq $msiPath) {
+            throw "Velopack MSI was not generated"
           }
 
       - name: Upload artifact
@@ -335,9 +320,11 @@ jobs:
         with:
           name: MPLR_v${{ steps.version.outputs.package_version }}_${{ steps.version.outputs.artifact_channel }}
           path: |
-            ${{ env.PACKAGE_DIR }}/${{ steps.version.outputs.asset_name }}
             ${{ env.PACKAGE_DIR }}/release-notes.md
-            ${{ env.VELOPACK_DIR }}/*
+            ${{ env.VELOPACK_DIR }}/*.msi
+            ${{ env.VELOPACK_DIR }}/*.nupkg
+            ${{ env.VELOPACK_DIR }}/releases.*.json
+            ${{ env.VELOPACK_DIR }}/RELEASES
 
       - name: Publish GitHub release
         if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_release == 'true')
@@ -348,13 +335,18 @@ jobs:
           $tag = "${{ steps.version.outputs.tag }}"
           $releaseName = "${{ steps.version.outputs.release_name }}"
           $isPrerelease = "${{ steps.version.outputs.is_prerelease }}" -eq "true"
-          $assetPath = Join-Path $env:PACKAGE_DIR "${{ steps.version.outputs.asset_name }}"
           $velopackDir = $env:VELOPACK_DIR
           $notesPath = "${{ steps.notes.outputs.path }}"
           function Remove-RemoteTag([string]$oldTag) {
             git push origin ":refs/tags/$oldTag" 2>$null
             if ($LASTEXITCODE -ne 0) {
               Write-Host "Remote tag $oldTag was not present or could not be deleted."
+            }
+          }
+          function Remove-ReleaseAssetIfExists([string]$assetName) {
+            gh release delete-asset $tag $assetName --yes 2>$null
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "Release asset $assetName was not present or could not be deleted."
             }
           }
           function Remove-ReleaseAndTag([string]$oldTag) {
@@ -398,9 +390,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             throw "Velopack upload failed"
           }
+          $releaseAssets = gh release view $tag --json assets --jq ".assets[].name" 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            foreach ($releaseAsset in $releaseAssets) {
+              if ($releaseAsset -match "Setup\.exe$" -or $releaseAsset -match "\.zip$") {
+                Remove-ReleaseAssetIfExists $releaseAsset
+              }
+            }
+          }
           gh release view $tag 2>$null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag $assetPath --clobber
             $editArgs = @($tag, "--title", $releaseName, "--notes-file", $notesPath)
             if ($isPrerelease) {
               $editArgs += "--prerelease"
@@ -409,7 +408,11 @@ jobs:
             }
             gh release edit @editArgs
           } else {
-            $createArgs = @($tag, $assetPath, "--title", $releaseName, "--notes-file", $notesPath, "--target", $env:GITHUB_SHA)
+            $msiPath = Get-ChildItem -LiteralPath $velopackDir -Filter "*.msi" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+            if ($null -eq $msiPath) {
+              throw "Velopack MSI was not generated"
+            }
+            $createArgs = @($tag, $msiPath.FullName, "--title", $releaseName, "--notes-file", $notesPath, "--target", $env:GITHUB_SHA)
             if ($isPrerelease) {
               $createArgs += "--prerelease"
             }

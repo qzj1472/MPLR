@@ -1,5 +1,5 @@
 ﻿using Microsoft.Win32;
-using System.Diagnostics;
+using MPLR.Core;
 
 namespace MPLR.Extensions;
 
@@ -7,8 +7,7 @@ internal static class AutoStartupHelper
 {
     public static bool IsAutorun()
     {
-        string launchCommand = $"\"{Process.GetCurrentProcess().MainModule?.FileName!}\" /autorun";
-        return EnumerateAutorunKeys().Any(keyName => RegistyAutoRunHelper.IsEnabled(keyName, launchCommand));
+        return EnumerateAutorunKeys().Any(RegistyAutoRunHelper.IsEnabled);
     }
 
     public static void RemoveAutorunShortcut()
@@ -21,12 +20,17 @@ internal static class AutoStartupHelper
 
     public static void CreateAutorunShortcut()
     {
-        foreach (string keyName in AppConfig.LegacyDisplayNames.Concat(AppConfig.LegacyPackNames))
+        foreach (string keyName in EnumerateAutorunKeys())
         {
             RegistyAutoRunHelper.Disable(keyName);
         }
 
-        RegistyAutoRunHelper.Enable(AppConfig.DisplayName, $"\"{Process.GetCurrentProcess().MainModule?.FileName!}\" /autorun");
+        RegistyAutoRunHelper.Enable(AppConfig.DisplayName, GetLaunchCommand());
+    }
+
+    private static string GetLaunchCommand()
+    {
+        return $"\"{AppLaunchPath.ExecutablePath}\" /autorun";
     }
 
     private static IEnumerable<string> EnumerateAutorunKeys()
@@ -51,7 +55,7 @@ file static class RegistyAutoRunHelper
         key?.SetValue(keyName, launchCommand);
     }
 
-    public static bool IsEnabled(string keyName, string launchCommand)
+    public static bool IsEnabled(string keyName)
     {
         using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RunLocation);
 
@@ -61,13 +65,7 @@ file static class RegistyAutoRunHelper
         }
 
         string? value = (string?)key.GetValue(keyName);
-
-        if (value == null)
-        {
-            return false;
-        }
-
-        return value == launchCommand;
+        return !string.IsNullOrWhiteSpace(value);
     }
 
     public static void Disable(string keyName, string launchCommand = null!)

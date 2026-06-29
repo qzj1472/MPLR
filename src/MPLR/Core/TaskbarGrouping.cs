@@ -30,10 +30,11 @@ internal static class TaskbarGrouping
 
         try
         {
+            string executablePath = AppLaunchPath.ExecutablePath;
             return SetStringValue(propertyStore, AppUserModelProperty.Id, AppUserModelId) &&
-                   SetStringValue(propertyStore, AppUserModelProperty.RelaunchCommand, Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty) &&
+                   SetStringValue(propertyStore, AppUserModelProperty.RelaunchCommand, executablePath) &&
                    SetStringValue(propertyStore, AppUserModelProperty.RelaunchDisplayNameResource, AppConfig.DisplayName) &&
-                   SetStringValue(propertyStore, AppUserModelProperty.RelaunchIconResource, $"{Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty},0") &&
+                   SetStringValue(propertyStore, AppUserModelProperty.RelaunchIconResource, $"{AppLaunchPath.IconPath},0") &&
                    propertyStore.Commit() == 0;
         }
         finally
