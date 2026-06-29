@@ -160,6 +160,14 @@ public partial class SettingsViewModel : ReactiveObject
         }
     }
 
+    [ObservableProperty]
+    private bool isDeveloperModeEnabled = DeveloperModeManager.IsEnabled;
+
+    partial void OnIsDeveloperModeEnabledChanged(bool value)
+    {
+        DeveloperModeManager.SetEnabled(value);
+    }
+
     [RelayCommand]
     private void OpenLogFolder()
     {

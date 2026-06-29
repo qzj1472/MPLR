@@ -22,6 +22,8 @@ public partial class SettingsWindow : FluentWindow
         WindowSizing.UseRelativeMainWindowSize(this, 700d, 560d);
         InitializeComponent();
         SizeChanged += SettingsWindowSizeChanged;
+        Closed += SettingsWindowClosed;
+        DeveloperModeManager.Changed += DeveloperModeChanged;
     }
 
     private void NumberInputPreviewTextInput(object sender, TextCompositionEventArgs e)
@@ -72,6 +74,39 @@ public partial class SettingsWindow : FluentWindow
     private void CloseLogExportFlyoutClick(object sender, RoutedEventArgs e)
     {
         CloseFloatingPanels();
+    }
+
+    private void OpenDeveloperToolsClick(object sender, RoutedEventArgs e)
+    {
+        if (!DeveloperModeManager.IsEnabled)
+        {
+            Toast.Warning("开发者模式未启用");
+            return;
+        }
+
+        foreach (Window win in Application.Current.Windows)
+        {
+            if (win is DeveloperToolsWindow)
+            {
+                win.Activate();
+                return;
+            }
+        }
+
+        new DeveloperToolsWindow
+        {
+            Owner = Application.Current.MainWindow,
+        }.Show();
+    }
+
+    private void DeveloperModeChanged(object? sender, bool enabled)
+    {
+        Dispatcher.InvokeAsync(() => ViewModel.IsDeveloperModeEnabled = enabled);
+    }
+
+    private void SettingsWindowClosed(object? sender, EventArgs e)
+    {
+        DeveloperModeManager.Changed -= DeveloperModeChanged;
     }
 
     private void SettingsModalOverlayMouseDown(object sender, MouseButtonEventArgs e)

@@ -597,14 +597,6 @@
                             </ui:StackPanel>
                         </Button.Content>
                     </Button>
-                    <Button MinWidth="72" Click="OpenDeveloperToolsClick">
-                        <Button.Content>
-                            <ui:StackPanel VerticalAlignment="Center" Orientation="Horizontal" Spacing="8">
-                                <ui:FontIcon Margin="0,2,0,0" VerticalAlignment="Center" FontFamily="{DynamicResource SymbolThemeFontFamily}" Glyph="{x:Static ui:FontSymbols.DeviceMonitorRightPic}" />
-                                <TextBlock VerticalAlignment="Center" Text="开发" />
-                            </ui:StackPanel>
-                        </Button.Content>
-                    </Button>
                     <Button MinWidth="72" Click="OpenAboutFlyoutClick">
                         <Button.Content>
                             <ui:StackPanel Orientation="Horizontal" Spacing="8">
@@ -2445,7 +2437,10 @@
                                        Spacing="3">
                             <TextBlock Style="{StaticResource MainFlyoutTitleStyle}" Text="{x:Static local:AppConfig.DisplayName}" />
                             <TextBlock Style="{StaticResource MainFlyoutCaptionStyle}" Text="{x:Static local:AppConfig.EnglishName}" />
-                            <TextBlock Style="{StaticResource MainFlyoutCaptionStyle}" Text="{x:Static local:AppConfig.Version}" />
+                            <TextBlock x:Name="AboutVersionTextBlock"
+                                       Style="{StaticResource MainFlyoutCaptionStyle}"
+                                       MouseLeftButtonUp="AboutVersionTextBlockMouseLeftButtonUp"
+                                       Text="{x:Static local:AppConfig.Version}" />
                         </ui:StackPanel>
                         <Button Grid.Column="2"
                                 Click="CloseFloatingPanelsClick"

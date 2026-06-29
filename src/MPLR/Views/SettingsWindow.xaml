@@ -594,6 +594,39 @@
                     <TextBlock Margin="4,0,0,4"
                                FontSize="14"
                                Foreground="{DynamicResource SystemAccentColorPrimaryBrush}"
+                               Text="高级"
+                               Visibility="{Binding IsDeveloperModeEnabled, Converter={x:Static c:BoolToVisibilityConverter.Instance}}" />
+                    <ui:Card Visibility="{Binding IsDeveloperModeEnabled, Converter={x:Static c:BoolToVisibilityConverter.Instance}}">
+                        <ui:Grid MinHeight="35" ColumnDefinitions="Auto,*,Auto">
+                            <Grid Grid.Column="0" Margin="0,0,12,0">
+                                <TextBlock MinWidth="26"
+                                           Margin="4,0,0,0"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                           FontSize="18"
+                                           Text="{x:Static ui:FontSymbols.DeviceMonitorRightPic}" />
+                            </Grid>
+                            <ui:Grid Grid.Column="1" RowDefinitions="Auto,Auto">
+                                <TextBlock Grid.Row="0" Text="开发者工具" />
+                                <TextBlock Grid.Row="1"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource SystemFillColorSolidNeutralBrush}"
+                                           Text="网络测试、进程诊断和模拟信号" />
+                            </ui:Grid>
+                            <ui:StackPanel Grid.Column="2"
+                                           Margin="0,0,28,0"
+                                           HorizontalAlignment="Right"
+                                           Orientation="Horizontal"
+                                           Spacing="8">
+                                <Button Click="OpenDeveloperToolsClick" Content="打开" />
+                                <ui:ToggleSwitch IsChecked="{Binding IsDeveloperModeEnabled, Mode=TwoWay}" />
+                            </ui:StackPanel>
+                        </ui:Grid>
+                    </ui:Card>
+                    <TextBlock Margin="4,0,0,4"
+                               FontSize="14"
+                               Foreground="{DynamicResource SystemAccentColorPrimaryBrush}"
                                Text="{I18N RecordSettings}" />
                     <ui:CardExpander>
                         <ui:CardExpander.Header>

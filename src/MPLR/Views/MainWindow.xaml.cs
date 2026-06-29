@@ -577,6 +577,10 @@ public partial class MainWindow : FluentWindow
 
     private bool isUpdatingRoutineIntervalFlyout;
 
+    private int developerUnlockClickCount;
+
+    private DateTime developerUnlockClickStartedAt = DateTime.MinValue;
+
     private readonly BlurEffect modalBlurEffect = new() { Radius = 8 };
 
     private const double BottomFlyoutGap = 40d;
@@ -1156,21 +1160,27 @@ public partial class MainWindow : FluentWindow
         await AppUpdater.CheckAsync(showNoUpdateMessage: true);
     }
 
-    private void OpenDeveloperToolsClick(object sender, RoutedEventArgs e)
+    private void AboutVersionTextBlockMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        foreach (Window win in Application.Current.Windows)
+        DateTime now = DateTime.Now;
+
+        if ((now - developerUnlockClickStartedAt).TotalSeconds > 2.5)
         {
-            if (win is DeveloperToolsWindow)
-            {
-                win.Activate();
-                return;
-            }
+            developerUnlockClickStartedAt = now;
+            developerUnlockClickCount = 0;
         }
 
-        new DeveloperToolsWindow
+        developerUnlockClickCount++;
+
+        if (developerUnlockClickCount < 5)
         {
-            Owner = Application.Current.MainWindow,
-        }.Show();
+            return;
+        }
+
+        developerUnlockClickCount = 0;
+        DeveloperModeManager.SetEnabled(true);
+        Toast.Success("开发者模式已启用");
+        e.Handled = true;
     }
 
     private void AddRoomFollowGlobalSettingsChanged(object sender, RoutedEventArgs e)
