@@ -115,9 +115,6 @@
   <data name="MailBodyElement" xml:space="preserve">
     <value>Goto {0}'s live room immediately</value>
   </data>
-  <data name="PlayerErrorOfFFplayNotFound" xml:space="preserve">
-    <value>FFplay preview player is not available.</value>
-  </data>
   <data name="TrayMenuShowMainWindow" xml:space="preserve">
     <value>Show (&amp;V)</value>
   </data>
@@ -137,7 +134,7 @@
     <value>No playable recording file</value>
   </data>
   <data name="PlayerErrorOfPotPlayerNotFound" xml:space="preserve">
-    <value>The built-in FFplay preview player is not available.</value>
+    <value>The embedded preview player is not available.</value>
   </data>
   <data name="PlayerErrorOfNoPlayerFound" xml:space="preserve">
     <value>No built-in preview player was found.</value>
@@ -464,13 +461,13 @@
     <value>Preview Player</value>
   </data>
   <data name="PlayerInner" xml:space="preserve">
-    <value>Built-in FFplay player</value>
+    <value>Embedded player</value>
   </data>
   <data name="PlayerSystem" xml:space="preserve">
     <value>System player</value>
   </data>
   <data name="PlayerInnerHint" xml:space="preserve">
-    <value>Use the app bundled FFplay player for preview.</value>
+    <value>Use the app embedded player for preview.</value>
   </data>
   <data name="PlayerSystemHint" xml:space="preserve">
     <value>Use System player</value>

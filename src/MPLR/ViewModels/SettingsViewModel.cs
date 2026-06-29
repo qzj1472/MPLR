@@ -880,7 +880,7 @@ public partial class SettingsViewModel : ReactiveObject
     partial void OnPlayerIndexChanged(int value)
     {
         PlayerIndex = 0;
-        Configurations.Player.Set("ffplay");
+        Configurations.Player.Set("embedded");
         ConfigurationManager.Save();
     }
 

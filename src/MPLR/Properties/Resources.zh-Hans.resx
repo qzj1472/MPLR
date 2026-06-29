@@ -58,9 +58,6 @@
   <data name="MailBodyElement" xml:space="preserve">
     <value>立即进入{0}的直播间</value>
   </data>
-  <data name="PlayerErrorOfFFplayNotFound" xml:space="preserve">
-    <value>内置 FFplay 预览播放器不可用。</value>
-  </data>
   <data name="TrayMenuShowMainWindow" xml:space="preserve">
     <value>显示界面 (&amp;V)</value>
   </data>
@@ -80,7 +77,7 @@
     <value>没有可播放的录制文件</value>
   </data>
   <data name="PlayerErrorOfPotPlayerNotFound" xml:space="preserve">
-    <value>内置 FFplay 预览播放器不可用。</value>
+    <value>内嵌预览播放器不可用。</value>
   </data>
   <data name="PlayerErrorOfNoPlayerFound" xml:space="preserve">
     <value>未找到应用内置播放器，无法预览。</value>
@@ -407,13 +404,13 @@
     <value>预览播放器</value>
   </data>
   <data name="PlayerInner" xml:space="preserve">
-    <value>内置 FFplay 播放器</value>
+    <value>内嵌播放器</value>
   </data>
   <data name="PlayerSystem" xml:space="preserve">
     <value>系统播放器</value>
   </data>
   <data name="PlayerInnerHint" xml:space="preserve">
-    <value>使用软件内置 FFplay 播放器预览直播间画面。</value>
+    <value>使用软件内嵌播放器预览直播间画面。</value>
   </data>
   <data name="PlayerSystemHint" xml:space="preserve">
     <value>启用您的系统默认播放器</value>

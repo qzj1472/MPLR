@@ -60,9 +60,6 @@
   <data name="MailBodyElement" xml:space="preserve">
     <value>直ちに{0}さんの配信ルームへ</value>
   </data>
-  <data name="PlayerErrorOfFFplayNotFound" xml:space="preserve">
-    <value>内蔵 FFplay プレビュープレイヤーを利用できません。</value>
-  </data>
   <data name="TrayMenuShowMainWindow" xml:space="preserve">
     <value>画面表示 (&amp;V)</value>
   </data>
@@ -82,7 +79,7 @@
     <value>再生できる録画ファイルがありません</value>
   </data>
   <data name="PlayerErrorOfPotPlayerNotFound" xml:space="preserve">
-    <value>内蔵 FFplay プレビュープレイヤーを利用できません。</value>
+    <value>内蔵プレビュープレイヤーを利用できません。</value>
   </data>
   <data name="PlayerErrorOfNoPlayerFound" xml:space="preserve">
     <value>内蔵プレビュープレイヤーが見つからないためプレビューできません。</value>
@@ -409,13 +406,13 @@
     <value>プレビュープレイヤー</value>
   </data>
   <data name="PlayerInner" xml:space="preserve">
-    <value>内蔵 FFplay プレイヤー</value>
+    <value>内蔵プレイヤー</value>
   </data>
   <data name="PlayerSystem" xml:space="preserve">
     <value>システムのプレイヤー</value>
   </data>
   <data name="PlayerInnerHint" xml:space="preserve">
-    <value>アプリ内蔵の FFplay プレイヤーでプレビューします。</value>
+    <value>アプリ内蔵プレイヤーでプレビューします。</value>
   </data>
   <data name="PlayerSystemHint" xml:space="preserve">
     <value>システムのプレイヤーを使用すること</value>

@@ -46,7 +46,7 @@ public static class Configurations
     public static ConfigurationDefinition<int> SaveFolderPathLevel { get; } = new(nameof(SaveFolderPathLevel), 0);
     public static ConfigurationDefinition<int> SaveFileNameRule { get; } = new(nameof(SaveFileNameRule), 0);
     public static ConfigurationDefinition<string> SaveFileNameCustomRule { get; } = new(nameof(SaveFileNameCustomRule), "{主播名}_{录制时间}");
-    public static ConfigurationDefinition<string> Player { get; } = new(nameof(Player), "ffplay");
+    public static ConfigurationDefinition<string> Player { get; } = new(nameof(Player), "embedded");
     public static ConfigurationDefinition<bool> IsPlayerRect { get; } = new(nameof(IsPlayerRect), false);
     public static ConfigurationDefinition<bool> IsUseKeepAwake { get; } = new(nameof(IsUseKeepAwake), false);
     public static ConfigurationDefinition<bool> IsUseAutoShutdown { get; } = new(nameof(IsUseAutoShutdown), false);

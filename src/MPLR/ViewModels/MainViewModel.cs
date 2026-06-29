@@ -199,7 +199,7 @@ public partial class MainViewModel : ReactiveObject
         {
             GlobalMonitor.Start();
         }
-        ChildProcessTracerPeriodicTimer.Default.WhiteList = ["ffmpeg", "ffprobe", "ffplay", "python", "python3", "node"];
+        ChildProcessTracerPeriodicTimer.Default.WhiteList = ["ffmpeg", "ffprobe", "python", "python3", "node"];
         ChildProcessTracerPeriodicTimer.Default.Start();
         LowBatteryProtection.Start();
         DispatcherTimer.Start();
