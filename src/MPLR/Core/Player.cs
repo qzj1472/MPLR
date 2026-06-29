@@ -28,7 +28,7 @@ public sealed class Player
         string headers = "",
         string title = "")
     {
-        List<string> cachedPreviewUrls = SelectPreviewUrls(hlsUrl, flvUrl, recordUrl);
+        List<string> cachedPreviewUrls = SelectPreviewUrls(flvUrl, hlsUrl, recordUrl);
         string previewTitle = SelectPreviewTitle(title, nickName);
 
         try

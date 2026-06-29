@@ -13,7 +13,9 @@ namespace MPLR.Views;
 
 public partial class EmbeddedPreviewWindow : Wpf.Ui.Controls.FluentWindow
 {
-    private const int DefaultNetworkCachingMilliseconds = 700;
+    private const int LiveCachingMilliseconds = 350;
+    private const int FileCachingMilliseconds = 250;
+    private const double PlayingBufferingStatusThreshold = 25d;
     private static readonly object InitializeLock = new();
     private static bool isInitialized;
 
@@ -103,7 +105,7 @@ public partial class EmbeddedPreviewWindow : Wpf.Ui.Controls.FluentWindow
 
                 if (spiderResult != null)
                 {
-                    previewUrls = SelectPreviewUrls(spiderResult.HlsUrl, spiderResult.FlvUrl, spiderResult.RecordUrl);
+                    previewUrls = SelectPreviewUrls(spiderResult.FlvUrl, spiderResult.HlsUrl, spiderResult.RecordUrl);
                     previewTitle = SelectPreviewTitle(spiderResult.Title, spiderResult.Nickname, request.NickName);
                     previewHeaders = SelectPreviewHeaders(request.Headers, spiderResult.Headers);
                     ApplyTitle(previewTitle);
@@ -181,7 +183,12 @@ public partial class EmbeddedPreviewWindow : Wpf.Ui.Controls.FluentWindow
     private static PlayerSession CreatePlayerSession(PreviewSource source)
     {
         InitializeLibVlc();
-        LibVLC libVlc = new("--no-video-title-show", "--no-osd", "--network-caching=700", "--live-caching=700", "--file-caching=300");
+        LibVLC libVlc = new(
+            "--no-video-title-show",
+            "--no-osd",
+            $"--network-caching={LiveCachingMilliseconds}",
+            $"--live-caching={LiveCachingMilliseconds}",
+            $"--file-caching={FileCachingMilliseconds}");
         VlcMediaPlayer mediaPlayer = new(libVlc)
         {
             EnableHardwareDecoding = true,
@@ -238,9 +245,11 @@ public partial class EmbeddedPreviewWindow : Wpf.Ui.Controls.FluentWindow
     private static VlcMedia CreateMedia(LibVLC libVlc, PreviewSource source)
     {
         VlcMedia media = new(libVlc, CreateMediaUri(source.Url));
-        media.AddOption($":network-caching={DefaultNetworkCachingMilliseconds}");
-        media.AddOption($":live-caching={DefaultNetworkCachingMilliseconds}");
-        media.AddOption(":file-caching=300");
+        media.AddOption($":network-caching={LiveCachingMilliseconds}");
+        media.AddOption($":live-caching={LiveCachingMilliseconds}");
+        media.AddOption($":file-caching={FileCachingMilliseconds}");
+        media.AddOption(":drop-late-frames");
+        media.AddOption(":skip-frames");
         media.AddOption(":input-repeat=0");
         AddHeaderOptions(media, source.Headers);
         return media;
@@ -352,15 +361,35 @@ public partial class EmbeddedPreviewWindow : Wpf.Ui.Controls.FluentWindow
     {
         if (e.Cache >= 100)
         {
+            if (hasStartedPlaying)
+            {
+                _ = Dispatcher.BeginInvoke(() =>
+                {
+                    HideStatus();
+                    UpdatePlaybackStatus("正在播放");
+                });
+            }
+
             return;
         }
 
         _ = Dispatcher.BeginInvoke(() =>
         {
+            if (hasStartedPlaying && e.Cache >= PlayingBufferingStatusThreshold)
+            {
+                HideStatus();
+                UpdatePlaybackStatus("正在播放");
+                return;
+            }
+
             UpdatePlaybackStatus($"缓冲 {e.Cache:0}%");
             if (!hasStartedPlaying)
             {
                 ShowStatus($"正在缓冲 {e.Cache:0}%");
+            }
+            else
+            {
+                ShowStatus("网络波动，正在恢复画面");
             }
         });
     }
