@@ -38,28 +38,14 @@ public sealed class Converter
         }
 
         string targetFileName = Path.ChangeExtension(sourceFileName, targetFormat);
-        List<string> arguments = [];
+        List<string> arguments = sourceFileInfo.Extension.ToLowerInvariant() switch
+        {
+            ".ts" => CreateCopyArguments(sourceFileName, targetFileName, true),
+            ".flv" => CreateCopyArguments(sourceFileName, targetFileName, false),
+            _ => []
+        };
 
-        if (sourceFileInfo.Extension.Equals(".ts", StringComparison.CurrentCultureIgnoreCase))
-        {
-            arguments =
-            [
-                "-y",
-                "-fflags", "+genpts",
-                "-i", sourceFileName,
-                "-c", "copy", targetFileName,
-            ];
-        }
-        else if (sourceFileInfo.Extension.Equals(".flv", StringComparison.CurrentCultureIgnoreCase))
-        {
-            arguments =
-            [
-                "-y",
-                "-i", sourceFileName,
-                "-c", "copy", targetFileName,
-            ];
-        }
-        else
+        if (arguments.Count == 0)
         {
             return false;
         }
@@ -111,6 +97,32 @@ public sealed class Converter
         Debug.WriteLine($"[Converter] exit code is {process.ExitCode}.");
 
         return process.ExitCode == 0 && File.Exists(targetFileName);
+    }
+
+    private static List<string> CreateCopyArguments(string sourceFileName, string targetFileName, bool useGenPts)
+    {
+        List<string> arguments =
+        [
+            "-y",
+        ];
+
+        if (useGenPts)
+        {
+            arguments.AddRange(["-fflags", "+genpts"]);
+        }
+
+        arguments.AddRange([
+            "-i", sourceFileName,
+            "-map", "0:v?",
+            "-map", "0:a?",
+            "-map", "0:s?",
+            "-map_metadata", "0",
+            "-map_chapters", "0",
+            "-c", "copy",
+            targetFileName,
+        ]);
+
+        return arguments;
     }
 
     private static async Task ReadPipeAsync(StreamReader reader, Func<string, CancellationToken, Task> handler, CancellationToken token)
