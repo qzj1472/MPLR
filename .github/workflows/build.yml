@@ -274,22 +274,26 @@ jobs:
             $lines.Add("")
           }
           $rangeEnd = "HEAD"
+          $tagExists = $false
+          git rev-parse --verify --quiet "$tag^{commit}" | Out-Null
+          if ($LASTEXITCODE -eq 0) {
+            $tagExists = $true
+          }
+          $global:LASTEXITCODE = 0
           if ($releaseChannel -eq "stable") {
-            git rev-parse $tag 2>$null
-            if ($LASTEXITCODE -eq 0) {
+            if ($tagExists) {
               $rangeEnd = "$tag^"
             }
             $previousTag = git tag --merged $rangeEnd --sort=-creatordate | Where-Object { $_ -match "^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$" } | Select-Object -First 1
           } else {
-            git rev-parse $tag 2>$null
-            if ($LASTEXITCODE -eq 0) {
+            if ($tagExists) {
               $previousTag = $tag
             } else {
               $previousTag = git tag --merged $rangeEnd --sort=-creatordate | Where-Object { $_ -match "^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$" } | Select-Object -First 1
             }
           }
-          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($previousTag)) {
-            $previousTag = git rev-list --max-parents=0 HEAD
+          if ([string]::IsNullOrWhiteSpace($previousTag)) {
+            $previousTag = git rev-list --max-parents=0 HEAD | Select-Object -First 1
           }
           $commitRows = git log --pretty=format:"%s%x1f%H%x1f%h%x1f%an" "$previousTag..HEAD"
           Add-Separator
