@@ -9,6 +9,8 @@ namespace MPLR.Core;
 
 public sealed class Converter
 {
+    private const string OptimizedAudioFilter = "[0:a:0]volume=30dB,acompressor=threshold=-10dB:ratio=3,alimiter=limit=0.316227766:level=false[aopt]";
+
     private static int activeCount;
 
     public static bool HasActiveConversions => Volatile.Read(ref activeCount) > 0;
@@ -113,12 +115,21 @@ public sealed class Converter
 
         arguments.AddRange([
             "-i", sourceFileName,
+            "-filter_complex", OptimizedAudioFilter,
             "-map", "0:v?",
-            "-map", "0:a?",
+            "-map", "0:a:0?",
+            "-map", "[aopt]",
             "-map", "0:s?",
             "-map_metadata", "0",
             "-map_chapters", "0",
-            "-c", "copy",
+            "-c:v", "copy",
+            "-c:a:0", "copy",
+            "-c:a:1", "aac",
+            "-c:s", "copy",
+            "-metadata:s:a:0", "title=原音频",
+            "-metadata:s:a:0", "handler_name=原音频",
+            "-metadata:s:a:1", "title=优化音频",
+            "-metadata:s:a:1", "handler_name=优化音频",
             targetFileName,
         ]);
 

@@ -308,15 +308,17 @@ public sealed class Recorder
                 "-avoid_negative_ts", "1"
             )
             .AddIf(plan.IsOptimizedAudioEnabled,
-                "-filter_complex", "[0:a:0]agate=threshold=-45dB:ratio=9000:attack=10:release=250,volume=31.6227766,acompressor=threshold=-10dB:ratio=3:attack=20:release=250,alimiter=limit=0.3162278[aopt]",
+                "-filter_complex", "[0:a:0]volume=30dB,acompressor=threshold=-10dB:ratio=3,alimiter=limit=0.316227766:level=false[aopt]",
                 "-map", "0:v?",
                 "-map", "0:a:0?",
                 "-map", "[aopt]",
                 "-c:v", "copy",
                 "-c:a:0", "copy",
                 "-c:a:1", "aac",
-                "-metadata:s:a:0", "title=原声",
-                "-metadata:s:a:1", "title=音频优化版"
+                "-metadata:s:a:0", "title=原音频",
+                "-metadata:s:a:0", "handler_name=原音频",
+                "-metadata:s:a:1", "title=优化音频",
+                "-metadata:s:a:1", "handler_name=优化音频"
             )
             .AddIf(!plan.IsOptimizedAudioEnabled,
                 "-map", "0",
