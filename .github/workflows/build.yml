@@ -136,6 +136,7 @@ jobs:
           "tag=$tag" >> $env:GITHUB_OUTPUT
           "release_name=$releaseName" >> $env:GITHUB_OUTPUT
           "installer_asset_name=MPLR-$velopackChannel-Installer.exe" >> $env:GITHUB_OUTPUT
+          "portable_asset_name=MPLR-$velopackChannel-Portable.zip" >> $env:GITHUB_OUTPUT
 
       - name: Restore
         run: dotnet restore $env:PROJECT_PATH
@@ -167,6 +168,17 @@ jobs:
           }
           dotnet publish $env:PROJECT_PATH -c Release -p:Platform=x64 -p:PublishProfile=FolderProfile -o $env:PUBLISH_DIR @versionProps
           Remove-Item -LiteralPath (Join-Path $env:PUBLISH_DIR "downloads") -Recurse -Force -ErrorAction SilentlyContinue
+
+      - name: Build portable package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:PACKAGE_DIR | Out-Null
+          $portablePath = Join-Path $env:PACKAGE_DIR "${{ steps.version.outputs.portable_asset_name }}"
+          Remove-Item -LiteralPath $portablePath -Force -ErrorAction SilentlyContinue
+          Compress-Archive -Path (Join-Path $env:PUBLISH_DIR "*") -DestinationPath $portablePath -CompressionLevel Optimal -Force
+          if (-not (Test-Path -LiteralPath $portablePath)) {
+            throw "Portable package was not generated"
+          }
 
       - name: Install Velopack CLI
         shell: pwsh
@@ -357,6 +369,7 @@ jobs:
           name: MPLR_v${{ steps.version.outputs.package_version }}_${{ steps.version.outputs.artifact_channel }}
           path: |
             ${{ env.PACKAGE_DIR }}/release-notes.md
+            ${{ env.PACKAGE_DIR }}/${{ steps.version.outputs.portable_asset_name }}
             ${{ env.INSTALLER_DIR }}/${{ steps.version.outputs.installer_asset_name }}
             ${{ env.VELOPACK_DIR }}/*.nupkg
             ${{ env.VELOPACK_DIR }}/releases.*.json
@@ -373,7 +386,9 @@ jobs:
           $isPrerelease = "${{ steps.version.outputs.is_prerelease }}" -eq "true"
           $velopackDir = $env:VELOPACK_DIR
           $installerPath = Join-Path $env:INSTALLER_DIR "${{ steps.version.outputs.installer_asset_name }}"
+          $portablePath = Join-Path $env:PACKAGE_DIR "${{ steps.version.outputs.portable_asset_name }}"
           $notesPath = "${{ steps.notes.outputs.path }}"
+          $currentPortableAsset = "${{ steps.version.outputs.portable_asset_name }}"
           function Remove-RemoteTag([string]$oldTag) {
             git push origin ":refs/tags/$oldTag" 2>$null
             if ($LASTEXITCODE -ne 0) {
@@ -430,14 +445,14 @@ jobs:
           $releaseAssets = gh release view $tag --json assets --jq ".assets[].name" 2>$null
           if ($LASTEXITCODE -eq 0) {
             foreach ($releaseAsset in $releaseAssets) {
-              if ($releaseAsset -match "Setup\.exe$" -or $releaseAsset -match "\.zip$" -or $releaseAsset -match "\.msi$") {
+              if ($releaseAsset -match "Setup\.exe$" -or $releaseAsset -match "\.msi$" -or ($releaseAsset -match "\.zip$" -and $releaseAsset -ne $currentPortableAsset)) {
                 Remove-ReleaseAssetIfExists $releaseAsset
               }
             }
           }
           gh release view $tag 2>$null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag $installerPath --clobber
+            gh release upload $tag $installerPath $portablePath --clobber
             $editArgs = @($tag, "--title", $releaseName, "--notes-file", $notesPath)
             if ($isPrerelease) {
               $editArgs += "--prerelease"
@@ -449,7 +464,10 @@ jobs:
             if (-not (Test-Path -LiteralPath $installerPath)) {
               throw "Installer executable was not generated"
             }
-            $createArgs = @($tag, $installerPath, "--title", $releaseName, "--notes-file", $notesPath, "--target", $env:GITHUB_SHA)
+            if (-not (Test-Path -LiteralPath $portablePath)) {
+              throw "Portable package was not generated"
+            }
+            $createArgs = @($tag, $installerPath, $portablePath, "--title", $releaseName, "--notes-file", $notesPath, "--target", $env:GITHUB_SHA)
             if ($isPrerelease) {
               $createArgs += "--prerelease"
             }
