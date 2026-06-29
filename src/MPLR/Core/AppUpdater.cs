@@ -11,6 +11,15 @@ internal static class AppUpdater
     private static readonly SemaphoreSlim CheckLock = new(1, 1);
     private static bool backgroundCheckStarted;
 
+    private enum UpdateChannelPreference
+    {
+        Auto,
+        Stable,
+        Beta,
+    }
+
+    public static bool IsForcedUpdateEnabled => AppConfig.IsBetaBuild || GetUpdateChannelPreference() == UpdateChannelPreference.Beta;
+
     public static void CheckInBackground()
     {
         if (backgroundCheckStarted)
@@ -26,7 +35,12 @@ internal static class AppUpdater
         });
     }
 
-    public static async Task CheckAsync(bool showNoUpdateMessage)
+    public static Task CheckAsync(bool showNoUpdateMessage)
+    {
+        return CheckAsync(showNoUpdateMessage, forceInstall: false);
+    }
+
+    public static async Task CheckAsync(bool showNoUpdateMessage, bool forceInstall)
     {
         if (!await CheckLock.WaitAsync(0))
         {
@@ -40,7 +54,7 @@ internal static class AppUpdater
 
         try
         {
-            await CheckCoreAsync(showNoUpdateMessage);
+            await CheckCoreAsync(showNoUpdateMessage, forceInstall);
         }
         finally
         {
@@ -48,22 +62,24 @@ internal static class AppUpdater
         }
     }
 
-    private static async Task CheckCoreAsync(bool showNoUpdateMessage)
+    private static async Task CheckCoreAsync(bool showNoUpdateMessage, bool forceInstall)
     {
         try
         {
             UpdateManager manager = CreateManager();
+            string channelName = GetChannelDisplayName();
+            bool forced = forceInstall || IsForcedUpdateEnabled;
             VelopackAsset? pendingRestart = manager.UpdatePendingRestart;
 
             if (pendingRestart != null)
             {
-                await AskApplyPendingUpdateAsync(manager, pendingRestart);
+                await AskApplyPendingUpdateAsync(manager, pendingRestart, forced);
                 return;
             }
 
             if (showNoUpdateMessage)
             {
-                await ShowToastAsync(() => Toast.Information("正在检查更新"));
+                await ShowToastAsync(() => Toast.Information($"正在检查{channelName}更新"));
             }
 
             UpdateInfo? update = await manager.CheckForUpdatesAsync();
@@ -71,13 +87,13 @@ internal static class AppUpdater
             {
                 if (showNoUpdateMessage)
                 {
-                    await ShowToastAsync(() => Toast.Success("当前已是最新版本"));
+                    await ShowToastAsync(() => Toast.Success($"当前已是{channelName}最新版本"));
                 }
 
                 return;
             }
 
-            await AskDownloadUpdateAsync(manager, update);
+            await AskDownloadUpdateAsync(manager, update, forced);
         }
         catch (NotInstalledException)
         {
@@ -99,12 +115,33 @@ internal static class AppUpdater
 
     private static UpdateManager CreateManager()
     {
-        return new UpdateManager(new GithubSource(RepositoryUrl, null, prerelease: false, null));
+        UpdateChannelPreference preference = GetUpdateChannelPreference();
+        bool includePrereleases = ShouldIncludePrereleases(preference);
+        string? explicitChannel = preference switch
+        {
+            UpdateChannelPreference.Stable => AppConfig.StableUpdateChannel,
+            UpdateChannelPreference.Beta => AppConfig.BetaUpdateChannel,
+            _ => null,
+        };
+        UpdateOptions options = new()
+        {
+            AllowVersionDowngrade = explicitChannel != null,
+            ExplicitChannel = explicitChannel,
+        };
+
+        return new UpdateManager(new GithubSource(RepositoryUrl, null, includePrereleases, null), options, null);
     }
 
-    private static async Task AskApplyPendingUpdateAsync(UpdateManager manager, VelopackAsset pendingRestart)
+    private static async Task AskApplyPendingUpdateAsync(UpdateManager manager, VelopackAsset pendingRestart, bool forced)
     {
         string version = GetVersionText(pendingRestart);
+        if (forced)
+        {
+            await ShowMessageAsync($"{GetChannelDisplayName()}更新 {version} 已下载完成，将重启并完成安装。");
+            manager.ApplyUpdatesAndRestart(pendingRestart);
+            return;
+        }
+
         MessageBoxResult result = await ShowQuestionAsync($"新版本 {version} 已下载完成，是否立即重启并完成安装？");
 
         if (result == MessageBoxResult.Yes)
@@ -113,14 +150,22 @@ internal static class AppUpdater
         }
     }
 
-    private static async Task AskDownloadUpdateAsync(UpdateManager manager, UpdateInfo update)
+    private static async Task AskDownloadUpdateAsync(UpdateManager manager, UpdateInfo update, bool forced)
     {
         string version = GetVersionText(update.TargetFullRelease);
-        MessageBoxResult result = await ShowQuestionAsync($"发现新版本 {version}，是否立即下载？下载完成后可重启安装。");
-
-        if (result != MessageBoxResult.Yes)
+        string channelName = GetChannelDisplayName();
+        if (forced)
         {
-            return;
+            await ShowMessageAsync($"发现{channelName}新版本 {version}，将自动下载并安装。");
+        }
+        else
+        {
+            MessageBoxResult result = await ShowQuestionAsync($"发现{channelName}新版本 {version}，是否立即下载？下载完成后可重启安装。");
+
+            if (result != MessageBoxResult.Yes)
+            {
+                return;
+            }
         }
 
         await ShowToastAsync(() => Toast.Information($"正在下载 {version}"));
@@ -140,6 +185,13 @@ internal static class AppUpdater
             });
         }, CancellationToken.None);
 
+        if (forced)
+        {
+            await ShowMessageAsync($"{channelName}新版本 {version} 已下载完成，将重启并完成安装。");
+            manager.ApplyUpdatesAndRestart(update.TargetFullRelease);
+            return;
+        }
+
         MessageBoxResult restartResult = await ShowQuestionAsync($"新版本 {version} 已下载完成，是否立即重启并完成安装？");
 
         if (restartResult == MessageBoxResult.Yes)
@@ -156,6 +208,32 @@ internal static class AppUpdater
     {
         string value = asset.Version?.ToString() ?? string.Empty;
         return string.IsNullOrWhiteSpace(value) ? "未知版本" : $"v{value}";
+    }
+
+    private static bool ShouldIncludePrereleases(UpdateChannelPreference preference)
+    {
+        return preference == UpdateChannelPreference.Beta ||
+               (preference == UpdateChannelPreference.Auto && AppConfig.IsBetaBuild);
+    }
+
+    private static UpdateChannelPreference GetUpdateChannelPreference()
+    {
+        return (Configurations.UpdateChannel.Get() ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "stable" => UpdateChannelPreference.Stable,
+            "beta" => UpdateChannelPreference.Beta,
+            _ => UpdateChannelPreference.Auto,
+        };
+    }
+
+    private static string GetChannelDisplayName()
+    {
+        return GetUpdateChannelPreference() switch
+        {
+            UpdateChannelPreference.Stable => "稳定版",
+            UpdateChannelPreference.Beta => "Beta 版",
+            _ => AppConfig.IsBetaBuild ? "Beta 版" : "稳定版",
+        };
     }
 
     private static Task ShowToastAsync(Action action)

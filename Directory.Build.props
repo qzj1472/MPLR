@@ -1,6 +1,9 @@
 <Project>
     <PropertyGroup>
         <VersionPrefix>1.7.5</VersionPrefix>
+        <ReleaseChannel Condition="'$(ReleaseChannel)' == ''">stable</ReleaseChannel>
+        <ProductVersion Condition="'$(ProductVersion)' == '' and '$(VersionSuffix)' == ''">$(VersionPrefix)</ProductVersion>
+        <ProductVersion Condition="'$(ProductVersion)' == '' and '$(VersionSuffix)' != ''">$(VersionPrefix)-$(VersionSuffix)</ProductVersion>
         <WindowsFileVersion>$(VersionPrefix).0</WindowsFileVersion>
     </PropertyGroup>
 </Project>

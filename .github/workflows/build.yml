@@ -16,13 +16,26 @@ on:
         required: false
         default: false
         type: boolean
+      release_channel:
+        description: Release channel
+        required: false
+        default: stable
+        type: choice
+        options:
+          - stable
+          - beta
+      version_suffix:
+        description: Optional beta SemVer suffix, defaults to beta.{run_number}
+        required: false
+        default: ""
+        type: string
       release_tag:
-        description: Release tag, defaults to v{VersionPrefix}
+        description: Release tag, defaults to v{version} or v{version}-beta
         required: false
         default: ""
         type: string
       changelog_ref:
-        description: Optional branch or ref to read extra handwritten release notes from
+        description: Optional branch or ref to read extra stable release notes from
         required: false
         default: ""
         type: string
@@ -56,36 +69,103 @@ jobs:
         shell: pwsh
         run: |
           $props = [xml](Get-Content "Directory.Build.props")
-          $version = $props.Project.PropertyGroup.VersionPrefix
-          if ([string]::IsNullOrWhiteSpace($version)) {
+          $baseVersion = $props.Project.PropertyGroup.VersionPrefix
+          if ([string]::IsNullOrWhiteSpace($baseVersion)) {
             throw "VersionPrefix is empty"
           }
+          $releaseChannel = "${{ inputs.release_channel }}".Trim().ToLowerInvariant()
+          if ($releaseChannel -notin @("stable", "beta")) {
+            $releaseChannel = "stable"
+          }
+          $versionSuffix = "${{ inputs.version_suffix }}".Trim()
           $inputTag = "${{ inputs.release_tag }}"
           if ($env:GITHUB_REF -like "refs/tags/*") {
             $tag = $env:GITHUB_REF_NAME
-          } elseif ([string]::IsNullOrWhiteSpace($inputTag)) {
-            $tag = "v$version"
           } else {
             $tag = $inputTag.Trim()
           }
-          "version=$version" >> $env:GITHUB_OUTPUT
+          $escapedBaseVersion = [regex]::Escape($baseVersion)
+          if (-not [string]::IsNullOrWhiteSpace($tag)) {
+            $tagVersion = $tag -replace "^v", ""
+            $stableTagMatch = [regex]::Match($tagVersion, "^$escapedBaseVersion$")
+            $betaTagMatch = [regex]::Match($tagVersion, "^$escapedBaseVersion-beta(?:\.(.+))?$")
+            if ($stableTagMatch.Success) {
+              $releaseChannel = "stable"
+              $versionSuffix = ""
+            } elseif ($betaTagMatch.Success) {
+              $releaseChannel = "beta"
+              if ([string]::IsNullOrWhiteSpace($versionSuffix) -and $betaTagMatch.Groups[1].Success) {
+                $versionSuffix = "beta.$($betaTagMatch.Groups[1].Value)"
+              }
+            } else {
+              throw "Release tag $tag must match v$baseVersion or v$baseVersion-beta"
+            }
+          }
+          if ($releaseChannel -eq "stable" -and -not [string]::IsNullOrWhiteSpace($versionSuffix)) {
+            throw "version_suffix can only be used with beta releases"
+          }
+          if ($releaseChannel -eq "beta" -and [string]::IsNullOrWhiteSpace($versionSuffix)) {
+            $versionSuffix = "beta.$env:GITHUB_RUN_NUMBER"
+          }
+          if ($releaseChannel -eq "beta" -and $versionSuffix -notmatch "^beta(?:\.|$)") {
+            throw "Beta version_suffix must start with beta"
+          }
+          $packageVersion = if ([string]::IsNullOrWhiteSpace($versionSuffix)) { $baseVersion } else { "$baseVersion-$versionSuffix" }
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+            $tag = if ($releaseChannel -eq "beta") { "v$baseVersion-beta" } else { "v$baseVersion" }
+          }
+          if ($releaseChannel -eq "beta") {
+            $velopackChannel = "win-beta"
+            $artifactChannel = "win-x64-beta"
+            $isPrerelease = "true"
+            $releaseName = "MPLR v$baseVersion Beta"
+          } else {
+            $velopackChannel = "win"
+            $artifactChannel = "win-x64"
+            $isPrerelease = "false"
+            $releaseName = "MPLR v$baseVersion"
+          }
+          "version=$baseVersion" >> $env:GITHUB_OUTPUT
+          "package_version=$packageVersion" >> $env:GITHUB_OUTPUT
+          "version_suffix=$versionSuffix" >> $env:GITHUB_OUTPUT
+          "release_channel=$releaseChannel" >> $env:GITHUB_OUTPUT
+          "velopack_channel=$velopackChannel" >> $env:GITHUB_OUTPUT
+          "artifact_channel=$artifactChannel" >> $env:GITHUB_OUTPUT
+          "is_prerelease=$isPrerelease" >> $env:GITHUB_OUTPUT
           "tag=$tag" >> $env:GITHUB_OUTPUT
-          "asset_name=MPLR_v$version`_win-x64.zip" >> $env:GITHUB_OUTPUT
-          "setup_asset_name=MPLR_v$version`_win-x64_Setup.exe" >> $env:GITHUB_OUTPUT
+          "release_name=$releaseName" >> $env:GITHUB_OUTPUT
+          "asset_name=MPLR_v$packageVersion`_$artifactChannel.zip" >> $env:GITHUB_OUTPUT
+          "setup_asset_name=MPLR_v$packageVersion`_$artifactChannel`_Setup.exe" >> $env:GITHUB_OUTPUT
 
       - name: Restore
         run: dotnet restore $env:PROJECT_PATH
 
       - name: Build
-        run: dotnet build $env:PROJECT_PATH -c Release -p:Platform=x64 --no-restore
+        shell: pwsh
+        run: |
+          $versionProps = @("-p:ReleaseChannel=${{ steps.version.outputs.release_channel }}")
+          if (-not [string]::IsNullOrWhiteSpace("${{ steps.version.outputs.version_suffix }}")) {
+            $versionProps += "-p:VersionSuffix=${{ steps.version.outputs.version_suffix }}"
+          }
+          dotnet build $env:PROJECT_PATH -c Release -p:Platform=x64 --no-restore @versionProps
 
       - name: Test
-        run: dotnet test MPLR.sln -c Release -p:Platform=x64 --no-build
+        shell: pwsh
+        run: |
+          $versionProps = @("-p:ReleaseChannel=${{ steps.version.outputs.release_channel }}")
+          if (-not [string]::IsNullOrWhiteSpace("${{ steps.version.outputs.version_suffix }}")) {
+            $versionProps += "-p:VersionSuffix=${{ steps.version.outputs.version_suffix }}"
+          }
+          dotnet test MPLR.sln -c Release -p:Platform=x64 --no-build @versionProps
 
       - name: Publish
         shell: pwsh
         run: |
-          dotnet publish $env:PROJECT_PATH -c Release -p:Platform=x64 -p:PublishProfile=FolderProfile -o $env:PUBLISH_DIR
+          $versionProps = @("-p:ReleaseChannel=${{ steps.version.outputs.release_channel }}")
+          if (-not [string]::IsNullOrWhiteSpace("${{ steps.version.outputs.version_suffix }}")) {
+            $versionProps += "-p:VersionSuffix=${{ steps.version.outputs.version_suffix }}"
+          }
+          dotnet publish $env:PROJECT_PATH -c Release -p:Platform=x64 -p:PublishProfile=FolderProfile -o $env:PUBLISH_DIR @versionProps
           Remove-Item -LiteralPath (Join-Path $env:PUBLISH_DIR "downloads") -Recurse -Force -ErrorAction SilentlyContinue
 
       - name: Install Velopack CLI
@@ -111,11 +191,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $version = "${{ steps.version.outputs.version }}"
+          $packageVersion = "${{ steps.version.outputs.package_version }}"
+          $releaseChannel = "${{ steps.version.outputs.release_channel }}"
+          $velopackChannel = "${{ steps.version.outputs.velopack_channel }}"
           $tag = "${{ steps.version.outputs.tag }}"
           $notesPath = Join-Path $env:PACKAGE_DIR "release-notes.md"
           $releaseDocPath = "docs/releases/v$version.md"
           $lines = [System.Collections.Generic.List[string]]::new()
           function Add-Separator {
+            if ($lines.Count -eq 0) {
+              return
+            }
             if ($lines.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($lines[$lines.Count - 1])) {
               $lines.Add("")
             }
@@ -152,37 +238,55 @@ jobs:
           }
           $openParen = [char]0xff08
           $closeParen = [char]0xff09
-          if (Test-Path -LiteralPath $releaseDocPath) {
-            Add-MarkdownBody ([string[]](Get-Content -LiteralPath $releaseDocPath))
-          }
-          $changelogRef = "${{ inputs.changelog_ref }}".Trim()
-          if (-not [string]::IsNullOrWhiteSpace($changelogRef)) {
-            $fetchRef = $changelogRef
-            if ($fetchRef -match "^origin/(.+)$") {
-              $fetchRef = $Matches[1]
+          if ($releaseChannel -eq "stable") {
+            if (Test-Path -LiteralPath $releaseDocPath) {
+              Add-MarkdownBody ([string[]](Get-Content -LiteralPath $releaseDocPath))
             }
-            git fetch origin $fetchRef --depth=1
-            if ($LASTEXITCODE -eq 0) {
-              $resolvedRef = "FETCH_HEAD"
-            } else {
-              $resolvedRef = $changelogRef
+            $changelogRef = "${{ inputs.changelog_ref }}".Trim()
+            if (-not [string]::IsNullOrWhiteSpace($changelogRef)) {
+              $fetchRef = $changelogRef
+              if ($fetchRef -match "^origin/(.+)$") {
+                $fetchRef = $Matches[1]
+              }
+              git fetch origin $fetchRef --depth=1
+              if ($LASTEXITCODE -eq 0) {
+                $resolvedRef = "FETCH_HEAD"
+              } else {
+                $resolvedRef = $changelogRef
+              }
+              $extraNotes = git show "$resolvedRef`:$releaseDocPath" 2>$null
+              if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($extraNotes -join "`n"))) {
+                $extraNotes = git show "$resolvedRef`:CHANGELOG.md" 2>$null
+              }
+              if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace(($extraNotes -join "`n"))) {
+                Add-Separator
+                $lines.Add("## Additional Notes From $changelogRef")
+                $lines.Add("")
+                Add-MarkdownBody ([string[]]$extraNotes)
+              }
             }
-            $extraNotes = git show "$resolvedRef`:$releaseDocPath" 2>$null
-            if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($extraNotes -join "`n"))) {
-              $extraNotes = git show "$resolvedRef`:CHANGELOG.md" 2>$null
-            }
-            if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace(($extraNotes -join "`n"))) {
-              Add-Separator
-              $lines.Add("## Additional Notes From $changelogRef")
-              $lines.Add("")
-              Add-MarkdownBody ([string[]]$extraNotes)
-            }
-          }
-          git rev-parse $tag 2>$null
-          if ($LASTEXITCODE -eq 0) {
-            $previousTag = git describe --tags --abbrev=0 "$tag^" 2>$null
           } else {
-            $previousTag = git describe --tags --abbrev=0 HEAD 2>$null
+            $lines.Add("## Beta 测试版")
+            $lines.Add("")
+            $lines.Add("- 此发布用于 Beta 更新通道，会覆盖旧的 Beta 预发布。")
+            $lines.Add("- 安装包版本：``$packageVersion``")
+            $lines.Add("- 更新通道：``$velopackChannel``")
+            $lines.Add("")
+          }
+          $rangeEnd = "HEAD"
+          if ($releaseChannel -eq "stable") {
+            git rev-parse $tag 2>$null
+            if ($LASTEXITCODE -eq 0) {
+              $rangeEnd = "$tag^"
+            }
+            $previousTag = git tag --merged $rangeEnd --sort=-creatordate | Where-Object { $_ -match "^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$" } | Select-Object -First 1
+          } else {
+            git rev-parse $tag 2>$null
+            if ($LASTEXITCODE -eq 0) {
+              $previousTag = $tag
+            } else {
+              $previousTag = git tag --merged $rangeEnd --sort=-creatordate | Where-Object { $_ -match "^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$" } | Select-Object -First 1
+            }
           }
           if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($previousTag)) {
             $previousTag = git rev-list --max-parents=0 HEAD
@@ -212,11 +316,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           New-Item -ItemType Directory -Force -Path $env:VELOPACK_DIR | Out-Null
-          vpk --yes download github --repoUrl "https://github.com/$env:GITHUB_REPOSITORY" --outputDir $env:VELOPACK_DIR --token $env:GH_TOKEN
+          $downloadArgs = @("--yes", "download", "github", "--repoUrl", "https://github.com/$env:GITHUB_REPOSITORY", "--outputDir", $env:VELOPACK_DIR, "--token", $env:GH_TOKEN, "--channel", "${{ steps.version.outputs.velopack_channel }}")
+          if ("${{ steps.version.outputs.is_prerelease }}" -eq "true") {
+            $downloadArgs += "--pre"
+          }
+          & vpk @downloadArgs
           if ($LASTEXITCODE -ne 0) {
             Write-Host "No previous Velopack release assets were downloaded; building a full package only."
           }
-          vpk --yes pack --packId MPLR --packTitle MPLR --packVersion "${{ steps.version.outputs.version }}" --packDir $env:PUBLISH_DIR --mainExe MPLR.exe --outputDir $env:VELOPACK_DIR --icon src/MPLR/Assets/Favicon.ico --releaseNotes "${{ steps.notes.outputs.path }}" --packAuthors qzj1472
+          vpk --yes pack --packId MPLR --packTitle MPLR --packVersion "${{ steps.version.outputs.package_version }}" --packDir $env:PUBLISH_DIR --mainExe MPLR.exe --outputDir $env:VELOPACK_DIR --icon src/MPLR/Assets/Favicon.ico --releaseNotes "${{ steps.notes.outputs.path }}" --packAuthors qzj1472 --channel "${{ steps.version.outputs.velopack_channel }}"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Velopack pack failed"
+          }
           $setupPath = Get-ChildItem -LiteralPath $env:VELOPACK_DIR -Filter "*Setup.exe" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
           if ($null -eq $setupPath) {
             throw "Velopack setup exe was not generated"
@@ -229,7 +340,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MPLR_v${{ steps.version.outputs.version }}_win-x64
+          name: MPLR_v${{ steps.version.outputs.package_version }}_${{ steps.version.outputs.artifact_channel }}
           path: |
             ${{ env.PACKAGE_DIR }}/${{ steps.version.outputs.asset_name }}
             ${{ env.PACKAGE_DIR }}/release-notes.md
@@ -242,20 +353,72 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = "${{ steps.version.outputs.tag }}"
+          $releaseName = "${{ steps.version.outputs.release_name }}"
+          $isPrerelease = "${{ steps.version.outputs.is_prerelease }}" -eq "true"
           $assetPath = Join-Path $env:PACKAGE_DIR "${{ steps.version.outputs.asset_name }}"
           $velopackDir = $env:VELOPACK_DIR
           $notesPath = "${{ steps.notes.outputs.path }}"
-          git fetch origin --tags
-          git rev-parse $tag 2>$null
-          if ($LASTEXITCODE -ne 0) {
-            git tag $tag $env:GITHUB_SHA
-            git push origin $tag
+          function Remove-RemoteTag([string]$oldTag) {
+            git push origin ":refs/tags/$oldTag" 2>$null
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "Remote tag $oldTag was not present or could not be deleted."
+            }
           }
-          vpk --yes upload github --repoUrl "https://github.com/$env:GITHUB_REPOSITORY" --outputDir $velopackDir --token $env:GH_TOKEN --publish --merge --releaseName "MPLR $tag" --tag $tag
+          function Remove-ReleaseAndTag([string]$oldTag) {
+            gh release delete $oldTag --cleanup-tag --yes 2>$null
+            if ($LASTEXITCODE -ne 0) {
+              Remove-RemoteTag $oldTag
+            }
+          }
+          git fetch origin --tags --force
+          if ($isPrerelease) {
+            $betaTagPattern = "^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?-beta(\..*)?$"
+            $releaseTags = gh release list --limit 200 --json tagName --jq ".[].tagName" 2>$null
+            if ($LASTEXITCODE -eq 0) {
+              foreach ($oldTag in $releaseTags) {
+                if ($oldTag -match $betaTagPattern) {
+                  Remove-ReleaseAndTag $oldTag
+                }
+              }
+            }
+            $remoteTags = git ls-remote --tags origin "refs/tags/v*-beta*" 2>$null | ForEach-Object { ($_ -split "\s+")[1] -replace "^refs/tags/", "" -replace "\^\{\}$", "" } | Sort-Object -Unique
+            foreach ($oldTag in $remoteTags) {
+              if ($oldTag -match $betaTagPattern) {
+                Remove-RemoteTag $oldTag
+              }
+            }
+            git tag -d $tag 2>$null
+            git tag -f $tag $env:GITHUB_SHA
+            git push origin "refs/tags/$tag" --force
+          } else {
+            git rev-parse $tag 2>$null
+            if ($LASTEXITCODE -ne 0) {
+              git tag $tag $env:GITHUB_SHA
+              git push origin $tag
+            }
+          }
+          $uploadArgs = @("--yes", "upload", "github", "--repoUrl", "https://github.com/$env:GITHUB_REPOSITORY", "--outputDir", $velopackDir, "--token", $env:GH_TOKEN, "--publish", "--merge", "--releaseName", $releaseName, "--tag", $tag, "--channel", "${{ steps.version.outputs.velopack_channel }}")
+          if ($isPrerelease) {
+            $uploadArgs += "--pre"
+          }
+          & vpk @uploadArgs
+          if ($LASTEXITCODE -ne 0) {
+            throw "Velopack upload failed"
+          }
           gh release view $tag 2>$null
           if ($LASTEXITCODE -eq 0) {
             gh release upload $tag $assetPath --clobber
-            gh release edit $tag --title "MPLR $tag" --notes-file $notesPath
+            $editArgs = @($tag, "--title", $releaseName, "--notes-file", $notesPath)
+            if ($isPrerelease) {
+              $editArgs += "--prerelease"
+            } else {
+              $editArgs += "--latest"
+            }
+            gh release edit @editArgs
           } else {
-            gh release create $tag $assetPath --title "MPLR $tag" --notes-file $notesPath --target $env:GITHUB_SHA
+            $createArgs = @($tag, $assetPath, "--title", $releaseName, "--notes-file", $notesPath, "--target", $env:GITHUB_SHA)
+            if ($isPrerelease) {
+              $createArgs += "--prerelease"
+            }
+            gh release create @createArgs
           }

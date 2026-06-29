@@ -16,6 +16,7 @@ public static class Configurations
     public static ConfigurationDefinition<bool> IsUseStatusTray { get; } = new(nameof(IsUseStatusTray), true);
     public static ConfigurationDefinition<bool> IsSessionLogEnabled { get; } = new(nameof(IsSessionLogEnabled), true);
     public static ConfigurationDefinition<bool> IsDeveloperModeEnabled { get; } = new(nameof(IsDeveloperModeEnabled), false);
+    public static ConfigurationDefinition<string> UpdateChannel { get; } = new(nameof(UpdateChannel), "auto");
     public static ConfigurationDefinition<int> RoutineInterval { get; } = new(nameof(RoutineInterval), 3000);
     public static ConfigurationDefinition<int> RoutineScheduleMode { get; } = new(nameof(RoutineScheduleMode), 0);
     public static ConfigurationDefinition<string> RoutineScheduleDays { get; } = new(nameof(RoutineScheduleDays), "1,2,3,4,5,6,0");

@@ -54,6 +54,13 @@ public partial class SettingsViewModel : ReactiveObject
         Japanese,
     }
 
+    private enum UpdateChannelIndexEnum
+    {
+        Auto,
+        Stable,
+        Beta,
+    }
+
     [ObservableProperty]
     private int languageIndex = Configurations.Language.Get() switch
     {
@@ -143,10 +150,17 @@ public partial class SettingsViewModel : ReactiveObject
     }
 
     [ObservableProperty]
-    private bool isSessionLogEnabled = Configurations.IsSessionLogEnabled.Get();
+    private bool isSessionLogEnabled = AppUpdater.IsForcedUpdateEnabled || Configurations.IsSessionLogEnabled.Get();
 
     partial void OnIsSessionLogEnabledChanged(bool value)
     {
+        if (!value && AppUpdater.IsForcedUpdateEnabled)
+        {
+            IsSessionLogEnabled = true;
+            Toast.Information("Beta 版本或通道会强制开启日志，方便定位测试问题");
+            return;
+        }
+
         Configurations.IsSessionLogEnabled.Set(value);
         ConfigurationManager.Save();
 
@@ -166,6 +180,162 @@ public partial class SettingsViewModel : ReactiveObject
     partial void OnIsDeveloperModeEnabledChanged(bool value)
     {
         DeveloperModeManager.SetEnabled(value);
+    }
+
+    public bool IsSessionLogEditable => !AppUpdater.IsForcedUpdateEnabled;
+
+    public string SessionLogStatus => IsSessionLogEditable
+        ? "开启后每次启动生成一个日志文件，仅保留最近一周"
+        : "Beta 版本或通道会强制开启日志，仅保留最近一周";
+
+    public string UpdateChannelStatus => UpdateChannelIndex switch
+    {
+        (int)UpdateChannelIndexEnum.Stable when AppConfig.IsBetaBuild => "只检查正式稳定版，当前 Beta 包会强制自动切回稳定版",
+        (int)UpdateChannelIndexEnum.Stable => "只检查正式稳定版，切换后会立即检查稳定版更新",
+        (int)UpdateChannelIndexEnum.Beta => "会检查 GitHub 预发布 Beta 版，并强制自动更新",
+        _ => $"跟随当前安装包（{AppConfig.BuildChannelDisplayName}）",
+    };
+
+    private int appliedUpdateChannelIndex = GetConfiguredUpdateChannelIndex();
+
+    private bool isApplyingUpdateChannelIndex;
+
+    public bool CanChangeUpdateChannel => !IsUpdateChannelChangeInProgress;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanChangeUpdateChannel))]
+    private bool isUpdateChannelChangeInProgress;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UpdateChannelStatus))]
+    private int updateChannelIndex = GetConfiguredUpdateChannelIndex();
+
+    partial void OnUpdateChannelIndexChanged(int value)
+    {
+        if (isApplyingUpdateChannelIndex)
+        {
+            return;
+        }
+
+        int index = Math.Clamp(value, (int)UpdateChannelIndexEnum.Auto, (int)UpdateChannelIndexEnum.Beta);
+
+        if (index != value)
+        {
+            SetUpdateChannelIndexSilently(index);
+            return;
+        }
+
+        _ = ApplyUpdateChannelChangeAsync(index);
+    }
+
+    private async Task ApplyUpdateChannelChangeAsync(int index)
+    {
+        if (index == appliedUpdateChannelIndex)
+        {
+            return;
+        }
+
+        string channelName = GetUpdateChannelDisplayName(index);
+        string message = index switch
+        {
+            (int)UpdateChannelIndexEnum.Beta => "切换到 Beta 通道后，会接收 GitHub 预发布版本，并强制开启日志和自动更新。应用会立即检查 Beta 版本，下载完成后需要重启安装。是否继续？",
+            (int)UpdateChannelIndexEnum.Stable => "切换到稳定版通道后，会停止接收 Beta 预发布版本。应用会立即检查稳定版，当前如果是 Beta 包会自动安装稳定版来完成切换。是否继续？",
+            _ => $"切换到跟随安装包后，将按当前安装包通道检查更新。当前安装包是 {AppConfig.BuildChannelDisplayName}，应用会立即检查对应版本。是否继续？",
+        };
+
+        try
+        {
+            System.Windows.MessageBoxResult result = await MessageBox.QuestionAsync(message);
+            if (result != System.Windows.MessageBoxResult.Yes)
+            {
+                SetUpdateChannelIndexSilently(appliedUpdateChannelIndex);
+                return;
+            }
+
+            IsUpdateChannelChangeInProgress = true;
+            Configurations.UpdateChannel.Set(GetUpdateChannelValue(index));
+            ConfigurationManager.Save();
+            appliedUpdateChannelIndex = index;
+            RefreshUpdatePolicyState();
+
+            Toast.Information($"已切换到{channelName}，正在检查对应版本");
+            await AppUpdater.CheckAsync(showNoUpdateMessage: true, forceInstall: true);
+        }
+        catch (Exception exception)
+        {
+            AppSessionLogger.WriteException(exception);
+            Toast.Error($"切换更新通道失败：{exception.Message}");
+            Configurations.UpdateChannel.Set(GetUpdateChannelValue(appliedUpdateChannelIndex));
+            try
+            {
+                ConfigurationManager.Save();
+            }
+            catch (Exception saveException)
+            {
+                AppSessionLogger.WriteException(saveException);
+            }
+            SetUpdateChannelIndexSilently(appliedUpdateChannelIndex);
+            RefreshUpdatePolicyState();
+        }
+        finally
+        {
+            IsUpdateChannelChangeInProgress = false;
+        }
+    }
+
+    private void RefreshUpdatePolicyState()
+    {
+        OnPropertyChanged(nameof(UpdateChannelStatus));
+        OnPropertyChanged(nameof(IsSessionLogEditable));
+        OnPropertyChanged(nameof(SessionLogStatus));
+
+        if (AppUpdater.IsForcedUpdateEnabled && !IsSessionLogEnabled)
+        {
+            IsSessionLogEnabled = true;
+        }
+    }
+
+    private void SetUpdateChannelIndexSilently(int value)
+    {
+        isApplyingUpdateChannelIndex = true;
+        try
+        {
+            UpdateChannelIndex = value;
+        }
+        finally
+        {
+            isApplyingUpdateChannelIndex = false;
+        }
+    }
+
+    private static int GetConfiguredUpdateChannelIndex()
+    {
+        return (Configurations.UpdateChannel.Get() ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "stable" => (int)UpdateChannelIndexEnum.Stable,
+            "beta" => (int)UpdateChannelIndexEnum.Beta,
+            _ => (int)UpdateChannelIndexEnum.Auto,
+        };
+    }
+
+    private static string GetUpdateChannelValue(int index)
+    {
+        return index switch
+        {
+            (int)UpdateChannelIndexEnum.Stable => "stable",
+            (int)UpdateChannelIndexEnum.Beta => "beta",
+            _ => "auto",
+        };
+    }
+
+    private static string GetUpdateChannelDisplayName(int index)
+    {
+        return index switch
+        {
+            (int)UpdateChannelIndexEnum.Stable => "稳定版通道",
+            (int)UpdateChannelIndexEnum.Beta => "Beta 通道",
+            _ => "跟随安装包",
+        };
     }
 
     [RelayCommand]

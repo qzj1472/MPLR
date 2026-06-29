@@ -25,9 +25,15 @@ internal static class AppSessionLogger
 
     public static void Start()
     {
-        if (!Configurations.IsSessionLogEnabled.Get())
+        if (!AppUpdater.IsForcedUpdateEnabled && !Configurations.IsSessionLogEnabled.Get())
         {
             return;
+        }
+
+        if (AppUpdater.IsForcedUpdateEnabled && !Configurations.IsSessionLogEnabled.Get())
+        {
+            Configurations.IsSessionLogEnabled.Set(true);
+            ConfigurationManager.Save();
         }
 
         StartNow("application started");

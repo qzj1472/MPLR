@@ -2441,6 +2441,7 @@
                                        Style="{StaticResource MainFlyoutCaptionStyle}"
                                        MouseLeftButtonUp="AboutVersionTextBlockMouseLeftButtonUp"
                                        Text="{x:Static local:AppConfig.Version}" />
+                            <TextBlock Style="{StaticResource MainFlyoutCaptionStyle}" Text="{x:Static local:AppConfig.BuildChannelDisplayName}" />
                         </ui:StackPanel>
                         <Button Grid.Column="2"
                                 Click="CloseFloatingPanelsClick"
