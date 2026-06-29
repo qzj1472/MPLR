@@ -37,10 +37,10 @@ MPLR is a Windows-only WPF desktop app for live-room monitoring and unattended r
 
 GitHub Releases provide one user-facing installer per channel:
 
-- Stable: `MPLR-win.msi`
-- Beta: `MPLR-win-beta.msi`
+- Stable: `MPLR-win-Installer.exe`
+- Beta: `MPLR-win-beta-Installer.exe`
 
-The MSI installer supports choosing the installation location. In-app automatic updates continue to update the current installation folder instead of creating a second copy in the default location. The installer does not enable startup on boot by default; startup on boot is controlled manually from the MPLR tray menu.
+The installer lets users choose the installation folder before it runs the bundled Velopack setup package. In-app automatic updates continue to update the current installation folder instead of creating a second copy in the default location. The installer does not enable startup on boot by default; startup on boot is controlled manually from the MPLR tray menu.
 
 ## Build
 
@@ -56,7 +56,7 @@ dotnet build .\src\MPLR\MPLR.csproj -c Debug -p:Platform=x64
 
 ## Packaging
 
-GitHub Actions builds and publishes Velopack MSI installers plus update assets. The legacy local script still creates a manual archive package:
+GitHub Actions builds and publishes the custom installer plus Velopack update assets. The legacy local script still creates a manual archive package:
 
 ```powershell
 .\build\publish_win-x64.cmd

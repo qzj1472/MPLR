@@ -51,6 +51,7 @@ jobs:
       PUBLISH_DIR: artifacts/publish/win-x64
       PACKAGE_DIR: artifacts/package
       VELOPACK_DIR: artifacts/velopack
+      INSTALLER_DIR: artifacts/installer
       VELOPACK_VERSION: 1.2.0
 
     steps:
@@ -134,6 +135,7 @@ jobs:
           "is_prerelease=$isPrerelease" >> $env:GITHUB_OUTPUT
           "tag=$tag" >> $env:GITHUB_OUTPUT
           "release_name=$releaseName" >> $env:GITHUB_OUTPUT
+          "installer_asset_name=MPLR-$velopackChannel-Installer.exe" >> $env:GITHUB_OUTPUT
 
       - name: Restore
         run: dotnet restore $env:PROJECT_PATH
@@ -306,14 +308,48 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             Write-Host "No previous Velopack release assets were downloaded; building a full package only."
           }
-          vpk --yes pack --packId MPLR --packTitle MPLR --packVersion "${{ steps.version.outputs.package_version }}" --packDir $env:PUBLISH_DIR --mainExe MPLR.exe --outputDir $env:VELOPACK_DIR --icon src/MPLR/Assets/Favicon.ico --releaseNotes "${{ steps.notes.outputs.path }}" --packAuthors qzj1472 --channel "${{ steps.version.outputs.velopack_channel }}" --msi --instLocation Either --instWelcome build/installer/welcome.txt --instLicense build/installer/disclaimer.md --instReadme build/installer/install-notes.md --instConclusion build/installer/conclusion.txt
+          vpk --yes pack --packId MPLR --packTitle MPLR --packVersion "${{ steps.version.outputs.package_version }}" --packDir $env:PUBLISH_DIR --mainExe MPLR.exe --outputDir $env:VELOPACK_DIR --icon src/MPLR/Assets/Favicon.ico --releaseNotes "${{ steps.notes.outputs.path }}" --packAuthors qzj1472 --channel "${{ steps.version.outputs.velopack_channel }}"
           if ($LASTEXITCODE -ne 0) {
             throw "Velopack pack failed"
           }
-          $msiPath = Get-ChildItem -LiteralPath $env:VELOPACK_DIR -Filter "*.msi" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-          if ($null -eq $msiPath) {
-            throw "Velopack MSI was not generated"
+          $setupPath = Get-ChildItem -LiteralPath $env:VELOPACK_DIR -Filter "*Setup.exe" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if ($null -eq $setupPath) {
+            throw "Velopack setup exe was not generated"
           }
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:INSTALLER_DIR | Out-Null
+          $setupPath = Get-ChildItem -LiteralPath $env:VELOPACK_DIR -Filter "*Setup.exe" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if ($null -eq $setupPath) {
+            throw "Velopack setup exe was not generated"
+          }
+          $publishDir = Join-Path $env:INSTALLER_DIR "publish"
+          if (Test-Path -LiteralPath $publishDir) {
+            Remove-Item -LiteralPath $publishDir -Recurse -Force
+          }
+          $publishArgs = @(
+            "publish",
+            "src/MPLR.Installer/MPLR.Installer.csproj",
+            "-c",
+            "Release",
+            "-p:Platform=x64",
+            "-p:MplrSetupPath=$($setupPath.FullName)",
+            "-p:ProductVersion=${{ steps.version.outputs.package_version }}",
+            "-o",
+            $publishDir
+          )
+          dotnet @publishArgs
+          if ($LASTEXITCODE -ne 0) {
+            throw "Installer publish failed"
+          }
+          $builtInstaller = Join-Path $publishDir "MPLR.Installer.exe"
+          if (-not (Test-Path -LiteralPath $builtInstaller)) {
+            throw "Installer executable was not generated"
+          }
+          $installerPath = Join-Path $env:INSTALLER_DIR "${{ steps.version.outputs.installer_asset_name }}"
+          Copy-Item -LiteralPath $builtInstaller -Destination $installerPath -Force
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -321,7 +357,7 @@ jobs:
           name: MPLR_v${{ steps.version.outputs.package_version }}_${{ steps.version.outputs.artifact_channel }}
           path: |
             ${{ env.PACKAGE_DIR }}/release-notes.md
-            ${{ env.VELOPACK_DIR }}/*.msi
+            ${{ env.INSTALLER_DIR }}/${{ steps.version.outputs.installer_asset_name }}
             ${{ env.VELOPACK_DIR }}/*.nupkg
             ${{ env.VELOPACK_DIR }}/releases.*.json
             ${{ env.VELOPACK_DIR }}/RELEASES
@@ -336,6 +372,7 @@ jobs:
           $releaseName = "${{ steps.version.outputs.release_name }}"
           $isPrerelease = "${{ steps.version.outputs.is_prerelease }}" -eq "true"
           $velopackDir = $env:VELOPACK_DIR
+          $installerPath = Join-Path $env:INSTALLER_DIR "${{ steps.version.outputs.installer_asset_name }}"
           $notesPath = "${{ steps.notes.outputs.path }}"
           function Remove-RemoteTag([string]$oldTag) {
             git push origin ":refs/tags/$oldTag" 2>$null
@@ -393,13 +430,14 @@ jobs:
           $releaseAssets = gh release view $tag --json assets --jq ".assets[].name" 2>$null
           if ($LASTEXITCODE -eq 0) {
             foreach ($releaseAsset in $releaseAssets) {
-              if ($releaseAsset -match "Setup\.exe$" -or $releaseAsset -match "\.zip$") {
+              if ($releaseAsset -match "Setup\.exe$" -or $releaseAsset -match "\.zip$" -or $releaseAsset -match "\.msi$") {
                 Remove-ReleaseAssetIfExists $releaseAsset
               }
             }
           }
           gh release view $tag 2>$null
           if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $installerPath --clobber
             $editArgs = @($tag, "--title", $releaseName, "--notes-file", $notesPath)
             if ($isPrerelease) {
               $editArgs += "--prerelease"
@@ -408,11 +446,10 @@ jobs:
             }
             gh release edit @editArgs
           } else {
-            $msiPath = Get-ChildItem -LiteralPath $velopackDir -Filter "*.msi" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-            if ($null -eq $msiPath) {
-              throw "Velopack MSI was not generated"
+            if (-not (Test-Path -LiteralPath $installerPath)) {
+              throw "Installer executable was not generated"
             }
-            $createArgs = @($tag, $msiPath.FullName, "--title", $releaseName, "--notes-file", $notesPath, "--target", $env:GITHUB_SHA)
+            $createArgs = @($tag, $installerPath, "--title", $releaseName, "--notes-file", $notesPath, "--target", $env:GITHUB_SHA)
             if ($isPrerelease) {
               $createArgs += "--prerelease"
             }

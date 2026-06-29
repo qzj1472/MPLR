@@ -1,7 +1,7 @@
 MPLR is ready to use.
 
-If you selected a custom installation location, future in-app updates will continue to update this installation. Startup on boot remains controlled from the MPLR tray menu.
+If you selected a custom installation folder, future in-app updates will continue to update this installation. Startup on boot remains controlled from the MPLR tray menu.
 
 MPLR 已安装完成。
 
-如果你选择了自定义安装位置，后续软件内更新会继续更新这个安装。开机自启动仍由 MPLR 托盘菜单控制。
+如果你选择了自定义安装目录，后续软件内更新会继续更新这个安装。开机自启动仍由 MPLR 托盘菜单控制。

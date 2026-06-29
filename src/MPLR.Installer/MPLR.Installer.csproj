@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net9.0-windows10.0.26100.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <UseWindowsForms>true</UseWindowsForms>
+        <Platforms>x64</Platforms>
+        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+        <SelfContained>true</SelfContained>
+        <PublishSingleFile>true</PublishSingleFile>
+        <PublishTrimmed>false</PublishTrimmed>
+        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+        <ApplicationIcon>..\MPLR\Assets\Favicon.ico</ApplicationIcon>
+        <AssemblyName>MPLR.Installer</AssemblyName>
+        <RootNamespace>MPLR.Installer</RootNamespace>
+        <Product>MPLR Installer</Product>
+        <ProductVersion Condition="'$(ProductVersion)' == ''">1.0.0</ProductVersion>
+        <Version>$(ProductVersion)</Version>
+        <FileVersion Condition="'$(WindowsFileVersion)' != ''">$(WindowsFileVersion)</FileVersion>
+        <FileVersion Condition="'$(WindowsFileVersion)' == ''">1.0.0.0</FileVersion>
+        <InformationalVersion>$(ProductVersion)</InformationalVersion>
+    </PropertyGroup>
+
+    <ItemGroup Condition="'$(MplrSetupPath)' != ''">
+        <EmbeddedResource Include="$(MplrSetupPath)" LogicalName="MPLR.Setup.exe" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <EmbeddedResource Include="..\..\build\installer\disclaimer.md" LogicalName="InstallerDisclaimer.md" />
+        <EmbeddedResource Include="..\..\build\installer\install-notes.md" LogicalName="InstallerNotes.md" />
+    </ItemGroup>
+</Project>

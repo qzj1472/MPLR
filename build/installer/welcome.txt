@@ -1,7 +1,7 @@
 Welcome to MPLR.
 
-This installer supports choosing the installation location. MPLR is Windows-only and uses the selected installation folder for application files, automatic updates, shortcuts, and optional startup entries.
+This installer lets you choose the MPLR installation folder. MPLR is Windows-only and uses the selected folder for application files, automatic updates, shortcuts, and optional startup entries.
 
 欢迎安装 MPLR。
 
-本安装器支持选择安装位置。MPLR 仅支持 Windows，应用文件、自动更新、快捷方式以及可选开机自启动都会以所选安装目录为准。
+这个安装器支持选择 MPLR 安装目录。MPLR 仅支持 Windows，应用文件、自动更新、快捷方式以及可选开机自启动都会以所选安装目录为准。
