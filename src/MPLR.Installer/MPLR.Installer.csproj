@@ -26,8 +26,4 @@
         <EmbeddedResource Include="$(MplrSetupPath)" LogicalName="MPLR.Setup.exe" />
     </ItemGroup>
 
-    <ItemGroup>
-        <EmbeddedResource Include="..\..\build\installer\disclaimer.md" LogicalName="InstallerDisclaimer.md" />
-        <EmbeddedResource Include="..\..\build\installer\install-notes.md" LogicalName="InstallerNotes.md" />
-    </ItemGroup>
 </Project>
